@@ -202,6 +202,25 @@ export function formatReportMessage(input: ReportWhatsAppInput): string {
   return lines.join('\n');
 }
 
+export function getWhatsAppEnvDefaultRecipient(): string | null {
+  const value = process.env.WHATSAPP_DEFAULT_RECIPIENT?.trim();
+  return value || null;
+}
+
+/** Party phone first, then logged-in user phone, then optional env default. */
+export function resolveDefaultWhatsAppPhone(
+  partyPhone?: string | null,
+  userPhone?: string | null,
+  envDefault?: string | null
+): string | null {
+  const party = partyPhone?.trim();
+  if (party) return party;
+  const user = userPhone?.trim();
+  if (user) return user;
+  const env = envDefault?.trim();
+  return env || null;
+}
+
 export function isWhatsAppCloudApiConfigured(): boolean {
   return Boolean(
     process.env.WHATSAPP_CLOUD_API_TOKEN?.trim() &&

@@ -2,8 +2,9 @@
 
 import type { MouseEvent } from 'react';
 import { useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { WhatsAppShareButton } from '@/components/ui/WhatsAppShareButton';
-import { buildAbsoluteUrl, formatNotificationMessage } from '@/lib/whatsapp';
+import { buildAbsoluteUrl, formatNotificationMessage, resolveDefaultWhatsAppPhone } from '@/lib/whatsapp';
 import { formatDateTime } from '@/lib/utils';
 
 interface NotificationWhatsAppButtonProps {
@@ -27,6 +28,13 @@ export function NotificationWhatsAppButton({
   className,
   onClick,
 }: NotificationWhatsAppButtonProps) {
+  const { data: session } = useSession();
+  const userPhone = (session?.user as { phone?: string } | undefined)?.phone;
+  const defaultPhone = useMemo(
+    () => resolveDefaultWhatsAppPhone(null, userPhone),
+    [userPhone]
+  );
+
   const text = useMemo(() => {
     const href = route || actionUrl;
     const link = href ? buildAbsoluteUrl(href) : undefined;
@@ -50,6 +58,7 @@ export function NotificationWhatsAppButton({
     >
       <WhatsAppShareButton
         message={text}
+        defaultPhone={defaultPhone}
         label="واتساب"
         disabled={disabled}
         size="sm"

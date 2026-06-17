@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   ChevronDown,
   Download,
@@ -14,7 +15,7 @@ import {
   type ExportSummaryItem,
   type ReportExportFormat,
 } from '@/lib/export';
-import { formatReportMessage } from '@/lib/whatsapp';
+import { formatReportMessage, resolveDefaultWhatsAppPhone } from '@/lib/whatsapp';
 import { WhatsAppShareButton } from '@/components/ui/WhatsAppShareButton';
 
 interface ReportExportMenuProps {
@@ -51,6 +52,7 @@ export function ReportExportMenu({
   canPrint = true,
   canWhatsApp = true,
 }: ReportExportMenuProps) {
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -69,6 +71,9 @@ export function ReportExportMenu({
   }, [open]);
 
   if (!canExport && !canPrint && !canWhatsApp) return null;
+
+  const userPhone = (session?.user as { phone?: string } | undefined)?.phone;
+  const defaultPhone = resolveDefaultWhatsAppPhone(null, userPhone);
 
   const whatsappMessage = formatReportMessage({
     reportTitle: title || filename,
@@ -133,6 +138,7 @@ export function ReportExportMenu({
       {canWhatsApp ? (
         <WhatsAppShareButton
           message={whatsappMessage}
+          defaultPhone={defaultPhone}
           label="واتساب"
           disabled={rows.length === 0}
           disabledReason="لا توجد بيانات للإرسال"

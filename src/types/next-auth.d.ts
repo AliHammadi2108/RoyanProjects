@@ -11,6 +11,7 @@ declare module 'next-auth' {
       roles?: string[];
       themePreference?: 'light' | 'dark' | 'system';
       primaryColor?: string;
+      phone?: string;
     } & DefaultSession['user'];
   }
 
@@ -21,6 +22,7 @@ declare module 'next-auth' {
     roles?: string[];
     themePreference?: 'light' | 'dark' | 'system';
     primaryColor?: string;
+    phone?: string;
   }
 }
 
@@ -33,5 +35,6 @@ declare module 'next-auth/jwt' {
     roles?: string[];
     themePreference?: 'light' | 'dark' | 'system';
     primaryColor?: string;
+    phone?: string;
   }
 }

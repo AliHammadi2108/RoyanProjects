@@ -5,6 +5,7 @@ import {
   formatNotificationMessage,
   formatReportMessage,
   normalizePhoneToE164,
+  resolveDefaultWhatsAppPhone,
   stripPhoneDigits,
 } from '@/lib/whatsapp';
 
@@ -22,6 +23,20 @@ describe('whatsapp', () => {
     it('returns null for invalid numbers', () => {
       expect(normalizePhoneToE164('')).toBeNull();
       expect(normalizePhoneToE164('123')).toBeNull();
+    });
+
+    it('normalizes Yemen international numbers', () => {
+      expect(normalizePhoneToE164('+967773084555')).toBe('967773084555');
+    });
+  });
+
+  describe('resolveDefaultWhatsAppPhone', () => {
+    it('prefers party phone over user phone', () => {
+      expect(resolveDefaultWhatsAppPhone('0501111111', '+967773084555')).toBe('0501111111');
+    });
+
+    it('falls back to user phone', () => {
+      expect(resolveDefaultWhatsAppPhone(null, '+967773084555')).toBe('+967773084555');
     });
   });
 

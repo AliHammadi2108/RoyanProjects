@@ -60,6 +60,7 @@ export const authOptions: NextAuthOptions = {
           nameAr: user.nameAr,
           userNo: user.userNo ?? undefined,
           username: user.username,
+          phone: user.phone ?? undefined,
           roles: user.roles.map((r) => r.role.name),
           themePreference: (user.themePreference as 'light' | 'dark' | 'system' | null) ?? 'system',
           primaryColor: user.primaryColor ?? '#2563eb',
@@ -75,6 +76,7 @@ export const authOptions: NextAuthOptions = {
         token.nameAr = (user as { nameAr?: string }).nameAr ?? user.name ?? undefined;
         token.userNo = (user as { userNo?: string }).userNo;
         token.username = (user as { username?: string }).username;
+        token.phone = (user as { phone?: string }).phone;
         token.roles = (user as { roles?: string[] }).roles;
         token.themePreference = (user as { themePreference?: string }).themePreference as
           | 'light'
@@ -87,9 +89,11 @@ export const authOptions: NextAuthOptions = {
         const s = session as {
           themePreference?: 'light' | 'dark' | 'system';
           primaryColor?: string;
+          phone?: string;
         };
         if (s.themePreference) token.themePreference = s.themePreference;
         if (s.primaryColor) token.primaryColor = s.primaryColor;
+        if (s.phone !== undefined) token.phone = s.phone;
       }
       return token;
     },
@@ -104,6 +108,7 @@ export const authOptions: NextAuthOptions = {
         user.nameAr = token.nameAr as string;
         user.userNo = token.userNo as string;
         user.username = token.username as string;
+        user.phone = token.phone as string | undefined;
         user.roles = token.roles as string[];
         user.themePreference = token.themePreference;
         user.primaryColor = token.primaryColor;

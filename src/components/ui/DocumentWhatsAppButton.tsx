@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { WhatsAppShareButton } from '@/components/ui/WhatsAppShareButton';
 import {
   buildAbsoluteUrl,
@@ -8,6 +9,7 @@ import {
   getDocumentPrintPath,
   getDocumentTypeLabelAr,
   getDocumentViewPath,
+  resolveDefaultWhatsAppPhone,
 } from '@/lib/whatsapp';
 import { canWhatsApp, hasClientPermission } from '@/lib/operation-toolbar';
 import type { OperationType } from '@/lib/operation-toolbar';
@@ -37,8 +39,14 @@ export function DocumentWhatsAppButton({
   permissions,
   disabled,
 }: DocumentWhatsAppButtonProps) {
+  const { data: session } = useSession();
   const canSend = canWhatsApp(permissions);
   const noPermission = 'ليس لديك صلاحية إرسال واتساب';
+  const userPhone = (session?.user as { phone?: string } | undefined)?.phone;
+  const defaultPhone = useMemo(
+    () => resolveDefaultWhatsAppPhone(supplierPhone, userPhone),
+    [supplierPhone, userPhone]
+  );
 
   const message = useMemo(() => {
     const viewPath = getDocumentViewPath(operationType, documentId);
@@ -68,7 +76,7 @@ export function DocumentWhatsAppButton({
   return (
     <WhatsAppShareButton
       message={message}
-      defaultPhone={supplierPhone}
+      defaultPhone={defaultPhone}
       disabled={disabled || !canSend}
       disabledReason={!canSend ? noPermission : undefined}
       label="إرسال واتساب"

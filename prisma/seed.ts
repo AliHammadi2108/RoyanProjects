@@ -226,7 +226,15 @@ const ROLES = [
 ];
 
 const USERS = [
-  { userNo: '1', username: 'admin', email: 'admin@purchase.local', nameAr: 'مدير النظام', password: 'admin123', role: 'admin' },
+  {
+    userNo: '1',
+    username: 'admin',
+    email: 'admin@purchase.local',
+    nameAr: 'مدير النظام',
+    password: 'admin123',
+    role: 'admin',
+    phone: '+967773084555',
+  },
   { userNo: '2', username: 'requester', email: 'requester@purchase.local', nameAr: 'أحمد مقدم الطلب', password: 'requester123', role: 'purchase_requester' },
   { userNo: '3', username: 'purchasing_officer', email: 'officer@purchase.local', nameAr: 'محمد موظف المشتريات', password: 'officer123', role: 'purchasing_officer' },
   { userNo: '4', username: 'approver', email: 'approver@purchase.local', nameAr: 'خالد المعتمد', password: 'approver123', role: 'purchase_approver' },
@@ -432,14 +440,20 @@ async function main() {
 
   for (const user of USERS) {
     const hash = await bcrypt.hash(user.password, 10);
+    const userPhone = (user as { phone?: string }).phone;
     const created = await prisma.user.upsert({
       where: { username: user.username },
-      update: { userNo: user.userNo, nameAr: user.nameAr },
+      update: {
+        userNo: user.userNo,
+        nameAr: user.nameAr,
+        ...(userPhone ? { phone: userPhone } : {}),
+      },
       create: {
         userNo: user.userNo,
         username: user.username,
         email: user.email,
         nameAr: user.nameAr,
+        phone: userPhone,
         passwordHash: hash,
         branchId: branch.id,
         departmentId: dept.id,

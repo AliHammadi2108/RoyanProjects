@@ -20,6 +20,7 @@ import {
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
 interface ApprovedNomination {
@@ -321,37 +322,33 @@ export function PurchaseOrderForm({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">المورد *</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="supplier"
                     value={form.supplierId}
+                    onChange={(supplierId) => setForm({ ...form, supplierId })}
+                    options={masterData.suppliers}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
-                  >
-                    {masterData.suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.nameAr}</option>
-                    ))}
-                  </select>
+                    allowEmpty={false}
+                  />
                 </div>
                 <div>
                   <label className="form-label">المخزن</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="warehouse"
                     value={form.warehouseId}
+                    onChange={(warehouseId) => setForm({ ...form, warehouseId })}
+                    options={masterData.warehouses}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
-                  >
-                    <option value="">-- اختر --</option>
-                    {masterData.warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>{w.nameAr}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
                     disabled={!effectiveEditable}
-                    onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                    onChange={(paymentMethod) =>
+                      setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
+                    }
                   />
                 </div>
                 <div>
@@ -375,17 +372,6 @@ export function PurchaseOrderForm({
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="card">
-              <h2 className="font-semibold mb-4">الأصناف</h2>
-              <ItemsGrid
-                items={form.items}
-                onChange={(items) => setForm({ ...form, items })}
-                availableItems={masterData.items}
-                readOnly={!effectiveEditable}
-              />
-              <div className="mt-4 text-left font-bold">الإجمالي: {formatCurrency(total)}</div>
             </div>
 
             <DocumentFormFooter
@@ -419,6 +405,20 @@ export function PurchaseOrderForm({
               approval={approval}
               onAction={refreshApproval}
             />
+          </div>
+
+          <div className="lg:col-span-3">
+            <div className="card">
+              <h2 className="font-semibold mb-4">الأصناف</h2>
+              <ItemsGrid
+                items={form.items}
+                onChange={(items) => setForm({ ...form, items })}
+                availableItems={masterData.items}
+                readOnly={!effectiveEditable}
+                warehouseId={form.warehouseId || undefined}
+              />
+              <div className="mt-4 text-left font-bold">الإجمالي: {formatCurrency(total)}</div>
+            </div>
           </div>
         </div>
       </PageContainer>

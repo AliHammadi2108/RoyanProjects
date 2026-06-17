@@ -17,6 +17,7 @@ import { resolveSourceDocument } from '@/lib/document-cascade';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
 interface ApprovedRequest {
@@ -270,37 +271,33 @@ export function QuotationForm({
                 )}
                 <div>
                   <label className="form-label">المورد *</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="supplier"
                     value={form.supplierId}
+                    onChange={(supplierId) => setForm({ ...form, supplierId })}
+                    options={masterData.suppliers}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
-                  >
-                    <option value="">-- اختر --</option>
-                    {masterData.suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.nameAr}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="form-label">العملة</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="currency"
                     value={form.currencyId}
+                    onChange={(currencyId) => setForm({ ...form, currencyId })}
+                    options={masterData.currencies}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, currencyId: e.target.value })}
-                  >
-                    {masterData.currencies.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nameAr} ({c.code})</option>
-                    ))}
-                  </select>
+                    allowEmpty={false}
+                  />
                 </div>
                 <div>
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
                     disabled={!effectiveEditable}
-                    onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                    onChange={(paymentMethod) =>
+                      setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
+                    }
                   />
                 </div>
                 <div>
@@ -336,19 +333,6 @@ export function QuotationForm({
               </div>
             </div>
 
-            <div className="card">
-              <h2 className="font-semibold mb-4">الأصناف</h2>
-              <ItemsGrid
-                items={form.items}
-                onChange={(items) => setForm({ ...form, items })}
-                availableItems={masterData.items}
-                readOnly={!effectiveEditable}
-              />
-              <div className="mt-4 pt-4 border-t flex justify-between text-sm">
-                <span>الإجمالي: {formatCurrency(total)}</span>
-              </div>
-            </div>
-
             <DocumentFormFooter
               listHref="/purchases/quotations"
               isEditable={false}
@@ -381,6 +365,21 @@ export function QuotationForm({
                 approval={approval}
                 onAction={refreshApproval}
               />
+            </div>
+          </div>
+
+          <div className="lg:col-span-3">
+            <div className="card">
+              <h2 className="font-semibold mb-4">الأصناف</h2>
+              <ItemsGrid
+                items={form.items}
+                onChange={(items) => setForm({ ...form, items })}
+                availableItems={masterData.items}
+                readOnly={!effectiveEditable}
+              />
+              <div className="mt-4 pt-4 border-t flex justify-between text-sm">
+                <span>الإجمالي: {formatCurrency(total)}</span>
+              </div>
             </div>
           </div>
         </div>

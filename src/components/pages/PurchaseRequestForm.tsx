@@ -17,6 +17,7 @@ import {
   deletePurchaseRequest,
 } from '@/actions/purchase-requests';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
 interface PurchaseRequestFormProps {
@@ -231,30 +232,24 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">الفرع *</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="branch"
                     value={form.branchId}
+                    onChange={(branchId) => setForm({ ...form, branchId })}
+                    options={masterData.branches}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-                  >
-                    {masterData.branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.nameAr}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="form-label">الإدارة / القسم</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="department"
                     value={form.departmentId}
+                    onChange={(departmentId) => setForm({ ...form, departmentId })}
+                    options={masterData.departments}
+                    branchId={form.branchId}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
-                  >
-                    <option value="">-- اختر --</option>
-                    {masterData.departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.nameAr}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="form-label">نوع عملية الشراء</label>
@@ -271,44 +266,34 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
                 </div>
                 <div>
                   <label className="form-label">المخزن</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="warehouse"
                     value={form.warehouseId}
+                    onChange={(warehouseId) => setForm({ ...form, warehouseId })}
+                    options={masterData.warehouses}
                     disabled={!effectiveEditable}
-                    onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
-                  >
-                    <option value="">-- اختر --</option>
-                    {masterData.warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>{w.nameAr}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="form-label">المورد</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="supplier"
                     value={form.supplierId}
+                    onChange={handleSupplierChange}
+                    options={masterData.suppliers}
                     disabled={!effectiveEditable}
-                    onChange={(e) => handleSupplierChange(e.target.value)}
-                  >
-                    <option value="">-- اختر --</option>
-                    {masterData.suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.code} - {s.nameAr}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="form-label">العملة</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="currency"
                     value={form.currencyId}
+                    onChange={handleCurrencyChange}
+                    options={masterData.currencies}
                     disabled={!effectiveEditable}
-                    onChange={(e) => handleCurrencyChange(e.target.value)}
-                  >
-                    {masterData.currencies.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nameAr} ({c.code})</option>
-                    ))}
-                  </select>
+                    allowEmpty={false}
+                  />
                 </div>
                 <div>
                   <label className="form-label">سعر الصرف (لحظة العملية)</label>
@@ -344,16 +329,6 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
               </div>
             </div>
 
-            <div className="card">
-              <h2 className="font-semibold mb-4">الأصناف</h2>
-              <ItemsGrid
-                items={form.items}
-                onChange={(items) => setForm({ ...form, items })}
-                availableItems={masterData.items}
-                readOnly={!effectiveEditable}
-              />
-            </div>
-
             <DocumentFormFooter
               listHref="/purchases/requests"
               isEditable={false}
@@ -385,6 +360,19 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
               <ApprovalTimeline
                 approval={approval}
                 onAction={refreshApproval}
+              />
+            </div>
+          </div>
+
+          <div className="lg:col-span-3">
+            <div className="card">
+              <h2 className="font-semibold mb-4">الأصناف</h2>
+              <ItemsGrid
+                items={form.items}
+                onChange={(items) => setForm({ ...form, items })}
+                availableItems={masterData.items}
+                readOnly={!effectiveEditable}
+                warehouseId={form.warehouseId || undefined}
               />
             </div>
           </div>

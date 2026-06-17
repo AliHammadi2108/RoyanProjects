@@ -179,7 +179,7 @@ export function InvoiceForm({
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
 
-        <div className="space-y-4 max-w-4xl">
+        <div className="space-y-4">
           <div className="card">
             <h2 className="font-semibold mb-4">البيانات الرئيسية</h2>
             {isNew && (
@@ -220,7 +220,9 @@ export function InvoiceForm({
                 <PaymentMethodSelect
                   value={form.paymentMethod}
                   disabled={!effectiveEditable}
-                  onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                  onChange={(paymentMethod) =>
+                    setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
+                  }
                 />
               </div>
               <div>

@@ -258,7 +258,7 @@ export function ItemsGrid({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[38%]">الصنف</th>
-              <th className="px-3 py-2.5 text-right font-medium text-gray-600 min-w-[140px] w-[14%]">الوحدة</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[14%]">الوحدة</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600">الكمية</th>
               {showBaseQty && (
                 <th className="px-3 py-2.5 text-right font-medium text-gray-600">أساسية</th>
@@ -300,7 +300,7 @@ export function ItemsGrid({
                       />
                     )}
                   </td>
-                  <td className="px-3 py-3 min-w-[140px] align-top">
+                  <td className="px-3 py-3 align-top">
                     {readOnly ? (
                       <span
                         className="block whitespace-normal break-words leading-relaxed text-gray-900"
@@ -310,7 +310,7 @@ export function ItemsGrid({
                       </span>
                     ) : unitOptions.length > 0 ? (
                       <select
-                        className="form-input text-sm w-full min-w-[120px] max-w-full"
+                        className="form-input text-sm w-full"
                         value={row.itemUnitId || ''}
                         onChange={(e) => updateRow(idx, 'itemUnitId', e.target.value)}
                         disabled={!row.itemId}

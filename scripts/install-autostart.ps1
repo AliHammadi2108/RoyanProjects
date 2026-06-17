@@ -7,11 +7,21 @@
   .\scripts\install-autostart.ps1
 #>
 $ErrorActionPreference = "Stop"
-$ProjectRoot = "E:\Purchase_Web_System"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path; $ProjectRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 Set-Location $ProjectRoot
 
 $logDir = Join-Path $ProjectRoot "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+function Free-Port3000 {
+  $conns = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+  foreach ($c in $conns) {
+    if ($c.OwningProcess -gt 0) {
+      Write-Host "Stopping process on port 3000 (PID $($c.OwningProcess))..."
+      Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+  }
+}
 
 Write-Host "=== Purchase Web System - Auto-start install ===" -ForegroundColor Cyan
 
@@ -31,9 +41,10 @@ if (-not (Test-Path (Join-Path $ProjectRoot ".next"))) {
   if ($LASTEXITCODE -ne 0) { throw "build failed" }
 }
 
+Free-Port3000
 Write-Host "Configuring PM2..."
 pm2 delete purchase-web-system 2>$null
-pm2 start (Join-Path $ProjectRoot "scripts\ecosystem.config.cjs")
+pm2 start (Join-Path $ProjectRoot "ecosystem.config.cjs")
 pm2 save
 
 $startupCmd = Get-Command pm2-startup -ErrorAction SilentlyContinue
@@ -58,3 +69,4 @@ schtasks /Delete /TN $taskName2 /F 2>$null
 Write-Host ""
 Write-Host "Done. App should be at http://localhost:3000" -ForegroundColor Green
 Write-Host "PM2: pm2 status | pm2 logs purchase-web-system | pm2 restart purchase-web-system"
+

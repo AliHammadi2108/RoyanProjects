@@ -162,7 +162,7 @@ export default function LoginPage() {
               <label className="form-label">كلمة المرور</label>
               <input
                 type="password"
-                className="form-input"
+                className="form-input text-center tabular-nums"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

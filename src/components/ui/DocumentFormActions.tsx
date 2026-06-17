@@ -19,6 +19,8 @@ interface DocumentFormActionsProps {
   submitLabel?: string;
   showSubmit?: boolean;
   extraReadOnlyMessage?: string;
+  hideActions?: boolean;
+  hideReadOnlyMessage?: boolean;
 }
 
 export function DocumentFormHeader({
@@ -49,11 +51,13 @@ export function DocumentFormFooter({
   submitLabel = 'إرسال للاعتماد',
   showSubmit = true,
   extraReadOnlyMessage,
+  hideActions,
+  hideReadOnlyMessage,
   status,
 }: DocumentFormActionsProps) {
   return (
     <>
-      {isEditable && (onSaveDraft || onSubmit) && (
+      {!hideActions && isEditable && (onSaveDraft || onSubmit) && (
         <div className="flex gap-3 flex-wrap">
           {onSaveDraft && (
             <button type="button" onClick={onSaveDraft} disabled={loading} className="btn-secondary">
@@ -78,7 +82,20 @@ export function DocumentFormFooter({
         </div>
       )}
 
-      {!isEditable && !isNew && (
+      {!hideActions && !isNew && canDelete && onDelete && !isEditable && (
+        <div className="flex gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 text-sm"
+          >
+            <Trash2 className="w-4 h-4" /> حذف
+          </button>
+        </div>
+      )}
+
+      {!hideReadOnlyMessage && !isEditable && !isNew && (
         <div className="card bg-gray-50 border-gray-200">
           <p className="text-sm text-gray-600">
             {extraReadOnlyMessage || (

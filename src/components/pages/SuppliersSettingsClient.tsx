@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
+import { SearchBox } from '@/components/ui/SearchBox';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { saveSupplier, setSupplierActive } from '@/actions/master-data';
 
@@ -146,11 +147,11 @@ export function SuppliersSettingsClient({
       <Header title="إدارة الموردين" subtitle="بيانات الموردين وعملاتهم الافتراضية" />
       <PageContainer>
         {error && <div className="alert-error mb-4">{error}</div>}
-        <input
-          className="form-input mb-4 max-w-md"
-          placeholder="بحث بالكود أو الاسم أو الهاتف..."
+        <SearchBox
+          className="mb-4"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          placeholder="بحث بالكود أو الاسم أو الهاتف..."
         />
 
         <div className="card mb-6">

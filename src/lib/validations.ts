@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import { PAYMENT_METHOD_VALUES } from '@/lib/constants';
+
+const paymentMethodEnum = z.enum(PAYMENT_METHOD_VALUES);
+const emptyToUndefined = (val: unknown) => (val === '' || val === undefined ? undefined : val);
+const emptyToNullish = (val: unknown) => (val === '' || val === undefined ? null : val);
+const optionalPaymentMethod = z.preprocess(emptyToUndefined, paymentMethodEnum.optional());
+const nullishPaymentMethod = z.preprocess(emptyToNullish, paymentMethodEnum.nullish());
 
 /** يقبل null/undefined القادم من SQLite/Prisma */
 const nullishString = z.string().nullish();
@@ -71,6 +78,13 @@ export const itemUnitRowSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const itemWarehouseReorderSchema = z.object({
+  warehouseId: z.string().min(1),
+  reorderLevelBaseQty: z.number().min(0).optional(),
+  reorderQtyBase: z.number().min(0).optional(),
+  enableReorderAlert: z.boolean().default(false),
+});
+
 export const itemSchema = z.object({
   code: z.string().min(1, 'كود الصنف مطلوب'),
   nameAr: z.string().min(1, 'اسم الصنف مطلوب'),
@@ -80,9 +94,14 @@ export const itemSchema = z.object({
   categoryId: z.string().optional(),
   minStock: z.number().min(0).optional(),
   maxStock: z.number().min(0).optional(),
+  reorderLevelBaseQty: z.number().min(0).optional(),
+  reorderQtyBase: z.number().min(0).optional(),
+  preferredSupplierId: z.string().optional(),
+  enableReorderAlert: z.boolean().default(false),
   isStockItem: z.boolean().default(true),
   isActive: z.boolean().default(true),
   itemUnits: z.array(itemUnitRowSchema).min(1, 'يجب إضافة وحدة واحدة على الأقل'),
+  itemWarehouseReorders: z.array(itemWarehouseReorderSchema).optional(),
 });
 
 export const roleSchema = z.object({
@@ -149,7 +168,7 @@ export const quotationSchema = z.object({
   purchaseRequestId: z.string().min(1, 'طلب الشراء مطلوب'),
   branchId: z.string().min(1),
   supplierId: z.string().min(1, 'المورد مطلوب'),
-  paymentMethod: nullishString,
+  paymentMethod: nullishPaymentMethod,
   costMethod: nullishString,
   creditPeriod: z.number().optional(),
   deliveryDays: z.number().optional(),
@@ -168,7 +187,7 @@ export const comparisonSchema = z.object({
   branchId: z.string().min(1),
   quotationIds: z.array(z.string()).min(1, 'يجب اختيار عرض سعر واحد على الأقل'),
   currencyId: z.string().optional(),
-  paymentMethod: z.string().optional(),
+  paymentMethod: optionalPaymentMethod,
   notes: z.string().optional(),
   items: z.array(z.object({
     itemId: z.string(),
@@ -212,7 +231,7 @@ export const purchaseOrderSchema = z.object({
   supplierId: z.string().min(1, 'المورد مطلوب'),
   warehouseId: z.string().optional(),
   currencyId: z.string().optional(),
-  paymentMethod: z.string().optional(),
+  paymentMethod: optionalPaymentMethod,
   expectedArrival: z.string().optional(),
   notes: z.string().optional(),
   discount: z.number().default(0),
@@ -265,7 +284,7 @@ export const invoiceSchema = z.object({
   receivingId: z.string().optional(),
   branchId: z.string().min(1),
   supplierId: z.string().min(1),
-  paymentMethod: z.string().optional(),
+  paymentMethod: optionalPaymentMethod,
   dueDate: z.string().optional(),
   supplierInvoiceNo: z.string().optional(),
   supplierInvoiceDate: z.string().optional(),
@@ -273,6 +292,24 @@ export const invoiceSchema = z.object({
   discount: z.number().default(0),
   otherExpenses: z.number().default(0),
   items: z.array(lineItemSchema).min(1),
+});
+
+export const supplierPaymentAllocationSchema = z.object({
+  invoiceId: z.string().min(1),
+  allocatedAmount: z.number().positive('مبلغ التخصيص يجب أن يكون أكبر من صفر'),
+});
+
+export const supplierPaymentSchema = z.object({
+  branchId: z.string().min(1, 'الفرع مطلوب'),
+  supplierId: z.string().min(1, 'المورد مطلوب'),
+  currencyId: z.string().optional().nullable(),
+  exchangeRate: z.number().positive().default(1),
+  paymentDate: z.string().optional(),
+  paymentMethod: nullishPaymentMethod,
+  bankReference: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  totalAmount: z.number().positive('مبلغ السند يجب أن يكون أكبر من صفر'),
+  allocations: z.array(supplierPaymentAllocationSchema).min(1),
 });
 
 export const approvalActionSchema = z.object({

@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createReceiving, deleteReceiving } from '@/actions/purchase-orders';
-import { DocumentFormHeader, DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { fetchDocumentUsage } from '@/actions/common';
+import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import {
   resolveSourceDocument,
   buildReceivingItemsFromOrder,
@@ -48,6 +51,7 @@ export function ReceivingForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
   const defaultOrder = resolveSourceDocument(orders, defaultOrderId);
   const defaultInspection =
@@ -75,6 +79,12 @@ export function ReceivingForm({
       })) ||
       buildReceivingItemsFromOrder(defaultOrder, defaultInspection?.id),
   });
+
+  useEffect(() => {
+    if (existing?.id) {
+      fetchDocumentUsage('RECEIVING', existing.id as string).then(setUsage);
+    }
+  }, [existing?.id]);
 
   const selectedOrder = orders.find((o) => o.id === form.purchaseOrderId);
 
@@ -140,20 +150,28 @@ export function ReceivingForm({
     }
   };
 
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'receiving',
+    isNew,
+    existing,
+    usage,
+    loading,
+    editableOverride: !!isNew,
+    status: (existing?.status as string) || (existing?.receivingStatus as string),
+    saveLabel: 'حفظ إذن التوريد',
+    onSave: async () => {
+      await handleSave();
+    },
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'إذن توريد جديد' : `إذن توريد ${existing?.documentNo}`}
         subtitle="APST007"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/receivings"
-            listLabel="قائمة إذونات التوريد"
-            status={existing?.receivingStatus as string}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -204,7 +222,7 @@ export function ReceivingForm({
                 <select
                   className="form-input"
                   value={form.warehouseId}
-                  disabled={!isNew}
+                  disabled={!effectiveEditable}
                   onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                 >
                   <option value="">-- اختر --</option>
@@ -218,7 +236,7 @@ export function ReceivingForm({
                 <input
                   className="form-input"
                   value={form.supplierInvoiceNo}
-                  disabled={!isNew}
+                  disabled={!effectiveEditable}
                   onChange={(e) => setForm({ ...form, supplierInvoiceNo: e.target.value })}
                 />
               </div>
@@ -240,7 +258,7 @@ export function ReceivingForm({
                   <tr key={idx}>
                     <td className="px-3 py-2">{item.itemNameSnapshot}</td>
                     <td className="px-3 py-2">
-                      {isNew ? (
+                      {effectiveEditable ? (
                         <input
                           type="number"
                           className="form-input text-sm w-24"
@@ -260,11 +278,13 @@ export function ReceivingForm({
 
           <DocumentFormFooter
             listHref="/purchases/receivings"
-            isEditable={!!isNew}
+            isEditable={false}
             isNew={isNew}
             canDelete={!isNew}
             loading={loading}
-            status={existing?.receivingStatus as string}
+            status={(existing?.status as string) || (existing?.receivingStatus as string)}
+            hideActions
+            hideReadOnlyMessage
             saveLabel="حفظ إذن التوريد"
             showSubmit={false}
             onSaveDraft={handleSave}

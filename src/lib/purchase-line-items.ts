@@ -4,8 +4,8 @@ import type { ItemUnitMode } from '@/services/item-unit.service';
 type LineItemInput = {
   itemId: string;
   itemNameSnapshot: string;
-  itemUnitId?: string;
-  unitId?: string;
+  itemUnitId?: string | null;
+  unitId?: string | null;
   factorToBase?: number;
   baseQty?: number;
   quantity: number;
@@ -19,8 +19,8 @@ export async function enrichPurchaseLineItems<T extends LineItemInput>(
   return Promise.all(
     items.map(async (item, idx) => {
       const unitFields = await buildLineItemUnitFields(item.itemId, item.quantity, {
-        itemUnitId: item.itemUnitId,
-        unitId: item.unitId,
+        itemUnitId: item.itemUnitId ?? undefined,
+        unitId: item.unitId ?? undefined,
         mode,
       });
       return {

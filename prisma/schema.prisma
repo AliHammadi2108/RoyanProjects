@@ -11,11 +11,14 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
+  userNo       String?  @unique
   email        String   @unique
   username     String   @unique
   passwordHash String
   nameAr       String
   nameEn       String?
+  phone        String?
+  notes        String?
   isActive     Boolean  @default(true)
   branchId     String?
   departmentId String?
@@ -39,6 +42,9 @@ model User {
   inspectionsCreated       PurchaseOrderInspection[] @relation("PICreatedBy")
   receivingsCreated        PurchaseReceiving[] @relation("PRCVCreatedBy")
   invoicesCreated          PurchaseInvoice[] @relation("PINVCreatedBy")
+  supplierPaymentsCreated  SupplierPaymentVoucher[] @relation("SPVCreatedBy")
+  supplierPaymentsApproved SupplierPaymentVoucher[] @relation("SPVApprovedBy")
+  supplierPaymentsPosted   SupplierPaymentVoucher[] @relation("SPVPostedBy")
   approvalsRequested       Approval[]        @relation("ApprovalRequestedBy")
   approvalSteps            ApprovalStep[]    @relation("ApprovalStepUser")
   approvalStepsActioned    ApprovalStep[]    @relation("ApprovalStepActionBy")
@@ -136,7 +142,8 @@ model Branch {
   nominations      SupplierNomination[]
   orders           PurchaseOrder[]
   receivings       PurchaseReceiving[]
-  invoices         PurchaseInvoice[]
+  invoices              PurchaseInvoice[]
+  supplierPaymentVouchers SupplierPaymentVoucher[]
   approvalMatrices ApprovalMatrix[]
 }
 
@@ -170,8 +177,10 @@ model Warehouse {
   inspections      PurchaseOrderInspection[]
   receivings       PurchaseReceiving[]
   invoices         PurchaseInvoice[]
-  stockBalances    StockBalance[]
-  stockMovements   StockMovement[]
+  stockBalances         StockBalance[]
+  stockMovements        StockMovement[]
+  itemWarehouseReorders ItemWarehouseReorder[]
+  reorderAlerts         ReorderAlert[]
 }
 
 model Supplier {
@@ -198,7 +207,9 @@ model Supplier {
   inspections          PurchaseOrderInspection[]
   receivings           PurchaseReceiving[]
   invoices             PurchaseInvoice[]
+  paymentVouchers      SupplierPaymentVoucher[]
   userPermissions      UserSupplierPermission[]
+  preferredItems       Item[] @relation("ItemPreferredSupplier")
 
   @@index([defaultCurrencyId])
   @@index([isActive])
@@ -232,6 +243,7 @@ model Currency {
 
   suppliers        Supplier[]
   purchaseRequests PurchaseRequest[]
+  purchaseCycles   PurchaseCycle[]
   quotations       Quotation[]
   comparisons      TechnicalComparison[]
   nominations      SupplierNomination[]
@@ -239,6 +251,8 @@ model Currency {
   receivings       PurchaseReceiving[]
   approvalRules    ApprovalRule[]
   approvalRequests ApprovalRequest[]
+  purchaseInvoices PurchaseInvoice[]
+  paymentVouchers  SupplierPaymentVoucher[]
 
   @@index([isBase])
   @@index([isActive])
@@ -264,18 +278,26 @@ model Item {
   specs       String?
   description String?
   categoryId  String?
-  minStock    Float?
-  maxStock    Float?
-  isStockItem Boolean  @default(true)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  minStock             Float?
+  maxStock             Float?
+  reorderLevelBaseQty  Float?
+  reorderQtyBase       Float?
+  preferredSupplierId  String?
+  enableReorderAlert   Boolean  @default(false)
+  lastReorderAlertAt   DateTime?
+  isStockItem          Boolean  @default(true)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
 
-  legacyUnit Unit?         @relation("ItemLegacyUnit", fields: [unitId], references: [id])
-  category   ItemCategory? @relation(fields: [categoryId], references: [id])
-  itemUnits  ItemUnit[]
-  stockBalances StockBalance[]
-  stockMovements StockMovement[]
+  legacyUnit          Unit?         @relation("ItemLegacyUnit", fields: [unitId], references: [id])
+  category            ItemCategory? @relation(fields: [categoryId], references: [id])
+  preferredSupplier   Supplier?     @relation("ItemPreferredSupplier", fields: [preferredSupplierId], references: [id])
+  itemUnits           ItemUnit[]
+  stockBalances       StockBalance[]
+  stockMovements      StockMovement[]
+  itemWarehouseReorders ItemWarehouseReorder[]
+  reorderAlerts       ReorderAlert[]
 
   purchaseRequestItems PurchaseRequestItem[]
   quotationItems       QuotationItem[]
@@ -289,6 +311,47 @@ model Item {
   @@index([barcode])
   @@index([categoryId])
   @@index([isActive])
+  @@index([enableReorderAlert])
+  @@index([preferredSupplierId])
+}
+
+model ItemWarehouseReorder {
+  id                  String  @id @default(cuid())
+  itemId              String
+  warehouseId         String
+  reorderLevelBaseQty Float?
+  reorderQtyBase      Float?
+  enableReorderAlert  Boolean @default(false)
+
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, warehouseId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([enableReorderAlert])
+}
+
+model ReorderAlert {
+  id                  String    @id @default(cuid())
+  itemId              String
+  warehouseId         String?
+  status              String    @default("open")
+  currentStockBaseQty Float?
+  reorderLevelBaseQty Float?
+  reorderQtyBase      Float?
+  notifiedAt          DateTime  @default(now())
+  closedAt            DateTime?
+  notificationSent    Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+
+  item      Item       @relation(fields: [itemId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([itemId, warehouseId, status])
 }
 
 model ItemUnit {
@@ -446,6 +509,7 @@ model PurchaseCycle {
   updatedAt       DateTime @updatedAt
 
   branch           Branch            @relation(fields: [branchId], references: [id])
+  currency         Currency?         @relation(fields: [currencyId], references: [id])
   purchaseRequests PurchaseRequest[]
   quotations       Quotation[]
   comparisons      TechnicalComparison[]
@@ -970,6 +1034,9 @@ model PurchaseInvoice {
   reviewNotes       String?
   status            String    @default("Draft")
   paymentStatus     String    @default("Unpaid")
+  paidAmount        Float     @default(0)
+  remainingAmount   Float     @default(0)
+  currencyId        String?
   subtotal          Float     @default(0)
   discount          Float     @default(0)
   supplierDiscount  Float     @default(0)
@@ -988,13 +1055,18 @@ model PurchaseInvoice {
   branch        Branch             @relation(fields: [branchId], references: [id])
   warehouse     Warehouse?         @relation(fields: [warehouseId], references: [id])
   supplier      Supplier           @relation(fields: [supplierId], references: [id])
+  currency      Currency?          @relation(fields: [currencyId], references: [id])
   creator       User               @relation("PINVCreatedBy", fields: [createdBy], references: [id])
 
-  items PurchaseInvoiceItem[]
+  items       PurchaseInvoiceItem[]
+  allocations SupplierPaymentAllocation[]
 
   @@unique([documentNo, branchId])
   @@index([purchaseCycleId])
   @@index([purchaseOrderId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([paymentStatus])
 }
 
 model PurchaseInvoiceItem {
@@ -1024,6 +1096,59 @@ model PurchaseInvoiceItem {
 
   invoice PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   item    Item            @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Supplier Payment ====================
+
+model SupplierPaymentVoucher {
+  id              String    @id @default(cuid())
+  documentNo      String
+  branchId        String
+  supplierId      String
+  currencyId      String?
+  exchangeRate    Float     @default(1)
+  paymentDate     DateTime  @default(now())
+  paymentMethod   String?
+  bankReference   String?
+  notes           String?
+  totalAmount     Float     @default(0)
+  allocatedAmount Float     @default(0)
+  status          String    @default("Draft")
+  approvalStatus  String    @default("None")
+  createdBy       String
+  approvedBy      String?
+  postedBy        String?
+  postedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  branch      Branch                      @relation(fields: [branchId], references: [id])
+  supplier    Supplier                    @relation(fields: [supplierId], references: [id])
+  currency    Currency?                   @relation(fields: [currencyId], references: [id])
+  creator     User                        @relation("SPVCreatedBy", fields: [createdBy], references: [id])
+  approver    User?                       @relation("SPVApprovedBy", fields: [approvedBy], references: [id])
+  poster      User?                       @relation("SPVPostedBy", fields: [postedBy], references: [id])
+  allocations SupplierPaymentAllocation[]
+
+  @@unique([documentNo, branchId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([paymentDate])
+  @@index([branchId])
+}
+
+model SupplierPaymentAllocation {
+  id              String @id @default(cuid())
+  voucherId       String
+  invoiceId       String
+  allocatedAmount Float
+  sortOrder       Int    @default(0)
+
+  voucher SupplierPaymentVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  invoice PurchaseInvoice        @relation(fields: [invoiceId], references: [id])
+
+  @@unique([voucherId, invoiceId])
+  @@index([invoiceId])
 }
 
 // ==================== Approval System ====================
@@ -1110,25 +1235,32 @@ model ApprovalLog {
 // ==================== Notifications ====================
 
 model Notification {
-  id           String    @id @default(cuid())
-  userId       String
-  type         String
-  title        String
-  message      String
-  documentType String?
-  documentId   String?
-  approvalId   String?
-  actionUrl    String?
-  status       String    @default("Unread")
-  priority     String    @default("Normal")
-  createdAt    DateTime  @default(now())
-  readAt       DateTime?
-  actionedAt   DateTime?
+  id                   String    @id @default(cuid())
+  userId               String
+  roleId               String?
+  type                 String
+  title                String
+  message              String
+  documentType         String?
+  documentId           String?
+  relatedModule        String?
+  relatedDocumentType  String?
+  relatedDocumentId    String?
+  route                String?
+  approvalId           String?
+  actionUrl            String?
+  status               String    @default("Unread")
+  isRead               Boolean   @default(false)
+  priority             String    @default("Normal")
+  createdAt            DateTime  @default(now())
+  readAt               DateTime?
+  actionedAt           DateTime?
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   approval Approval? @relation(fields: [approvalId], references: [id])
 
   @@index([userId, status])
+  @@index([userId, isRead])
 }
 
 // ==================== Supporting Tables ====================

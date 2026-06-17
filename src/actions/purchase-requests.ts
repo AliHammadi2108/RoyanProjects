@@ -12,13 +12,42 @@ import { DOCUMENT_STATUS, PURCHASE_STAGES } from '@/lib/constants';
 import { calculateLineTotal, toOptionalId, formatActionError } from '@/lib/utils';
 import { enrichPurchaseLineItems, resolveExchangeRate } from '@/lib/purchase-line-items';
 import { assertSupplierAccess } from '@/services/supplier-access.service';
+import { assertDocumentMutable } from '@/services/document-guard.service';
+import { getDocumentUsageMap } from '@/services/used-document.service';
 
-export async function getPurchaseRequests(filters?: { status?: string; branchId?: string }) {
+function lineItemsForEnrich<T extends {
+  itemUnitId?: string | null;
+  unitId?: string | null;
+  factorToBase?: number | null;
+  baseQty?: number | null;
+}>(items: T[]) {
+  return items.map((item) => ({
+    ...item,
+    itemUnitId: item.itemUnitId ?? undefined,
+    unitId: item.unitId ?? undefined,
+    factorToBase: item.factorToBase ?? undefined,
+    baseQty: item.baseQty ?? undefined,
+  }));
+}
+
+
+export async function getPurchaseRequests(filters?: {
+  status?: string;
+  branchId?: string;
+  search?: string;
+  usedFilter?: '' | 'used' | 'unused';
+}) {
   await requirePermission('purchase_requests.view');
-  return prisma.purchaseRequest.findMany({
+  const rows = await prisma.purchaseRequest.findMany({
     where: {
       ...(filters?.status && { status: filters.status }),
       ...(filters?.branchId && { branchId: filters.branchId }),
+      ...(filters?.search && {
+        OR: [
+          { documentNo: { contains: filters.search } },
+          { operationNo: { contains: filters.search } },
+        ],
+      }),
     },
     include: {
       branch: true,
@@ -27,8 +56,20 @@ export async function getPurchaseRequests(filters?: { status?: string; branchId?
       creator: { select: { nameAr: true } },
       items: { include: { item: true } },
       purchaseCycle: true,
+      _count: { select: { quotations: true } },
     },
     orderBy: { createdAt: 'desc' },
+  });
+
+  if (!filters?.usedFilter) return rows;
+
+  const usageMap = await getDocumentUsageMap(
+    'PURCHASE_REQUEST',
+    rows.map((r) => r.id)
+  );
+  return rows.filter((r) => {
+    const used = usageMap.get(r.id)?.isUsed || r._count.quotations > 0;
+    return filters.usedFilter === 'used' ? used : !used;
   });
 }
 
@@ -74,7 +115,7 @@ export async function createPurchaseRequest(data: unknown) {
   }
 
   const exchangeRate = parsed.exchangeRate ?? (await resolveExchangeRate(optionalIds.currencyId));
-  const enrichedItems = await enrichPurchaseLineItems(parsed.items, 'purchase');
+  const enrichedItems = await enrichPurchaseLineItems(lineItemsForEnrich(parsed.items), 'purchase');
 
   let result;
   try {
@@ -158,13 +199,8 @@ export async function createPurchaseRequest(data: unknown) {
 
 export async function updatePurchaseRequest(id: string, data: unknown) {
   const user = await requirePermission('purchase_requests.update');
+  await assertDocumentMutable('PURCHASE_REQUEST', id, 'edit');
   const parsed = purchaseRequestSchema.parse(data);
-
-  const existing = await prisma.purchaseRequest.findUnique({ where: { id } });
-  if (!existing) throw new Error('طلب الشراء غير موجود');
-  if (!['Draft', 'Returned For Edit'].includes(existing.status)) {
-    throw new Error('لا يمكن تعديل الطلب في حالته الحالية');
-  }
 
   const totalAmount = parsed.items.reduce(
     (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),
@@ -183,7 +219,7 @@ export async function updatePurchaseRequest(id: string, data: unknown) {
   }
 
   const exchangeRate = parsed.exchangeRate ?? (await resolveExchangeRate(optionalIds.currencyId));
-  const enrichedItems = await enrichPurchaseLineItems(parsed.items, 'purchase');
+  const enrichedItems = await enrichPurchaseLineItems(lineItemsForEnrich(parsed.items), 'purchase');
 
   let result;
   try {
@@ -270,11 +306,9 @@ export async function submitPurchaseRequest(id: string) {
 
 export async function deletePurchaseRequest(id: string) {
   const user = await requirePermission('purchase_requests.delete');
+  await assertDocumentMutable('PURCHASE_REQUEST', id, 'delete');
   const existing = await prisma.purchaseRequest.findUnique({ where: { id } });
   if (!existing) throw new Error('طلب الشراء غير موجود');
-  if (existing.status !== DOCUMENT_STATUS.DRAFT) {
-    throw new Error('لا يمكن حذف الطلب إلا وهو في حالة مسودة');
-  }
 
   await prisma.$transaction(async (tx) => {
     const requestCount = await tx.purchaseRequest.count({
@@ -297,11 +331,29 @@ export async function deletePurchaseRequest(id: string) {
   return { success: true };
 }
 
-export async function getApprovedPurchaseRequests() {
+export async function getApprovedPurchaseRequests(options?: { includeUsed?: boolean }) {
   await requirePermission('quotations.create');
-  return prisma.purchaseRequest.findMany({
+  const rows = await prisma.purchaseRequest.findMany({
     where: { status: DOCUMENT_STATUS.APPROVED },
-    include: { branch: true, items: true },
+    include: { branch: true, items: true, _count: { select: { quotations: true } } },
     orderBy: { createdAt: 'desc' },
   });
+
+  if (options?.includeUsed) return rows;
+
+  const usageMap = await getDocumentUsageMap(
+    'PURCHASE_REQUEST',
+    rows.map((r) => r.id)
+  );
+  return rows.filter((r) => !usageMap.get(r.id)?.isUsed && r._count.quotations === 0);
+}
+
+export async function fetchApprovedPurchaseRequests(includeUsed = false) {
+  return getApprovedPurchaseRequests({ includeUsed });
+}
+
+export async function getPurchaseRequestUsageMap(ids: string[]) {
+  await requirePermission('purchase_requests.view');
+  const map = await getDocumentUsageMap('PURCHASE_REQUEST', ids);
+  return Object.fromEntries(map);
 }

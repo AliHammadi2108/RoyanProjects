@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ItemsGrid, LineItem } from '@/components/ui/ItemsGrid';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createInvoice, deleteInvoice } from '@/actions/purchase-orders';
-import { DocumentFormHeader, DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { formatCurrency } from '@/lib/utils';
+import { normalizePaymentMethod } from '@/lib/constants';
+import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import {
   resolveSourceDocument,
   buildInvoiceItemsFromReceiving,
@@ -70,7 +73,7 @@ export function InvoiceForm({
     receivingId: (existing?.receivingId as string) || defaultReceiving?.id || '',
     branchId: (existing?.branchId as string) || defaultReceiving?.branchId || masterData.branches[0]?.id || '',
     supplierId: (existing?.supplierId as string) || defaultReceiving?.supplierId || '',
-    paymentMethod: (existing?.paymentMethod as string) || '',
+    paymentMethod: normalizePaymentMethod(existing?.paymentMethod as string),
     dueDate: existing?.dueDate
       ? new Date(existing.dueDate as string).toISOString().split('T')[0]
       : '',
@@ -153,20 +156,25 @@ export function InvoiceForm({
 
   const isEditable = isNew || existing?.status === 'Draft';
 
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'invoice',
+    isNew,
+    existing,
+    loading,
+    saveLabel: 'حفظ الفاتورة',
+    onSave: async () => {
+      await handleSave();
+    },
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'فاتورة مشتريات جديدة' : `فاتورة ${existing?.documentNo}`}
         subtitle="APST008"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/invoices"
-            listLabel="قائمة الفواتير"
-            status={existing?.status as string}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -203,8 +211,16 @@ export function InvoiceForm({
                 <input
                   className="form-input"
                   value={form.supplierInvoiceNo}
-                  disabled={!isNew}
+                  disabled={!effectiveEditable}
                   onChange={(e) => setForm({ ...form, supplierInvoiceNo: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label">طريقة الدفع</label>
+                <PaymentMethodSelect
+                  value={form.paymentMethod}
+                  disabled={!effectiveEditable}
+                  onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
                 />
               </div>
               <div>
@@ -213,7 +229,7 @@ export function InvoiceForm({
                   type="date"
                   className="form-input"
                   value={form.dueDate}
-                  disabled={!isNew}
+                  disabled={!effectiveEditable}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 />
               </div>
@@ -226,18 +242,20 @@ export function InvoiceForm({
               items={form.items}
               onChange={(items) => setForm({ ...form, items })}
               availableItems={masterData.items}
-              readOnly={!isNew}
+              readOnly={!effectiveEditable}
             />
             <div className="mt-4 text-left font-bold">صافي المبلغ: {formatCurrency(netTotal)}</div>
           </div>
 
           <DocumentFormFooter
             listHref="/purchases/invoices"
-            isEditable={isEditable}
+            isEditable={false}
             isNew={isNew}
             canDelete={existing?.status === 'Draft'}
             loading={loading}
             status={existing?.status as string}
+            hideActions
+            hideReadOnlyMessage
             saveLabel="حفظ الفاتورة"
             showSubmit={false}
             onSaveDraft={handleSave}

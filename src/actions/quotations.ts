@@ -10,17 +10,18 @@ import { submitForApproval, DOCUMENT_TYPES } from '@/services/approval.service';
 import { updateCycleStage } from '@/services/workflow.service';
 import { DOCUMENT_STATUS, PURCHASE_STAGES } from '@/lib/constants';
 import { calculateLineTotal, toOptionalId, formatActionError } from '@/lib/utils';
+import { assertDocumentMutable } from '@/services/document-guard.service';
 
 function buildQuotationItemRows(
   items: Array<{
     itemId: string;
     itemNameSnapshot: string;
-    unitId?: string;
+    unitId?: string | null;
     quantity: number;
     unitPrice: number;
     discount: number;
     tax: number;
-    notes?: string;
+    notes?: string | null;
   }>
 ) {
   return items.map((item, idx) => ({
@@ -157,12 +158,8 @@ export async function submitQuotation(id: string) {
 
 export async function updateQuotation(id: string, data: unknown) {
   const user = await requirePermission('quotations.update');
+  await assertDocumentMutable('QUOTATION', id, 'edit');
   const parsed = quotationSchema.parse(data);
-  const existing = await prisma.quotation.findUnique({ where: { id } });
-  if (!existing) throw new Error('عرض السعر غير موجود');
-  if (!['Draft', 'Returned For Edit'].includes(existing.status)) {
-    throw new Error('لا يمكن تعديل عرض السعر في حالته الحالية');
-  }
 
   const subtotal = parsed.items.reduce(
     (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),
@@ -215,11 +212,9 @@ export async function updateQuotation(id: string, data: unknown) {
 
 export async function deleteQuotation(id: string) {
   const user = await requirePermission('quotations.update');
+  await assertDocumentMutable('QUOTATION', id, 'delete');
   const existing = await prisma.quotation.findUnique({ where: { id } });
   if (!existing) throw new Error('عرض السعر غير موجود');
-  if (existing.status !== DOCUMENT_STATUS.DRAFT) {
-    throw new Error('لا يمكن حذف عرض السعر إلا وهو في حالة مسودة');
-  }
 
   await prisma.quotation.delete({ where: { id } });
   await createAuditLog({

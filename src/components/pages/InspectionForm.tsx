@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createInspection, deleteInspection } from '@/actions/purchase-orders';
+import { fetchDocumentUsage } from '@/actions/common';
 import { INSPECTION_RESULTS } from '@/lib/constants';
 import { resolveSourceDocument } from '@/lib/document-cascade';
-import { DocumentFormHeader, DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import type { MasterData } from '@/types/master-data';
 
 interface ApprovedOrder {
@@ -41,6 +44,7 @@ export function InspectionForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
   const defaultOrder = resolveSourceDocument(approvedOrders, defaultOrderId);
 
@@ -63,6 +67,12 @@ export function InspectionForm({
       })
     ),
   });
+
+  useEffect(() => {
+    if (existing?.id) {
+      fetchDocumentUsage('INSPECTION', existing.id as string).then(setUsage);
+    }
+  }, [existing?.id]);
 
   const handleOrderChange = (orderId: string) => {
     const order = approvedOrders.find((o) => o.id === orderId);
@@ -121,20 +131,28 @@ export function InspectionForm({
     }
   };
 
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'inspection',
+    isNew,
+    existing,
+    usage,
+    loading,
+    editableOverride: !!isNew,
+    status: (existing?.status as string) || (existing?.inspectionResult as string),
+    saveLabel: 'حفظ الفحص',
+    onSave: async () => {
+      await handleSave();
+    },
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'فحص مشتريات جديد' : `فحص ${existing?.documentNo}`}
         subtitle="APST006"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/inspections"
-            listLabel="قائمة الفحوصات"
-            status={(existing?.inspectionResult as string) || undefined}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -171,7 +189,7 @@ export function InspectionForm({
                 <select
                   className="form-input"
                   value={form.warehouseId}
-                  disabled={!isNew}
+                  disabled={!effectiveEditable}
                   onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                 >
                   <option value="">-- اختر --</option>
@@ -185,7 +203,7 @@ export function InspectionForm({
                 <select
                   className="form-input"
                   value={form.inspectionResult}
-                  disabled={!isNew}
+                  disabled={!effectiveEditable}
                   onChange={(e) => setForm({ ...form, inspectionResult: e.target.value })}
                 >
                   <option value={INSPECTION_RESULTS.ACCEPTED}>مقبول</option>
@@ -224,7 +242,7 @@ export function InspectionForm({
                     <td className="px-3 py-2">{item.itemNameSnapshot}</td>
                     <td className="px-3 py-2">{item.quantity}</td>
                     <td className="px-3 py-2">
-                      {isNew ? (
+                      {effectiveEditable ? (
                         <input
                           type="number"
                           className="form-input text-sm w-24"
@@ -244,11 +262,13 @@ export function InspectionForm({
 
           <DocumentFormFooter
             listHref="/purchases/inspections"
-            isEditable={!!isNew}
+            isEditable={false}
             isNew={isNew}
             canDelete={!isNew}
             loading={loading}
-            status={existing?.inspectionResult as string}
+            status={(existing?.status as string) || (existing?.inspectionResult as string)}
+            hideActions
+            hideReadOnlyMessage
             saveLabel="حفظ الفحص"
             showSubmit={false}
             onSaveDraft={handleSave}

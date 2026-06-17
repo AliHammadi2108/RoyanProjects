@@ -1,34 +1,42 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowRight, Trash2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ItemsGrid, LineItem } from '@/components/ui/ItemsGrid';
 import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
+import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import {
   createPurchaseRequest,
   updatePurchaseRequest,
   submitPurchaseRequest,
   deletePurchaseRequest,
 } from '@/actions/purchase-requests';
-import { getDocumentApproval } from '@/actions/common';
+import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import type { MasterData } from '@/types/master-data';
 
 interface PurchaseRequestFormProps {
   masterData: MasterData;
   existing?: Record<string, unknown>;
   isNew?: boolean;
+  prefill?: {
+    itemId?: string;
+    itemIds?: string;
+    supplierId?: string;
+    qty?: string;
+  };
 }
 
-export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseRequestFormProps) {
+export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: PurchaseRequestFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [approval, setApproval] = useState<unknown>(null);
+  const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
   const [form, setForm] = useState({
     branchId: (existing?.branchId as string) || masterData.branches[0]?.id || '',
@@ -61,13 +69,65 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
     })) as LineItem[],
   });
 
-  const isEditable = isNew || ['Draft', 'Returned For Edit'].includes(existing?.status as string);
 
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('PURCHASE_REQUEST', existing.id as string).then(setApproval);
+      fetchDocumentUsage('PURCHASE_REQUEST', existing.id as string).then(setUsage);
     }
   }, [existing?.id]);
+
+  useEffect(() => {
+    if (!isNew || !prefill || form.items.length > 0) return;
+
+    const itemIds = prefill.itemIds
+      ? prefill.itemIds.split(',').filter(Boolean)
+      : prefill.itemId
+        ? [prefill.itemId]
+        : [];
+    if (itemIds.length === 0 && !prefill.supplierId) return;
+
+    const newItems: LineItem[] = itemIds
+      .map((id) => masterData.items.find((i) => i.id === id))
+      .filter(Boolean)
+      .map((item) => {
+        const defaultUnit =
+          item!.itemUnits?.find((u) => u.isDefaultPurchase) ||
+          item!.itemUnits?.find((u) => u.isBase) ||
+          item!.itemUnits?.[0];
+        const qty = prefill.qty ? parseFloat(prefill.qty) : 1;
+        const factor = defaultUnit?.factorToBase ?? 1;
+        return {
+          itemId: item!.id,
+          itemNameSnapshot: item!.nameAr,
+          itemUnitId: defaultUnit?.id,
+          unitId: defaultUnit?.unitId,
+          factorToBase: factor,
+          baseQty: qty * factor,
+          quantity: qty,
+          unitPrice: 0,
+          discount: 0,
+          tax: 0,
+          total: 0,
+        };
+      });
+
+    setForm((prev) => {
+      const supplierId = prefill.supplierId || prev.supplierId;
+      const supplier = masterData.suppliers.find((s) => s.id === supplierId);
+      const currencyId = supplier?.defaultCurrencyId || supplier?.defaultCurrency?.id || prev.currencyId;
+      const currency = masterData.currencies.find((c) => c.id === currencyId);
+      const exchangeRate = currency?.rateToBase ?? currency?.rate ?? prev.exchangeRate;
+      return {
+        ...prev,
+        supplierId,
+        currencyId: currencyId || prev.currencyId,
+        exchangeRate,
+        items: newItems.length > 0 ? newItems : prev.items,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew, prefill, masterData.items]);
 
   const handleSupplierChange = (supplierId: string) => {
     const supplier = masterData.suppliers.find((s) => s.id === supplierId);
@@ -83,7 +143,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
     setForm({ ...form, currencyId, exchangeRate });
   };
 
-  const handleSave = async (submit = false) => {
+  const handleSave = useCallback(async (submit = false) => {
     setLoading(true);
     setError('');
 
@@ -118,7 +178,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
     } finally {
       setLoading(false);
     }
-  };
+  }, [form, isNew, existing, router]);
 
   const handleDelete = async () => {
     if (!existing?.id || existing.status !== 'Draft') return;
@@ -135,23 +195,31 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
     }
   };
 
+  const refreshApproval = useCallback(() => {
+    if (!existing?.id) return;
+    getDocumentApproval('PURCHASE_REQUEST', existing.id as string).then(setApproval);
+    router.refresh();
+  }, [existing?.id, router]);
+
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'purchase_request',
+    isNew,
+    existing,
+    usage,
+    approval,
+    loading,
+    onSave: handleSave,
+    onAfterWorkflowAction: refreshApproval,
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'طلب شراء جديد' : `طلب شراء ${existing?.documentNo}`}
         subtitle="APST001"
-        actions={
-          <div className="flex items-center gap-2">
-            <Link href="/purchases/requests" className="btn-secondary text-sm">
-              <ArrowRight className="w-4 h-4" /> قائمة الطلبات
-            </Link>
-            {!isNew && existing?.status ? (
-              <StatusBadge status={existing.status as string} />
-            ) : null}
-          </div>
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -166,7 +234,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                   <select
                     className="form-input"
                     value={form.branchId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, branchId: e.target.value })}
                   >
                     {masterData.branches.map((b) => (
@@ -179,7 +247,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                   <select
                     className="form-input"
                     value={form.departmentId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
                   >
                     <option value="">-- اختر --</option>
@@ -193,7 +261,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                   <select
                     className="form-input"
                     value={form.purchaseType}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, purchaseType: e.target.value })}
                   >
                     <option value="LOCAL">محلي</option>
@@ -206,7 +274,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                   <select
                     className="form-input"
                     value={form.warehouseId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                   >
                     <option value="">-- اختر --</option>
@@ -220,7 +288,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                   <select
                     className="form-input"
                     value={form.supplierId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => handleSupplierChange(e.target.value)}
                   >
                     <option value="">-- اختر --</option>
@@ -234,7 +302,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                   <select
                     className="form-input"
                     value={form.currencyId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => handleCurrencyChange(e.target.value)}
                   >
                     {masterData.currencies.map((c) => (
@@ -249,7 +317,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                     step="0.0001"
                     className="form-input"
                     value={form.exchangeRate}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, exchangeRate: parseFloat(e.target.value) || 1 })}
                   />
                 </div>
@@ -259,7 +327,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                     type="date"
                     className="form-input"
                     value={form.requiredDate}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, requiredDate: e.target.value })}
                   />
                 </div>
@@ -269,7 +337,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -282,39 +350,22 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
                 items={form.items}
                 onChange={(items) => setForm({ ...form, items })}
                 availableItems={masterData.items}
-                readOnly={!isEditable}
+                readOnly={!effectiveEditable}
               />
             </div>
 
-            {isEditable && (
-              <div className="flex gap-3 flex-wrap">
-                <button onClick={() => handleSave(false)} disabled={loading} className="btn-secondary">
-                  حفظ
-                </button>
-                <button onClick={() => handleSave(true)} disabled={loading} className="btn-primary">
-                  إرسال للاعتماد
-                </button>
-                {!isNew && existing?.status === 'Draft' && (
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={loading}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 text-sm"
-                  >
-                    <Trash2 className="w-4 h-4" /> حذف
-                  </button>
-                )}
-              </div>
-            )}
-
-            {!isEditable && !isNew && (
-              <div className="card bg-gray-50 border-gray-200">
-                <p className="text-sm text-gray-600">
-                  هذا الطلب في حالة <strong>{existing?.status as string}</strong> ولا يمكن تعديله.
-                  استخدم زر <strong>قائمة الطلبات</strong> أعلاه لاستعراض جميع الطلبات.
-                </p>
-              </div>
-            )}
+            <DocumentFormFooter
+              listHref="/purchases/requests"
+              isEditable={false}
+              isNew={isNew}
+              canDelete={existing?.status === 'Draft' && !usage?.isUsed}
+              loading={loading}
+              status={existing?.status as string}
+              hideActions
+              hideReadOnlyMessage
+              onDelete={handleDelete}
+              showSubmit={false}
+            />
 
             {existing?.status === 'Approved' && (
               <div className="card bg-green-50 border-green-200">
@@ -332,13 +383,8 @@ export function PurchaseRequestForm({ masterData, existing, isNew }: PurchaseReq
             <div className="card">
               <h2 className="font-semibold mb-4">مسار الاعتماد</h2>
               <ApprovalTimeline
-                approval={approval as Parameters<typeof ApprovalTimeline>[0]['approval']}
-                onAction={() => {
-                  if (existing?.id) {
-                    getDocumentApproval('PURCHASE_REQUEST', existing.id as string).then(setApproval);
-                    router.refresh();
-                  }
-                }}
+                approval={approval}
+                onAction={refreshApproval}
               />
             </div>
           </div>

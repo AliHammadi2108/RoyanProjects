@@ -50,3 +50,30 @@
     @apply btn bg-amber-500 text-white hover:bg-amber-600;
   }
 }
+
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  #operation-print-area {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  #operation-print-area table {
+    page-break-inside: auto;
+  }
+
+  #operation-print-area tr {
+    page-break-inside: avoid;
+  }
+}

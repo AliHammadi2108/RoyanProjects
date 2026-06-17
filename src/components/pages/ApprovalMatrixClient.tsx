@@ -1,9 +1,12 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { DOCUMENT_LABELS_AR } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 
@@ -22,6 +25,13 @@ interface MatrixRow {
 }
 
 export function ApprovalMatrixClient({ initialData }: { initialData: MatrixRow[] }) {
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(
+    () => clientSearchMapped(initialData as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.approvalMatrix),
+    [initialData, search]
+  );
+
   const columns = [
     {
       key: 'documentType',
@@ -79,11 +89,16 @@ export function ApprovalMatrixClient({ initialData }: { initialData: MatrixRow[]
     <>
       <Header title="مصفوفة الاعتماد" subtitle="قواعد ومسارات اعتماد المستندات" />
       <PageContainer>
+        <div className="card mb-4">
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث بنوع المستند أو الفرع أو الدور..." />
+        </div>
         <div className="card">
           {initialData.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-8">لا توجد قواعد اعتماد مُعرّفة</p>
+          ) : filtered.length === 0 ? (
+            <SearchEmptyState query={search} />
           ) : (
-            <DataTable columns={columns} data={initialData as unknown as Record<string, unknown>[]} />
+            <DataTable columns={columns} data={filtered as unknown as Record<string, unknown>[]} />
           )}
         </div>
       </PageContainer>

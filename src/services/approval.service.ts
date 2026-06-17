@@ -52,6 +52,9 @@ async function updateDocumentStatus(
     case DOCUMENT_TYPES.PURCHASE_ORDER:
       await prisma.purchaseOrder.update({ where: { id: documentId }, data });
       break;
+    case DOCUMENT_TYPES.SUPPLIER_PAYMENT:
+      await prisma.supplierPaymentVoucher.update({ where: { id: documentId }, data });
+      break;
   }
 }
 async function getApproversForLevel(
@@ -204,7 +207,7 @@ export async function submitForApproval(input: SubmitForApprovalInput) {
   });
 
   const adminIds = await getAdminUserIds();
-  const notifyTargets = [...new Set([...firstLevelApprovers, ...adminIds])];
+  const notifyTargets = Array.from(new Set([...firstLevelApprovers, ...adminIds]));
 
   await notifyApprovers(
     approval.id,

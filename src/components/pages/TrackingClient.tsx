@@ -1,8 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
+import {
+  formatDate,
+  formatDocumentCurrency,
+  type CurrencyLike,
+} from '@/lib/utils';
 import { DOCUMENT_LABELS_AR, DOCUMENT_ROUTES } from '@/lib/constants';
 import Link from 'next/link';
 import { fetchCycleDetails } from '@/actions/common';
@@ -19,8 +25,32 @@ interface Cycle {
   createdAt: string;
   updatedAt: string;
   branch?: { nameAr: string };
-  purchaseRequests?: Array<{ documentNo: string; department?: { nameAr: string } }>;
-  orders?: Array<{ supplier?: { nameAr: string }; expectedArrival?: string; total: number }>;
+  currency?: CurrencyLike;
+  purchaseRequests?: Array<{ documentNo: string; department?: { nameAr: string }; currency?: CurrencyLike }>;
+  orders?: Array<{ supplier?: { nameAr: string }; expectedArrival?: string; total: number; currency?: CurrencyLike }>;
+}
+
+interface TrackingDocument {
+  id: string;
+  documentNo: string;
+  status: string;
+  totalAmount?: number;
+  total?: number;
+  netTotal?: number;
+  currency?: CurrencyLike;
+  purchaseOrder?: { total?: number; currency?: CurrencyLike };
+}
+
+function resolveCycleCurrency(cycle: Cycle): CurrencyLike {
+  return cycle.currency ?? cycle.purchaseRequests?.[0]?.currency ?? cycle.orders?.[0]?.currency;
+}
+
+function resolveDocumentAmount(doc: TrackingDocument): number {
+  return doc.totalAmount ?? doc.total ?? doc.netTotal ?? doc.purchaseOrder?.total ?? 0;
+}
+
+function resolveDocumentCurrency(doc: TrackingDocument, cycleCurrency?: CurrencyLike): CurrencyLike {
+  return doc.currency ?? doc.purchaseOrder?.currency ?? cycleCurrency;
 }
 
 const STAGE_TABS = [
@@ -49,8 +79,9 @@ export function TrackingClient({
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.key || 'purchaseRequests');
   const [search, setSearch] = useState('');
 
-  const filtered = cycles.filter(
-    (c) => !search || c.cycleNo.includes(search) || c.nextAction.includes(search)
+  const filtered = useMemo(
+    () => clientSearchMapped(cycles as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.cycle),
+    [cycles, search]
   );
 
   const selectCycle = async (cycle: Cycle) => {
@@ -65,13 +96,7 @@ export function TrackingClient({
     <div className="space-y-4">
       <div className="card">
         <div className="flex gap-4 mb-4">
-          <input
-            type="text"
-            className="form-input max-w-xs"
-            placeholder="بحث برقم العملية..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث برقم العملية أو المرحلة..." />
         </div>
 
         <div className="overflow-x-auto">
@@ -84,7 +109,15 @@ export function TrackingClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((cycle) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                    <SearchEmptyState query={search} message="لا توجد عمليات مطابقة" />
+                  </td>
+                </tr>
+              ) : filtered.map((row) => {
+                const cycle = row as unknown as Cycle;
+                return (
                 <tr
                   key={cycle.id}
                   className={`hover:bg-gray-50 cursor-pointer ${selectedCycle?.id === cycle.id ? 'bg-primary-50' : ''}`}
@@ -94,7 +127,9 @@ export function TrackingClient({
                   <td className="px-4 py-3">{formatDate(cycle.createdAt)}</td>
                   <td className="px-4 py-3">{DOCUMENT_LABELS_AR[cycle.currentStage] || cycle.currentStage}</td>
                   <td className="px-4 py-3 text-amber-700">{cycle.nextAction}</td>
-                  <td className="px-4 py-3">{formatCurrency(cycle.totalAmount)}</td>
+                  <td className="px-4 py-3">
+                    {formatDocumentCurrency(cycle.totalAmount, resolveCycleCurrency(cycle))}
+                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={cycle.isLate ? 'Late' : cycle.status === 'COMPLETED' ? 'Approved' : 'Pending Approval'} />
                   </td>
@@ -102,7 +137,8 @@ export function TrackingClient({
                     {cycle.isLate && <span className="text-red-700 text-xs">متأخر {cycle.lateDays} يوم</span>}
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -116,7 +152,7 @@ export function TrackingClient({
 
           <div className="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
             {visibleTabs.map((tab) => {
-              const docs = (cycleDetails[tab.key] as Array<{ id: string; documentNo: string; status: string; total?: number; totalAmount?: number }>) || [];
+              const docs = (cycleDetails[tab.key] as TrackingDocument[]) || [];
               return (
                 <button
                   key={tab.key}
@@ -135,7 +171,8 @@ export function TrackingClient({
 
           {visibleTabs.map((tab) => {
             if (activeTab !== tab.key) return null;
-            const docs = (cycleDetails[tab.key] as Array<{ id: string; documentNo: string; status: string; total?: number; totalAmount?: number }>) || [];
+            const docs = (cycleDetails[tab.key] as TrackingDocument[]) || [];
+            const cycleCurrency = selectedCycle ? resolveCycleCurrency(selectedCycle) : undefined;
 
             if (docs.length === 0) {
               return <p key={tab.key} className="text-gray-500 text-sm">لا توجد مستندات في هذه المرحلة</p>;
@@ -143,20 +180,23 @@ export function TrackingClient({
 
             return (
               <div key={tab.key} className="space-y-2">
-                {docs.map((doc) => (
+                {docs.map((doc) => {
+                  const docCurrency = resolveDocumentCurrency(doc, cycleCurrency);
+                  return (
                   <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <span className="font-medium">{doc.documentNo}</span>
                       <StatusBadge status={doc.status} />
                       <span className="text-sm text-gray-500">
-                        {formatCurrency(doc.totalAmount || doc.total || 0)}
+                        {formatDocumentCurrency(resolveDocumentAmount(doc), docCurrency)}
                       </span>
                     </div>
                     <Link href={`${tab.route}/${doc.id}`} className="btn-secondary text-xs">
                       فتح المستند
                     </Link>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}

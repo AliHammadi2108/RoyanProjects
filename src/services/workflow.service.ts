@@ -38,14 +38,27 @@ export async function getCycleWithAllStages(cycleId: string) {
     where: { id: cycleId },
     include: {
       branch: true,
+      currency: true,
       purchaseRequests: { include: { items: true, department: true, currency: true } },
       quotations: { include: { items: true, supplier: true, currency: true } },
-      comparisons: { include: { items: true } },
-      nominations: { include: { items: true, supplier: true } },
+      comparisons: { include: { items: true, currency: true } },
+      nominations: { include: { items: true, supplier: true, currency: true } },
       orders: { include: { items: true, supplier: true, currency: true } },
-      inspections: { include: { items: true } },
-      receivings: { include: { items: true, supplier: true } },
-      invoices: { include: { items: true, supplier: true } },
+      inspections: {
+        include: {
+          items: true,
+          purchaseOrder: { select: { total: true, currency: true } },
+        },
+      },
+      receivings: {
+        include: {
+          items: true,
+          supplier: true,
+          currency: true,
+          purchaseOrder: { select: { total: true, currency: true } },
+        },
+      },
+      invoices: { include: { items: true, supplier: true, currency: true } },
     },
   });
   return cycle;
@@ -176,8 +189,15 @@ export async function getTrackingList(filters?: {
     },
     include: {
       branch: true,
-      purchaseRequests: { select: { documentNo: true, department: true }, take: 1 },
-      orders: { select: { supplier: true, expectedArrival: true, total: true }, take: 1 },
+      currency: true,
+      purchaseRequests: {
+        select: { documentNo: true, department: true, currency: true },
+        take: 1,
+      },
+      orders: {
+        select: { supplier: true, expectedArrival: true, total: true, currency: true },
+        take: 1,
+      },
     },
     orderBy: { updatedAt: 'desc' },
     take: 100,

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { SearchBox } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import {
   getUserRolesAndPermissions,
   setUserRoles,
@@ -45,6 +47,19 @@ export function UserPermissionsClient({
   } | null>(null);
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [permSearch, setPermSearch] = useState('');
+
+  const filteredUsers = useMemo(
+    () => clientSearchMapped(users as unknown as Record<string, unknown>[], userSearch, SEARCH_MAPPINGS.user),
+    [users, userSearch]
+  );
+
+  const filteredPermissions = useMemo(() => {
+    const q = permSearch.trim().toLowerCase();
+    if (!q) return permissions;
+    return permissions.filter((p) => `${p.nameAr} ${p.name}`.toLowerCase().includes(q));
+  }, [permissions, permSearch]);
 
   const loadUser = async (id: string) => {
     setUserId(id);
@@ -80,12 +95,16 @@ export function UserPermissionsClient({
       <Header title="صلاحيات المستخدمين" subtitle="الأدوار والسماح/المنع المباشر" />
       <PageContainer>
         {error && <div className="alert-error mb-4">{error}</div>}
-        <div className="card mb-4">
+        <div className="card mb-4 space-y-3">
+          <SearchBox value={userSearch} onChange={setUserSearch} placeholder="بحث بالمستخدم..." />
           <label className="form-label">المستخدم</label>
           <select className="form-input max-w-md" value={userId} onChange={(e) => loadUser(e.target.value)}>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.nameAr} ({u.username})</option>
-            ))}
+            {filteredUsers.map((u) => {
+              const user = u as unknown as UserOption;
+              return (
+                <option key={user.id} value={user.id}>{user.nameAr} ({user.username})</option>
+              );
+            })}
           </select>
           <button type="button" className="btn-secondary text-sm mt-2" onClick={() => userId && loadUser(userId)}>
             تحميل الصلاحيات
@@ -119,9 +138,12 @@ export function UserPermissionsClient({
                   <div key={p} className="text-gray-700">{p}</div>
                 ))}
               </div>
-              <h3 className="font-semibold mb-3">تجاوز مباشر</h3>
+              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                <h3 className="font-semibold">تجاوز مباشر</h3>
+                <SearchBox value={permSearch} onChange={setPermSearch} placeholder="بحث بالصلاحية..." />
+              </div>
               <div className="max-h-96 overflow-y-auto space-y-2">
-                {permissions.slice(0, 40).map((p) => {
+                {filteredPermissions.map((p) => {
                   const direct = data.direct.find((d) => d.permissionId === p.id);
                   return (
                     <div key={p.id} className="flex items-center justify-between text-sm border-b pb-2">

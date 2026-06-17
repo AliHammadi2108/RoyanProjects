@@ -30,10 +30,16 @@ import {
   Database,
   Cog,
   Workflow,
+  BarChart3,
+  Lock,
+  Scale,
+  FileCheck,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
+import { CurrentUserDisplay } from '@/components/layout/CurrentUserDisplay';
 
 type NavItem = {
   href: string;
@@ -64,8 +70,23 @@ const navGroups: NavGroup[] = [
       { href: '/purchases/inspections', label: 'فحص المشتريات', icon: ClipboardCheck },
       { href: '/purchases/receivings', label: 'إذن التوريد', icon: Package },
       { href: '/purchases/invoices', label: 'فواتير المشتريات', icon: FileSpreadsheet },
+      { href: '/purchases/supplier-payments', label: 'سندات صرف الموردين', icon: Coins },
       { href: '/approvals/inbox', label: 'صندوق الاعتمادات', icon: Inbox },
       { href: '/notifications', label: 'التنبيهات', icon: Bell, badge: 'notifications' },
+    ],
+  },
+  {
+    id: 'reports',
+    label: 'التقارير',
+    icon: BarChart3,
+    items: [
+      { href: '/reports/operations', label: 'تقارير العمليات', icon: FileText },
+      { href: '/reports/quantity-cost', label: 'تقارير مقارنة الكميات والتكاليف', icon: Scale },
+      { href: '/reports/supplier-balances', label: 'تقارير مديونية الموردين', icon: Coins },
+      { href: '/reports/supplier-statement', label: 'كشف حساب مورد', icon: Truck },
+      { href: '/reports/approvals', label: 'تقارير الاعتمادات', icon: FileCheck },
+      { href: '/reports/used-documents', label: 'تقارير الوثائق المستخدمة/المقفلة', icon: Lock },
+      { href: '/reports/reorder-alerts', label: 'تنبيهات حد الطلب', icon: AlertTriangle },
     ],
   },
   {
@@ -85,6 +106,7 @@ const navGroups: NavGroup[] = [
     icon: Cog,
     items: [
       { href: '/settings/roles', label: 'الأدوار والصلاحيات', icon: Shield },
+      { href: '/settings/users', label: 'إدارة المستخدمين', icon: Users },
       { href: '/settings/user-permissions', label: 'صلاحيات المستخدمين', icon: Users },
       { href: '/settings/supplier-permissions', label: 'صلاحيات الموردين', icon: FileKey },
       { href: '/settings/approval-rules', label: 'قواعد الاعتماد', icon: ClipboardList },
@@ -212,7 +234,8 @@ export function Sidebar({ unreadCount = 0, allowedHrefs }: SidebarProps) {
         })}
       </nav>
 
-      <div className="p-3 border-t border-gray-200">
+      <div className="p-3 border-t border-gray-200 space-y-2">
+        <CurrentUserDisplay />
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"

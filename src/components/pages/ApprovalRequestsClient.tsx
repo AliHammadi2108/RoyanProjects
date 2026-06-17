@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { processStructuredApprovalRequest } from '@/actions/access-control';
 import { formatCurrency } from '@/lib/utils';
 
@@ -23,7 +25,13 @@ interface RequestRow {
 
 export function ApprovalRequestsClient({ initialData }: { initialData: RequestRow[] }) {
   const [rows, setRows] = useState(initialData);
+  const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+
+  const filtered = useMemo(
+    () => clientSearchMapped(rows as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.approvalRequest),
+    [rows, search]
+  );
 
   const act = async (requestId: string, action: 'approve' | 'reject' | 'return_for_edit' | 'cancel') => {
     setError('');
@@ -72,7 +80,14 @@ export function ApprovalRequestsClient({ initialData }: { initialData: RequestRo
       <Header title="طلبات الاعتماد" subtitle="الطلبات المعلقة" />
       <PageContainer>
         {error && <div className="alert-error mb-4">{error}</div>}
-        <DataTable columns={columns} data={rows as unknown as Record<string, unknown>[]} />
+        <div className="card mb-4">
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالوحدة أو العملية أو مقدم الطلب..." />
+        </div>
+        {filtered.length === 0 ? (
+          <div className="card"><SearchEmptyState query={search} /></div>
+        ) : (
+          <DataTable columns={columns} data={filtered as unknown as Record<string, unknown>[]} />
+        )}
       </PageContainer>
     </>
   );

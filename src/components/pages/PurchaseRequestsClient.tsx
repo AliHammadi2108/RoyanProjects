@@ -7,6 +7,9 @@ import { Plus, Eye, Pencil, Trash2, List } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
+import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { deletePurchaseRequest } from '@/actions/purchase-requests';
 
@@ -25,28 +28,37 @@ type RequestRow = Record<string, unknown> & {
   status: string;
 };
 
-export function PurchaseRequestsClient({ initialData }: { initialData: RequestRow[] }) {
+export function PurchaseRequestsClient({
+  initialData,
+  usageMap = {},
+}: {
+  initialData: RequestRow[];
+  usageMap?: Record<string, UsedDocumentInfo>;
+}) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState('');
+  const [usedFilter, setUsedFilter] = useState<'' | 'used' | 'unused'>('');
   const [search, setSearch] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const filtered = useMemo(() => {
-    return initialData.filter((row) => {
+    let rows = clientSearch(initialData, search, [
+      (r) => SEARCH_MAPPINGS.purchaseRequest(r).join(' '),
+    ]);
+    return rows.filter((row) => {
       if (statusFilter && row.status !== statusFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        const docNo = String(row.documentNo || '').toLowerCase();
-        const dept = String((row.department as { nameAr?: string })?.nameAr || '').toLowerCase();
-        if (!docNo.includes(q) && !dept.includes(q)) return false;
-      }
+      const used = usageMap[row.id]?.isUsed;
+      if (usedFilter === 'used' && !used) return false;
+      if (usedFilter === 'unused' && used) return false;
       return true;
     });
-  }, [initialData, statusFilter, search]);
+  }, [initialData, statusFilter, usedFilter, search, usageMap]);
 
-  const canEdit = (status: string) => ['Draft', 'Returned For Edit'].includes(status);
-  const canDelete = (status: string) => status === 'Draft';
+  const canEdit = (row: RequestRow) =>
+    ['Draft', 'Returned For Edit'].includes(row.status) && !usageMap[row.id]?.isUsed;
+  const canDelete = (row: RequestRow) =>
+    row.status === 'Draft' && !usageMap[row.id]?.isUsed;
 
   const handleDelete = async (id: string, documentNo: string) => {
     if (!confirm(`هل تريد حذف طلب الشراء ${documentNo}؟`)) return;
@@ -90,12 +102,10 @@ export function PurchaseRequestsClient({ initialData }: { initialData: RequestRo
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <input
-                type="text"
-                className="form-input text-sm max-w-xs"
-                placeholder="بحث برقم الطلب أو الإدارة..."
+              <SearchBox
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={setSearch}
+                placeholder="بحث برقم الطلب أو الإدارة..."
               />
               <select
                 className="form-input text-sm"
@@ -106,6 +116,7 @@ export function PurchaseRequestsClient({ initialData }: { initialData: RequestRo
                   <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
+              <UsedFilterSelect value={usedFilter} onChange={setUsedFilter} />
             </div>
           </div>
         </div>
@@ -113,10 +124,15 @@ export function PurchaseRequestsClient({ initialData }: { initialData: RequestRo
         <div className="card">
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              <p className="mb-4">لا توجد طلبات شراء محفوظة</p>
-              <Link href="/purchases/requests/new" className="btn-primary inline-flex">
-                <Plus className="w-4 h-4" /> إنشاء أول طلب شراء
-              </Link>
+              <SearchEmptyState query={search} />
+              {!search && !statusFilter && !usedFilter && (
+                <>
+                  <p className="mb-4">لا توجد طلبات شراء محفوظة</p>
+                  <Link href="/purchases/requests/new" className="btn-primary inline-flex">
+                    <Plus className="w-4 h-4" /> إنشاء أول طلب شراء
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -131,7 +147,12 @@ export function PurchaseRequestsClient({ initialData }: { initialData: RequestRo
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {filtered.map((row) => (
                     <tr key={row.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{row.documentNo}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex items-center gap-2">
+                          {row.documentNo}
+                          <UsedDocumentBadge usage={usageMap[row.id]} compact />
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{(row.branch as { nameAr: string })?.nameAr || '-'}</td>
                       <td className="px-4 py-3">{(row.department as { nameAr: string })?.nameAr || '-'}</td>
                       <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
@@ -147,7 +168,7 @@ export function PurchaseRequestsClient({ initialData }: { initialData: RequestRo
                           >
                             <Eye className="w-3.5 h-3.5" /> عرض
                           </Link>
-                          {canEdit(row.status) && (
+                          {canEdit(row) && (
                             <Link
                               href={`/purchases/requests/${row.id}`}
                               className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 hover:bg-blue-100 text-blue-700"
@@ -156,7 +177,7 @@ export function PurchaseRequestsClient({ initialData }: { initialData: RequestRo
                               <Pencil className="w-3.5 h-3.5" /> تعديل
                             </Link>
                           )}
-                          {canDelete(row.status) && (
+                          {canDelete(row) && (
                             <button
                               type="button"
                               disabled={deletingId === row.id}

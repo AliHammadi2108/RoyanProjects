@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { calcBaseQty } from '@/lib/item-units';
+import { checkAllAfterStockChange } from '@/services/reorder-alert.service';
 
 type Tx = Prisma.TransactionClient;
 
@@ -51,6 +52,11 @@ export async function applyStockIn(
     update: {
       baseQty: { increment: baseQty },
     },
+  });
+
+  await checkAllAfterStockChange(tx, {
+    itemId: params.itemId,
+    warehouseId: params.warehouseId,
   });
 
   return baseQty;
@@ -107,6 +113,11 @@ export async function applyStockOut(
       warehouseId_itemId: { warehouseId: params.warehouseId, itemId: params.itemId },
     },
     data: { baseQty: { decrement: baseQty } },
+  });
+
+  await checkAllAfterStockChange(tx, {
+    itemId: params.itemId,
+    warehouseId: params.warehouseId,
   });
 
   return baseQty;

@@ -320,7 +320,9 @@ export async function getItemsSettings(filters?: { search?: string; activeOnly?:
     },
     include: {
       category: true,
+      preferredSupplier: { select: { id: true, code: true, nameAr: true } },
       itemUnits: { include: { unit: true }, orderBy: { isBase: 'desc' } },
+      itemWarehouseReorders: { include: { warehouse: { select: { id: true, code: true, nameAr: true } } } },
     },
     orderBy: { code: 'asc' },
   });
@@ -332,7 +334,9 @@ export async function getItemSettings(id: string) {
     where: { id },
     include: {
       category: true,
+      preferredSupplier: { select: { id: true, code: true, nameAr: true } },
       itemUnits: { include: { unit: true }, orderBy: { isBase: 'desc' } },
+      itemWarehouseReorders: { include: { warehouse: { select: { id: true, code: true, nameAr: true } } } },
     },
   });
 }
@@ -353,8 +357,12 @@ export async function saveItem(data: unknown, id?: string) {
         barcode: parsed.barcode,
         description: parsed.description,
         categoryId: toOptionalId(parsed.categoryId),
-        minStock: parsed.minStock,
+        minStock: parsed.reorderLevelBaseQty ?? parsed.minStock,
         maxStock: parsed.maxStock,
+        reorderLevelBaseQty: parsed.reorderLevelBaseQty ?? parsed.minStock,
+        reorderQtyBase: parsed.reorderQtyBase,
+        preferredSupplierId: toOptionalId(parsed.preferredSupplierId),
+        enableReorderAlert: parsed.enableReorderAlert,
         isStockItem: parsed.isStockItem,
         isActive: parsed.isActive,
         unitId: baseUnit.unitId,
@@ -383,9 +391,28 @@ export async function saveItem(data: unknown, id?: string) {
         })),
       });
 
+      if (id) {
+        await tx.itemWarehouseReorder.deleteMany({ where: { itemId: item.id } });
+      }
+      if (parsed.itemWarehouseReorders?.length) {
+        await tx.itemWarehouseReorder.createMany({
+          data: parsed.itemWarehouseReorders.map((wr) => ({
+            itemId: item.id,
+            warehouseId: wr.warehouseId,
+            reorderLevelBaseQty: wr.reorderLevelBaseQty,
+            reorderQtyBase: wr.reorderQtyBase,
+            enableReorderAlert: wr.enableReorderAlert,
+          })),
+        });
+      }
+
       return tx.item.findUnique({
         where: { id: item.id },
-        include: { itemUnits: { include: { unit: true } } },
+        include: {
+          itemUnits: { include: { unit: true } },
+          itemWarehouseReorders: { include: { warehouse: true } },
+          preferredSupplier: true,
+        },
       });
     });
 

@@ -5,12 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createComparison, updateComparison, submitComparison, deleteComparison } from '@/actions/comparisons';
 import { getApprovedQuotationsForRequest } from '@/actions/quotations';
-import { getDocumentApproval } from '@/actions/common';
-import { DocumentFormHeader, DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
+import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { formatCurrency } from '@/lib/utils';
+import { normalizePaymentMethod } from '@/lib/constants';
+import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { resolveSourceDocument } from '@/lib/document-cascade';
 import type { MasterData } from '@/types/master-data';
 
@@ -57,7 +61,8 @@ export function ComparisonForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [approval, setApproval] = useState<unknown>(null);
+  const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
   const [quotations, setQuotations] = useState<QuotationOption[]>([]);
   const [selectedQuotationIds, setSelectedQuotationIds] = useState<string[]>(
     existing?.quotationIds ? (existing.quotationIds as string).split(',').filter(Boolean) : []
@@ -70,7 +75,7 @@ export function ComparisonForm({
     branchId: (existing?.branchId as string) || defaultRequest?.branchId || masterData.branches[0]?.id || '',
     purchaseRequestId: defaultRequest?.id || '',
     currencyId: (existing?.currencyId as string) || defaultRequest?.currencyId || masterData.currencies[0]?.id || '',
-    paymentMethod: (existing?.paymentMethod as string) || '',
+    paymentMethod: normalizePaymentMethod(existing?.paymentMethod as string),
     notes: (existing?.notes as string) || '',
     items: ((existing?.items as Array<Record<string, unknown>>) || []).map((i) => ({
       itemId: i.itemId as string,
@@ -93,6 +98,7 @@ export function ComparisonForm({
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('TECHNICAL_COMPARISON', existing.id as string).then(setApproval);
+      fetchDocumentUsage('TECHNICAL_COMPARISON', existing.id as string).then(setUsage);
     }
   }, [existing?.id]);
 
@@ -249,20 +255,32 @@ export function ComparisonForm({
     }
   };
 
+  const refreshApproval = () => {
+    if (!existing?.id) return;
+    getDocumentApproval('TECHNICAL_COMPARISON', existing.id as string).then(setApproval);
+    router.refresh();
+  };
+
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'comparison',
+    isNew,
+    existing,
+    usage,
+    approval,
+    loading,
+    onSave: handleSave,
+    onSubmitOnly: handleSubmitOnly,
+    onAfterWorkflowAction: refreshApproval,
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'مقارنة فنية جديدة' : `مقارنة فنية ${existing?.documentNo}`}
         subtitle="APST003"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/comparisons"
-            listLabel="قائمة المقارنات"
-            status={existing?.status as string}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -308,6 +326,30 @@ export function ComparisonForm({
             )}
 
             <div className="card">
+              <h2 className="font-semibold mb-4">بيانات إضافية</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="form-label">طريقة الدفع</label>
+                  <PaymentMethodSelect
+                    value={form.paymentMethod}
+                    disabled={!effectiveEditable}
+                    onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="form-label">الملاحظات</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={form.notes}
+                    disabled={!effectiveEditable}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
               <h2 className="font-semibold mb-4">بنود المقارنة</h2>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -345,14 +387,15 @@ export function ComparisonForm({
 
             <DocumentFormFooter
               listHref="/purchases/comparisons"
-              isEditable={isEditable}
+              isEditable={false}
               isNew={isNew}
               canDelete={existing?.status === 'Draft'}
               loading={loading}
               status={existing?.status as string}
-              onSaveDraft={() => handleSave(false)}
-              onSubmit={() => (isNew ? handleSave(true) : handleSubmitOnly())}
+              hideActions
+              hideReadOnlyMessage
               onDelete={handleDelete}
+              showSubmit={false}
             />
 
             {existing?.status === 'Approved' && (
@@ -374,13 +417,8 @@ export function ComparisonForm({
           <div className="card">
             <h2 className="font-semibold mb-4">مسار الاعتماد</h2>
             <ApprovalTimeline
-              approval={approval as Parameters<typeof ApprovalTimeline>[0]['approval']}
-              onAction={() => {
-                if (existing?.id) {
-                  getDocumentApproval('TECHNICAL_COMPARISON', existing.id as string).then(setApproval);
-                  router.refresh();
-                }
-              }}
+              approval={approval}
+              onAction={refreshApproval}
             />
           </div>
         </div>

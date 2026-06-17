@@ -1,9 +1,12 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDateTime } from '@/lib/utils';
 import { readNotification, readAllNotifications } from '@/actions/common';
 import { DOCUMENT_LABELS_AR } from '@/lib/constants';
@@ -16,6 +19,7 @@ interface NotificationItem {
   documentType?: string | null;
   status: string;
   actionUrl?: string | null;
+  route?: string | null;
   createdAt: string;
   user?: { nameAr: string; username: string };
 }
@@ -28,13 +32,20 @@ export function NotificationsClient({
   isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(
+    () => clientSearchMapped(initialData as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.notification),
+    [initialData, search]
+  );
 
   const handleClick = async (notification: NotificationItem) => {
     if (notification.status === 'Unread') {
       await readNotification(notification.id);
     }
-    if (notification.actionUrl) {
-      router.push(notification.actionUrl);
+    const href = notification.route || notification.actionUrl;
+    if (href) {
+      router.push(href);
     }
     router.refresh();
   };
@@ -58,11 +69,19 @@ export function NotificationsClient({
         }
       />
       <PageContainer>
+        <div className="card mb-4">
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالعنوان أو المحتوى..." />
+        </div>
         <div className="space-y-3">
-          {initialData.length === 0 ? (
-            <div className="card text-center py-8 text-gray-500 text-sm">لا توجد تنبيهات</div>
+          {filtered.length === 0 ? (
+            <div className="card text-center py-8 text-gray-500 text-sm">
+              <SearchEmptyState query={search} message="لا توجد تنبيهات مطابقة" />
+              {!search && 'لا توجد تنبيهات'}
+            </div>
           ) : (
-            initialData.map((notification) => (
+            filtered.map((row) => {
+              const notification = row as unknown as NotificationItem;
+              return (
               <div
                 key={notification.id}
                 onClick={() => handleClick(notification)}
@@ -93,7 +112,8 @@ export function NotificationsClient({
                   </span>
                 </div>
               </div>
-            ))
+            );
+            })
           )}
         </div>
       </PageContainer>

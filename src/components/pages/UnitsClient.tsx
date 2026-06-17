@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { saveUnit, setUnitActive } from '@/actions/master-data';
 
 interface UnitRow {
@@ -17,6 +19,7 @@ interface UnitRow {
 
 export function UnitsClient({ initialData }: { initialData: UnitRow[] }) {
   const [rows, setRows] = useState(initialData);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({ code: '', nameAr: '', symbol: '', description: '', isActive: true });
   const [editId, setEditId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -36,6 +39,11 @@ export function UnitsClient({ initialData }: { initialData: UnitRow[] }) {
       setError(e instanceof Error ? e.message : 'فشل الحفظ');
     }
   };
+
+  const filtered = useMemo(
+    () => clientSearchMapped(rows as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.unit),
+    [rows, search]
+  );
 
   const columns = [
     { key: 'code', label: 'الكود' },
@@ -81,7 +89,14 @@ export function UnitsClient({ initialData }: { initialData: UnitRow[] }) {
             <button type="button" className="btn-primary" onClick={handleSave}>حفظ</button>
           </div>
         </div>
-        <DataTable columns={columns} data={rows as unknown as Record<string, unknown>[]} />
+        <div className="card mb-4">
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالكود أو الاسم أو الرمز..." />
+        </div>
+        {filtered.length === 0 ? (
+          <div className="card"><SearchEmptyState query={search} /></div>
+        ) : (
+          <DataTable columns={columns} data={filtered as unknown as Record<string, unknown>[]} />
+        )}
       </PageContainer>
     </>
   );

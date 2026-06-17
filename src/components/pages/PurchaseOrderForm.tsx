@@ -6,16 +6,20 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ItemsGrid, LineItem } from '@/components/ui/ItemsGrid';
 import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createPurchaseOrder, updatePurchaseOrder, submitPurchaseOrder, deletePurchaseOrder } from '@/actions/purchase-orders';
-import { getDocumentApproval } from '@/actions/common';
+import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
+import { normalizePaymentMethod } from '@/lib/constants';
+import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import {
   resolveSourceDocument,
   buildPurchaseOrderItemsFromComparison,
   resolveComparisonSupplierId,
 } from '@/lib/document-cascade';
-import { DocumentFormHeader, DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import type { MasterData } from '@/types/master-data';
 
 interface ApprovedNomination {
@@ -73,7 +77,8 @@ export function PurchaseOrderForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [approval, setApproval] = useState<unknown>(null);
+  const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
   const defaultNomination = resolveSourceDocument(approvedNominations, defaultNominationId);
   const defaultComparison = resolveSourceDocument(approvedComparisons, defaultComparisonId);
@@ -106,7 +111,7 @@ export function PurchaseOrderForm({
       defaultComparison?.currencyId ||
       masterData.currencies[0]?.id ||
       '',
-    paymentMethod: (existing?.paymentMethod as string) || '',
+    paymentMethod: normalizePaymentMethod(existing?.paymentMethod as string),
     expectedArrival: existing?.expectedArrival
       ? new Date(existing.expectedArrival as string).toISOString().split('T')[0]
       : '',
@@ -135,6 +140,7 @@ export function PurchaseOrderForm({
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('PURCHASE_ORDER', existing.id as string).then(setApproval);
+      fetchDocumentUsage('PURCHASE_ORDER', existing.id as string).then(setUsage);
     }
   }, [existing?.id]);
 
@@ -235,20 +241,32 @@ export function PurchaseOrderForm({
   const subtotal = form.items.reduce((s, i) => s + i.total, 0);
   const total = subtotal - form.discount;
 
+  const refreshApproval = () => {
+    if (!existing?.id) return;
+    getDocumentApproval('PURCHASE_ORDER', existing.id as string).then(setApproval);
+    router.refresh();
+  };
+
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'purchase_order',
+    isNew,
+    existing,
+    usage,
+    approval,
+    loading,
+    onSave: handleSave,
+    onSubmitOnly: handleSubmitOnly,
+    onAfterWorkflowAction: refreshApproval,
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'أمر شراء جديد' : `أمر شراء ${existing?.documentNo}`}
         subtitle="APST005"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/orders"
-            listLabel="قائمة أوامر الشراء"
-            status={existing?.status as string}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -306,7 +324,7 @@ export function PurchaseOrderForm({
                   <select
                     className="form-input"
                     value={form.supplierId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
                   >
                     {masterData.suppliers.map((s) => (
@@ -319,7 +337,7 @@ export function PurchaseOrderForm({
                   <select
                     className="form-input"
                     value={form.warehouseId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                   >
                     <option value="">-- اختر --</option>
@@ -329,12 +347,20 @@ export function PurchaseOrderForm({
                   </select>
                 </div>
                 <div>
+                  <label className="form-label">طريقة الدفع</label>
+                  <PaymentMethodSelect
+                    value={form.paymentMethod}
+                    disabled={!effectiveEditable}
+                    onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                  />
+                </div>
+                <div>
                   <label className="form-label">تاريخ الوصول المتوقع</label>
                   <input
                     type="date"
                     className="form-input"
                     value={form.expectedArrival}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, expectedArrival: e.target.value })}
                   />
                 </div>
@@ -344,7 +370,7 @@ export function PurchaseOrderForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -357,21 +383,22 @@ export function PurchaseOrderForm({
                 items={form.items}
                 onChange={(items) => setForm({ ...form, items })}
                 availableItems={masterData.items}
-                readOnly={!isEditable}
+                readOnly={!effectiveEditable}
               />
               <div className="mt-4 text-left font-bold">الإجمالي: {formatCurrency(total)}</div>
             </div>
 
             <DocumentFormFooter
               listHref="/purchases/orders"
-              isEditable={isEditable}
+              isEditable={false}
               isNew={isNew}
               canDelete={existing?.status === 'Draft'}
               loading={loading}
               status={existing?.status as string}
-              onSaveDraft={() => handleSave(false)}
-              onSubmit={() => (isNew ? handleSave(true) : handleSubmitOnly())}
+              hideActions
+              hideReadOnlyMessage
               onDelete={handleDelete}
+              showSubmit={false}
             />
 
             {existing?.status === 'Approved' && (
@@ -389,13 +416,8 @@ export function PurchaseOrderForm({
           <div className="card">
             <h2 className="font-semibold mb-4">مسار الاعتماد</h2>
             <ApprovalTimeline
-              approval={approval as Parameters<typeof ApprovalTimeline>[0]['approval']}
-              onAction={() => {
-                if (existing?.id) {
-                  getDocumentApproval('PURCHASE_ORDER', existing.id as string).then(setApproval);
-                  router.refresh();
-                }
-              }}
+              approval={approval}
+              onAction={refreshApproval}
             />
           </div>
         </div>

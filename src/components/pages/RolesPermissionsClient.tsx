@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { SearchBox } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { saveRole } from '@/actions/access-control';
 
 interface Permission {
@@ -36,6 +38,13 @@ export function RolesPermissionsClient({
   );
   const [form, setForm] = useState({ name: '', nameAr: '', description: '' });
   const [error, setError] = useState('');
+  const [roleSearch, setRoleSearch] = useState('');
+  const [permSearch, setPermSearch] = useState('');
+
+  const filteredRoles = useMemo(
+    () => clientSearchMapped(roles as unknown as Record<string, unknown>[], roleSearch, SEARCH_MAPPINGS.role),
+    [roles, roleSearch]
+  );
 
   const grouped = permissions.reduce<Record<string, Permission[]>>((acc, p) => {
     const key = p.module;
@@ -97,16 +106,20 @@ export function RolesPermissionsClient({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="card space-y-2">
             <h3 className="font-semibold mb-2">الأدوار</h3>
-            {roles.map((r) => (
+            <SearchBox value={roleSearch} onChange={setRoleSearch} placeholder="بحث بالدور..." className="mb-2" />
+            {filteredRoles.map((r) => {
+              const role = r as unknown as RoleRow;
+              return (
               <button
-                key={r.id}
+                key={role.id}
                 type="button"
-                className={`w-full text-right px-3 py-2 rounded text-sm ${selectedRole?.id === r.id ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-50'}`}
-                onClick={() => selectRole(r)}
+                className={`w-full text-right px-3 py-2 rounded text-sm ${selectedRole?.id === role.id ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-50'}`}
+                onClick={() => selectRole(role)}
               >
-                {r.nameAr}
+                {role.nameAr}
               </button>
-            ))}
+            );
+            })}
             <div className="pt-4 border-t space-y-2">
               <input className="form-input text-sm" placeholder="اسم الدور (إنجليزي)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <input className="form-input text-sm" placeholder="اسم الدور (عربي)" value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} />
@@ -116,15 +129,25 @@ export function RolesPermissionsClient({
           <div className="lg:col-span-3 card">
             {selectedRole ? (
               <>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                   <h3 className="font-semibold">صلاحيات: {selectedRole.nameAr}</h3>
-                  <button type="button" className="btn-primary text-sm" onClick={saveCurrentRole}>حفظ الصلاحيات</button>
+                  <div className="flex items-center gap-2">
+                    <SearchBox value={permSearch} onChange={setPermSearch} placeholder="بحث بالصلاحية..." />
+                    <button type="button" className="btn-primary text-sm" onClick={saveCurrentRole}>حفظ الصلاحيات</button>
+                  </div>
                 </div>
-                {Object.entries(grouped).map(([module, perms]) => (
+                {Object.entries(grouped).map(([module, perms]) => {
+                  const visiblePerms = permSearch
+                    ? perms.filter((p) =>
+                        `${p.nameAr} ${p.name}`.toLowerCase().includes(permSearch.trim().toLowerCase())
+                      )
+                    : perms;
+                  if (visiblePerms.length === 0) return null;
+                  return (
                   <div key={module} className="mb-4">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">{module}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {perms.map((p) => (
+                      {visiblePerms.map((p) => (
                         <label key={p.id} className="flex items-center gap-2 text-sm">
                           <input type="checkbox" checked={checked.includes(p.id)} onChange={() => togglePerm(p.id)} />
                           <span>{p.nameAr}</span>
@@ -133,7 +156,8 @@ export function RolesPermissionsClient({
                       ))}
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </>
             ) : (
               <p className="text-gray-500 text-sm">اختر دوراً</p>

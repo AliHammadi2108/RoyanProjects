@@ -1,46 +1,61 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { ShoppingCart } from 'lucide-react';
-
-const DEMO_USERS = [
-  { username: 'admin', label: 'مدير النظام', password: 'admin123' },
-  { username: 'requester', label: 'مقدم طلب', password: 'requester123' },
-  { username: 'purchasing_officer', label: 'موظف مشتريات', password: 'officer123' },
-  { username: 'approver', label: 'معتمد', password: 'approver123' },
-  { username: 'warehouse_user', label: 'مستخدم مخزن', password: 'warehouse123' },
-  { username: 'finance_user', label: 'مستخدم مالية', password: 'finance123' },
-];
+import { getRememberedUserNo, setRememberedUserNo } from '@/lib/remember-user';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [userNo, setUserNo] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const saved = getRememberedUserNo();
+    if (saved) {
+      setUserNo(saved);
+      setRemember(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    if (!userNo.trim()) {
+      setError('رقم المستخدم مطلوب');
+      setLoading(false);
+      return;
+    }
+    if (!/^\d+$/.test(userNo.trim())) {
+      setError('رقم المستخدم يجب أن يكون أرقاماً فقط');
+      setLoading(false);
+      return;
+    }
+    if (!password) {
+      setError('كلمة المرور مطلوبة');
+      setLoading(false);
+      return;
+    }
+
+    if (remember) setRememberedUserNo(userNo.trim());
+    else setRememberedUserNo('');
+
     const result = await signIn('credentials', {
-      username,
+      userNo: userNo.trim(),
       password,
       redirect: false,
     });
 
     if (result?.error) {
-      setError('اسم المستخدم أو كلمة المرور غير صحيحة');
+      setError('رقم المستخدم أو كلمة المرور غير صحيحة');
       setLoading(false);
     } else {
       window.location.href = '/';
     }
-  };
-
-  const quickLogin = (user: typeof DEMO_USERS[0]) => {
-    setUsername(user.username);
-    setPassword(user.password);
   };
 
   return (
@@ -56,13 +71,17 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="form-label">اسم المستخدم</label>
+            <label className="form-label">رقم المستخدم</label>
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="form-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={userNo}
+              onChange={(e) => setUserNo(e.target.value.replace(/\D/g, ''))}
+              placeholder="1"
               required
+              autoComplete="username"
               dir="ltr"
             />
           </div>
@@ -74,8 +93,21 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               dir="ltr"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            <label htmlFor="remember" className="text-sm text-gray-600">
+              تذكر رقم المستخدم
+            </label>
           </div>
 
           {error && (
@@ -88,22 +120,6 @@ export default function LoginPage() {
             {loading ? 'جاري الدخول...' : 'تسجيل الدخول'}
           </button>
         </form>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center mb-3">دخول سريع (بيانات تجريبية)</p>
-          <div className="grid grid-cols-2 gap-2">
-            {DEMO_USERS.map((user) => (
-              <button
-                key={user.username}
-                type="button"
-                onClick={() => quickLogin(user)}
-                className="text-xs px-2 py-1.5 rounded border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"
-              >
-                {user.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

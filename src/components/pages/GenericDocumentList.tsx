@@ -7,6 +7,9 @@ import { Plus, Eye, Pencil, Trash2, List } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
+import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 
@@ -322,28 +325,46 @@ interface GenericDocumentListProps {
   variant: DocumentListVariant;
   data: Record<string, unknown>[];
   onDelete?: (id: string) => Promise<unknown>;
+  usageMap?: Record<string, UsedDocumentInfo>;
 }
 
-export function GenericDocumentList({ variant, data, onDelete }: GenericDocumentListProps) {
+const SEARCH_EXTRA: Partial<Record<DocumentListVariant, string[]>> = {
+  quotation: ['referenceNo'],
+  order: ['operationNo'],
+};
+
+export function GenericDocumentList({ variant, data, onDelete, usageMap = {} }: GenericDocumentListProps) {
   const config = VARIANT_CONFIG[variant];
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState('');
+  const [usedFilter, setUsedFilter] = useState<'' | 'used' | 'unused'>('');
   const [search, setSearch] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const filtered = useMemo(() => {
-    return data.filter((row) => {
+    let rows = data;
+    if (search) {
+      rows = clientSearch(rows, search, [
+        (row) => SEARCH_MAPPINGS.document(row, SEARCH_EXTRA[variant] || []).join(' '),
+      ]);
+    }
+    return rows.filter((row) => {
       const status = row[config.statusField] as string;
       if (statusFilter && status !== statusFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        const docNo = String(row[config.documentNoField] || '').toLowerCase();
-        if (!docNo.includes(q)) return false;
-      }
+      const id = row.id as string;
+      const used = usageMap[id]?.isUsed;
+      if (usedFilter === 'used' && !used) return false;
+      if (usedFilter === 'unused' && used) return false;
       return true;
     });
-  }, [data, statusFilter, search, config]);
+  }, [data, statusFilter, usedFilter, search, config, usageMap]);
+
+  const isRowEditable = (row: Record<string, unknown>) =>
+    config.canEdit(row) && !usageMap[row.id as string]?.isUsed;
+
+  const isRowDeletable = (row: Record<string, unknown>) =>
+    config.canDelete(row) && !usageMap[row.id as string]?.isUsed;
 
   const handleDelete = async (id: string, documentNo: string) => {
     if (!onDelete) return;
@@ -395,12 +416,10 @@ export function GenericDocumentList({ variant, data, onDelete }: GenericDocument
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <input
-                type="text"
-                className="form-input text-sm max-w-xs"
-                placeholder="بحث برقم المستند..."
+              <SearchBox
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={setSearch}
+                placeholder="بحث برقم المستند أو المورد..."
               />
               {showStatusFilter && (
                 <select
@@ -415,6 +434,7 @@ export function GenericDocumentList({ variant, data, onDelete }: GenericDocument
                   ))}
                 </select>
               )}
+              <UsedFilterSelect value={usedFilter} onChange={setUsedFilter} />
             </div>
           </div>
         </div>
@@ -422,10 +442,15 @@ export function GenericDocumentList({ variant, data, onDelete }: GenericDocument
         <div className="card">
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              <p className="mb-4">لا توجد عمليات محفوظة</p>
-              <Link href={config.createHref} className="btn-primary inline-flex">
-                <Plus className="w-4 h-4" /> {config.createLabel}
-              </Link>
+              <SearchEmptyState query={search} message="لا توجد عمليات مطابقة" />
+              {!search && !usedFilter && !statusFilter && (
+                <>
+                  <p className="mb-4">لا توجد عمليات محفوظة</p>
+                  <Link href={config.createHref} className="btn-primary inline-flex">
+                    <Plus className="w-4 h-4" /> {config.createLabel}
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -453,9 +478,16 @@ export function GenericDocumentList({ variant, data, onDelete }: GenericDocument
                       <tr key={id} className="hover:bg-gray-50">
                         {config.columns.map((col) => (
                           <td key={col.key} className="px-4 py-3">
-                            {col.render
-                              ? col.render(row)
-                              : String(row[col.key] ?? '-')}
+                            {col.key === config.documentNoField ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {col.render ? col.render(row) : String(row[col.key] ?? '-')}
+                                <UsedDocumentBadge usage={usageMap[id]} compact />
+                              </div>
+                            ) : col.render ? (
+                              col.render(row)
+                            ) : (
+                              String(row[col.key] ?? '-')
+                            )}
                           </td>
                         ))}
                         <td className="px-4 py-3">
@@ -466,7 +498,7 @@ export function GenericDocumentList({ variant, data, onDelete }: GenericDocument
                             >
                               <Eye className="w-3.5 h-3.5" /> عرض
                             </Link>
-                            {config.canEdit(row) && (
+                            {isRowEditable(row) && (
                               <Link
                                 href={`${config.basePath}/${id}`}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 hover:bg-blue-100 text-blue-700"
@@ -474,7 +506,7 @@ export function GenericDocumentList({ variant, data, onDelete }: GenericDocument
                                 <Pencil className="w-3.5 h-3.5" /> تعديل
                               </Link>
                             )}
-                            {onDelete && config.canDelete(row) && (
+                            {onDelete && isRowDeletable(row) && (
                               <button
                                 type="button"
                                 disabled={deletingId === id}

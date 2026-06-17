@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { SearchBox } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { getUserSupplierPermissions, saveUserSupplierPermission } from '@/actions/access-control';
 
 interface UserOption { id: string; nameAr: string; username: string }
@@ -25,6 +27,18 @@ export function SupplierPermissionsClient({
     canApproveTransactions: boolean;
   }>>([]);
   const [error, setError] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [supplierSearch, setSupplierSearch] = useState('');
+
+  const filteredUsers = useMemo(
+    () => clientSearchMapped(users as unknown as Record<string, unknown>[], userSearch, SEARCH_MAPPINGS.user),
+    [users, userSearch]
+  );
+
+  const filteredSuppliers = useMemo(
+    () => clientSearchMapped(suppliers as unknown as Record<string, unknown>[], supplierSearch, SEARCH_MAPPINGS.supplier),
+    [suppliers, supplierSearch]
+  );
 
   const load = async (id: string) => {
     setUserId(id);
@@ -85,11 +99,20 @@ export function SupplierPermissionsClient({
       <Header title="صلاحيات الموردين" subtitle="صلاحيات المستخدم على كل مورد" />
       <PageContainer>
         {error && <div className="alert-error mb-4">{error}</div>}
-        <select className="form-input max-w-md mb-4" value={userId} onChange={(e) => load(e.target.value)}>
-          {users.map((u) => <option key={u.id} value={u.id}>{u.nameAr}</option>)}
-        </select>
-        <button type="button" className="btn-secondary text-sm mr-2 mb-4" onClick={() => load(userId)}>تحميل</button>
-        <button type="button" className="btn-primary text-sm mb-4" onClick={saveAll}>حفظ الكل</button>
+        <div className="card mb-4 space-y-3">
+          <SearchBox value={userSearch} onChange={setUserSearch} placeholder="بحث بالمستخدم..." />
+          <select className="form-input max-w-md" value={userId} onChange={(e) => load(e.target.value)}>
+            {filteredUsers.map((u) => {
+              const user = u as unknown as UserOption;
+              return <option key={user.id} value={user.id}>{user.nameAr}</option>;
+            })}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-4 items-center">
+          <button type="button" className="btn-secondary text-sm" onClick={() => load(userId)}>تحميل</button>
+          <button type="button" className="btn-primary text-sm" onClick={saveAll}>حفظ الكل</button>
+          <SearchBox value={supplierSearch} onChange={setSupplierSearch} placeholder="بحث بالمورد..." className="max-w-xs" />
+        </div>
 
         <div className="overflow-x-auto border rounded-lg">
           <table className="min-w-full text-sm">
@@ -104,14 +127,15 @@ export function SupplierPermissionsClient({
               </tr>
             </thead>
             <tbody>
-              {suppliers.map((s) => {
-                const row = getRow(s.id);
+              {filteredSuppliers.map((s) => {
+                const supplier = s as unknown as SupplierOption;
+                const row = getRow(supplier.id);
                 return (
-                  <tr key={s.id} className="border-t">
-                    <td className="px-3 py-2">{s.code} - {s.nameAr}</td>
+                  <tr key={supplier.id} className="border-t">
+                    <td className="px-3 py-2">{supplier.code} - {supplier.nameAr}</td>
                     {(['canView', 'canUseInPurchase', 'canViewBalance', 'canEdit', 'canApproveTransactions'] as const).map((field) => (
                       <td key={field} className="px-3 py-2 text-center">
-                        <input type="checkbox" checked={row[field]} onChange={(e) => update(s.id, field, e.target.checked)} />
+                        <input type="checkbox" checked={row[field]} onChange={(e) => update(supplier.id, field, e.target.checked)} />
                       </td>
                     ))}
                   </tr>

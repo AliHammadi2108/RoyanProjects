@@ -4,22 +4,28 @@ import { isAdmin } from '@/lib/permissions';
 
 interface CreateNotificationInput {
   userId: string;
+  roleId?: string;
   type: string;
   title: string;
   message: string;
   documentType?: string;
   documentId?: string;
+  relatedModule?: string;
+  relatedDocumentType?: string;
+  relatedDocumentId?: string;
+  route?: string;
   approvalId?: string;
   priority?: string;
 }
 
 export async function createNotification(input: CreateNotificationInput) {
   const actionUrl =
-    input.documentType && input.documentId
+    input.route ||
+    (input.documentType && input.documentId
       ? `${DOCUMENT_ROUTES[input.documentType] || '/purchases/tracking'}/${input.documentId}`
       : input.approvalId
         ? '/approvals/inbox'
-        : '/notifications';
+        : '/notifications');
 
   if (input.approvalId) {
     const existing = await prisma.notification.findFirst({
@@ -36,14 +42,21 @@ export async function createNotification(input: CreateNotificationInput) {
   return prisma.notification.create({
     data: {
       userId: input.userId,
+      roleId: input.roleId,
       type: input.type,
       title: input.title,
       message: input.message,
-      documentType: input.documentType,
-      documentId: input.documentId,
+      documentType: input.documentType || input.relatedDocumentType,
+      documentId: input.documentId || input.relatedDocumentId,
+      relatedModule: input.relatedModule,
+      relatedDocumentType: input.relatedDocumentType || input.documentType,
+      relatedDocumentId: input.relatedDocumentId || input.documentId,
+      route: input.route || actionUrl,
       approvalId: input.approvalId,
       actionUrl,
       priority: input.priority || 'Normal',
+      isRead: false,
+      status: 'Unread',
     },
   });
 }
@@ -109,24 +122,37 @@ export async function getUserNotifications(userId: string, filters?: {
   });
 }
 
-export async function getUnreadCount(userId: string) {
-  const admin = await isAdmin(userId);
+/** Unread notifications for the header dropdown — always scoped to the current user. */
+export async function getDropdownNotifications(userId: string, limit = 20) {
+  return prisma.notification.findMany({
+    where: {
+      userId,
+      status: 'Unread',
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+}
 
+export async function getUnreadCount(userId: string) {
   return prisma.notification.count({
     where: {
-      ...(admin ? {} : { userId }),
+      userId,
       status: 'Unread',
     },
   });
 }
 
 export async function markAsRead(notificationId: string, userId: string) {
-  const admin = await isAdmin(userId);
-
   return prisma.notification.updateMany({
-    where: { id: notificationId, ...(admin ? {} : { userId }) },
-    data: { status: 'Read', readAt: new Date() },
+    where: { id: notificationId, userId },
+    data: { status: 'Read', isRead: true, readAt: new Date() },
   });
+}
+
+/** Dismiss from header/dropdown — marks read so it won't appear again in the bell menu. */
+export async function dismissNotification(notificationId: string, userId: string) {
+  return markAsRead(notificationId, userId);
 }
 
 export async function markAsActioned(notificationId: string, userId: string) {
@@ -143,6 +169,6 @@ export async function markAllAsRead(userId: string) {
 
   return prisma.notification.updateMany({
     where: { status: 'Unread', ...(admin ? {} : { userId }) },
-    data: { status: 'Read', readAt: new Date() },
+    data: { status: 'Read', isRead: true, readAt: new Date() },
   });
 }

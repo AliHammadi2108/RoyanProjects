@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createNomination, updateNomination, submitNomination, deleteNomination } from '@/actions/comparisons';
-import { getDocumentApproval } from '@/actions/common';
+import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
 import { resolveSourceDocument } from '@/lib/document-cascade';
-import { DocumentFormHeader, DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 
 interface ApprovedComparison {
   id: string;
@@ -48,7 +50,8 @@ export function NominationForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [approval, setApproval] = useState<unknown>(null);
+  const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
   const defaultComparison = resolveSourceDocument(approvedComparisons, defaultComparisonId);
 
@@ -80,6 +83,7 @@ export function NominationForm({
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('SUPPLIER_NOMINATION', existing.id as string).then(setApproval);
+      fetchDocumentUsage('SUPPLIER_NOMINATION', existing.id as string).then(setUsage);
     }
   }, [existing?.id]);
 
@@ -163,20 +167,32 @@ export function NominationForm({
 
   const total = form.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
+  const refreshApproval = () => {
+    if (!existing?.id) return;
+    getDocumentApproval('SUPPLIER_NOMINATION', existing.id as string).then(setApproval);
+    router.refresh();
+  };
+
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'nomination',
+    isNew,
+    existing,
+    usage,
+    approval,
+    loading,
+    onSave: handleSave,
+    onSubmitOnly: handleSubmitOnly,
+    onAfterWorkflowAction: refreshApproval,
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'ترشيح مورد جديد' : `ترشيح مورد ${existing?.documentNo}`}
         subtitle="APST004"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/supplier-selection"
-            listLabel="قائمة الترشيحات"
-            status={existing?.status as string}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -205,7 +221,7 @@ export function NominationForm({
                   <select
                     className="form-input"
                     value={form.comparisonType}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, comparisonType: e.target.value })}
                   >
                     <option value="LOWEST_PRICE">أقل سعر</option>
@@ -218,7 +234,7 @@ export function NominationForm({
                   <input
                     className="form-input"
                     value={form.committeeMembers}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, committeeMembers: e.target.value })}
                   />
                 </div>
@@ -228,7 +244,7 @@ export function NominationForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -264,14 +280,15 @@ export function NominationForm({
 
             <DocumentFormFooter
               listHref="/purchases/supplier-selection"
-              isEditable={isEditable}
+              isEditable={false}
               isNew={isNew}
               canDelete={existing?.status === 'Draft'}
               loading={loading}
               status={existing?.status as string}
-              onSaveDraft={() => handleSave(false)}
-              onSubmit={() => (isNew ? handleSave(true) : handleSubmitOnly())}
+              hideActions
+              hideReadOnlyMessage
               onDelete={handleDelete}
+              showSubmit={false}
             />
 
             {existing?.status === 'Approved' && (
@@ -289,13 +306,8 @@ export function NominationForm({
           <div className="card">
             <h2 className="font-semibold mb-4">مسار الاعتماد</h2>
             <ApprovalTimeline
-              approval={approval as Parameters<typeof ApprovalTimeline>[0]['approval']}
-              onAction={() => {
-                if (existing?.id) {
-                  getDocumentApproval('SUPPLIER_NOMINATION', existing.id as string).then(setApproval);
-                  router.refresh();
-                }
-              }}
+              approval={approval}
+              onAction={refreshApproval}
             />
           </div>
         </div>

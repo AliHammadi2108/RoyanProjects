@@ -18,6 +18,7 @@ import { calculateLineTotal, toOptionalId, formatActionError } from '@/lib/utils
 import { enrichPurchaseLineItems, resolveExchangeRate } from '@/lib/purchase-line-items';
 import { buildLineItemUnitFields } from '@/services/item-unit.service';
 import { applyStockIn } from '@/services/stock.service';
+import { flushPendingReorderNotifications } from '@/services/reorder-alert.service';
 import { assertSupplierAccess } from '@/services/supplier-access.service';
 
 // Purchase Orders
@@ -478,6 +479,8 @@ export async function createReceiving(data: unknown) {
     return receiving;
   });
 
+  await flushPendingReorderNotifications();
+
   await updateCycleStage(order.purchaseCycleId, PURCHASE_STAGES.RECEIVING, 'في انتظار الفاتورة');
 
   await createAuditLog({
@@ -564,6 +567,9 @@ export async function createInvoice(data: unknown) {
       otherExpenses: parsed.otherExpenses,
       netTotal,
       supplierNet: netTotal,
+      paidAmount: 0,
+      remainingAmount: netTotal,
+      paymentStatus: 'Unpaid',
       status: DOCUMENT_STATUS.DRAFT,
       createdBy: user.id,
       items: {

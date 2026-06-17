@@ -5,8 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export type CurrencyLike = { symbol?: string | null; code?: string | null } | null | undefined;
+
+export function getCurrencySymbol(currency?: CurrencyLike, fallback = 'ر.س'): string {
+  if (currency?.symbol?.trim()) return currency.symbol.trim();
+  if (currency?.code?.trim()) return currency.code.trim();
+  return fallback;
+}
+
 export function formatCurrency(amount: number, symbol = 'ر.س'): string {
   return `${amount.toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+}
+
+export function formatDocumentCurrency(amount: number, currency?: CurrencyLike, fallback = 'ر.س'): string {
+  return formatCurrency(amount, getCurrencySymbol(currency, fallback));
 }
 
 export function formatDate(date: Date | string | null | undefined): string {

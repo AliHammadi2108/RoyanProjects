@@ -10,6 +10,7 @@ import { submitForApproval, DOCUMENT_TYPES } from '@/services/approval.service';
 import { updateCycleStage } from '@/services/workflow.service';
 import { DOCUMENT_STATUS, PURCHASE_STAGES } from '@/lib/constants';
 import { toOptionalId, formatActionError } from '@/lib/utils';
+import { assertDocumentMutable } from '@/services/document-guard.service';
 
 export async function getComparisons() {
   await requirePermission('comparisons.view');
@@ -114,12 +115,8 @@ export async function submitComparison(id: string) {
 
 export async function updateComparison(id: string, data: unknown) {
   const user = await requirePermission('comparisons.update');
+  await assertDocumentMutable('TECHNICAL_COMPARISON', id, 'edit');
   const parsed = comparisonSchema.parse(data);
-  const existing = await prisma.technicalComparison.findUnique({ where: { id } });
-  if (!existing) throw new Error('المقارنة غير موجودة');
-  if (!['Draft', 'Returned For Edit'].includes(existing.status)) {
-    throw new Error('لا يمكن تعديل المقارنة في حالتها الحالية');
-  }
 
   const totalAmount = parsed.items.reduce((sum, item) => sum + item.netAmount, 0);
 
@@ -169,14 +166,12 @@ export async function updateComparison(id: string, data: unknown) {
 
 export async function deleteComparison(id: string) {
   const user = await requirePermission('comparisons.update');
+  await assertDocumentMutable('TECHNICAL_COMPARISON', id, 'delete');
   const existing = await prisma.technicalComparison.findUnique({
     where: { id },
     include: { nominations: true },
   });
   if (!existing) throw new Error('المقارنة غير موجودة');
-  if (existing.status !== DOCUMENT_STATUS.DRAFT) {
-    throw new Error('لا يمكن حذف المقارنة إلا وهي في حالة مسودة');
-  }
   if (existing.nominations.length > 0) {
     throw new Error('لا يمكن حذف المقارنة لوجود ترشيحات مرتبطة بها');
   }

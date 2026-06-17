@@ -4,6 +4,7 @@ export const DOCUMENT_TYPES = {
   TECHNICAL_COMPARISON: 'TECHNICAL_COMPARISON',
   SUPPLIER_NOMINATION: 'SUPPLIER_NOMINATION',
   PURCHASE_ORDER: 'PURCHASE_ORDER',
+  SUPPLIER_PAYMENT: 'SUPPLIER_PAYMENT',
 } as const;
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[keyof typeof DOCUMENT_TYPES];
@@ -65,6 +66,7 @@ export const NOTIFICATION_TYPES = {
   PURCHASE_STAGE_COMPLETED: 'PURCHASE_STAGE_COMPLETED',
   PURCHASE_DELAYED: 'PURCHASE_DELAYED',
   REMINDER: 'REMINDER',
+  REORDER_ALERT: 'REORDER_ALERT',
 } as const;
 
 export const INSPECTION_RESULTS = {
@@ -83,6 +85,7 @@ export const DOCUMENT_PREFIXES: Record<string, string> = {
   RECEIVING: 'GR',
   INVOICE: 'INV',
   PURCHASE_CYCLE: 'PC',
+  SUPPLIER_PAYMENT: 'SPV',
 };
 
 export const STATUS_COLORS: Record<string, string> = {
@@ -109,6 +112,7 @@ export const DOCUMENT_ROUTES: Record<string, string> = {
   INSPECTION: '/purchases/inspections',
   RECEIVING: '/purchases/receivings',
   INVOICE: '/purchases/invoices',
+  SUPPLIER_PAYMENT: '/purchases/supplier-payments',
 };
 
 export const DOCUMENT_LABELS_AR: Record<string, string> = {
@@ -120,4 +124,55 @@ export const DOCUMENT_LABELS_AR: Record<string, string> = {
   INSPECTION: 'فحص',
   RECEIVING: 'إذن توريد',
   INVOICE: 'فاتورة مشتريات',
+  SUPPLIER_PAYMENT: 'سند صرف مورد',
 };
+
+/** قيم طريقة الدفع المخزنة في قاعدة البيانات */
+export const PAYMENT_METHODS = {
+  CASH: 'cash',
+  CREDIT: 'credit',
+  BANK: 'bank',
+} as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[keyof typeof PAYMENT_METHODS];
+
+export const PAYMENT_METHOD_VALUES = [
+  PAYMENT_METHODS.CASH,
+  PAYMENT_METHODS.CREDIT,
+  PAYMENT_METHODS.BANK,
+] as const;
+
+/** التسميات العربية المعروضة للمستخدم */
+export const PAYMENT_METHOD_LABELS_AR: Record<PaymentMethod, string> = {
+  cash: 'نقد',
+  credit: 'آجل',
+  bank: 'بنكي',
+};
+
+const LEGACY_PAYMENT_METHOD_MAP: Record<string, PaymentMethod> = {
+  نقد: PAYMENT_METHODS.CASH,
+  آجل: PAYMENT_METHODS.CREDIT,
+  اجل: PAYMENT_METHODS.CREDIT,
+  بنكي: PAYMENT_METHODS.BANK,
+  cash: PAYMENT_METHODS.CASH,
+  credit: PAYMENT_METHODS.CREDIT,
+  bank: PAYMENT_METHODS.BANK,
+};
+
+export function isPaymentMethod(value: string | null | undefined): value is PaymentMethod {
+  return !!value && PAYMENT_METHOD_VALUES.includes(value as PaymentMethod);
+}
+
+export function normalizePaymentMethod(value: string | null | undefined): PaymentMethod | '' {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (isPaymentMethod(trimmed)) return trimmed;
+  return LEGACY_PAYMENT_METHOD_MAP[trimmed] ?? LEGACY_PAYMENT_METHOD_MAP[trimmed.toLowerCase()] ?? '';
+}
+
+export function getPaymentMethodLabel(value: string | null | undefined): string {
+  if (!value) return '—';
+  const normalized = normalizePaymentMethod(value);
+  if (normalized) return PAYMENT_METHOD_LABELS_AR[normalized];
+  return value;
+}

@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requirePermission, requireAuth, isAdmin } from '@/lib/permissions';
+import { requirePermission, requireAuth, isAdmin, getUserPermissions } from '@/lib/permissions';
 import { getAllowedSupplierIds, supplierWhereForUser } from '@/services/supplier-access.service';
 import { approvalActionSchema } from '@/lib/validations';
 import {
@@ -12,14 +12,21 @@ import {
 } from '@/services/approval.service';
 import {
   getUserNotifications,
+  getDropdownNotifications,
   getUnreadCount,
   markAsRead,
+  dismissNotification,
   markAsActioned,
   markAllAsRead,
 } from '@/services/notification.service';
 import { getTrackingStats, getTrackingList, getCycleWithAllStages } from '@/services/workflow.service';
 import { getAuditLogs } from '@/services/audit.service';
 import { prisma } from '@/lib/db';
+import {
+  getDocumentUsage,
+  getDocumentUsageMap,
+  type UsageDocumentType,
+} from '@/services/used-document.service';
 
 export async function getInbox() {
   const user = await requirePermission('approvals.view');
@@ -43,7 +50,7 @@ export async function processApproval(data: unknown) {
     approvalId: parsed.approvalId,
     action: parsed.action,
     userId: user.id,
-    notes: parsed.notes,
+    notes: parsed.notes ?? undefined,
   });
 
   revalidatePath('/approvals/inbox');
@@ -65,6 +72,12 @@ export async function fetchNotifications(filters?: { status?: string; type?: str
   return { notifications, isAdmin: admin };
 }
 
+export async function fetchDropdownNotifications() {
+  const user = await requireAuth();
+  const notifications = await getDropdownNotifications(user.id);
+  return { notifications };
+}
+
 export async function fetchUnreadCount() {
   const user = await requireAuth();
   return getUnreadCount(user.id);
@@ -73,6 +86,12 @@ export async function fetchUnreadCount() {
 export async function readNotification(id: string) {
   const user = await requireAuth();
   await markAsRead(id, user.id);
+  revalidatePath('/notifications');
+}
+
+export async function dismissHeaderNotification(id: string) {
+  const user = await requireAuth();
+  await dismissNotification(id, user.id);
   revalidatePath('/notifications');
 }
 
@@ -144,6 +163,29 @@ export async function saveApprovalMatrix(data: {
   }
 
   return prisma.approvalMatrix.create({ data });
+}
+
+export async function getSessionPermissions() {
+  const user = await requireAuth();
+  return getUserPermissions(user.id);
+}
+
+export async function fetchDocumentUsage(documentType: UsageDocumentType, documentId: string) {
+  await requireAuth();
+  return getDocumentUsage(documentType, documentId);
+}
+
+export async function fetchDocumentUsageMap(
+  documentType: UsageDocumentType,
+  documentIds: string[]
+) {
+  await requireAuth();
+  const map = await getDocumentUsageMap(documentType, documentIds);
+  const result: Record<string, { isUsed: boolean; childType?: string; childId?: string; childNo?: string; childRoute?: string; label?: string }> = {};
+  map.forEach((v, k) => {
+    result[k] = v;
+  });
+  return result;
 }
 
 export async function getMasterData() {

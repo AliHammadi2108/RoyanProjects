@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { saveCurrency, setCurrencyActive, setBaseCurrency } from '@/actions/master-data';
 
 interface CurrencyRow {
@@ -19,6 +21,7 @@ interface CurrencyRow {
 
 export function CurrenciesClient({ initialData }: { initialData: CurrencyRow[] }) {
   const [rows, setRows] = useState(initialData);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     code: '',
     nameAr: '',
@@ -89,6 +92,11 @@ export function CurrenciesClient({ initialData }: { initialData: CurrencyRow[] }
       setError(e instanceof Error ? e.message : 'فشل التحديث');
     }
   };
+
+  const filtered = useMemo(
+    () => clientSearchMapped(rows as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.currency),
+    [rows, search]
+  );
 
   const columns = [
     { key: 'code', label: 'الرمز' },
@@ -163,7 +171,14 @@ export function CurrenciesClient({ initialData }: { initialData: CurrencyRow[] }
           </div>
         </div>
 
-        <DataTable columns={columns} data={rows as unknown as Record<string, unknown>[]} />
+        <div className="card mb-4">
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالرمز أو الاسم..." />
+        </div>
+        {filtered.length === 0 ? (
+          <div className="card"><SearchEmptyState query={search} /></div>
+        ) : (
+          <DataTable columns={columns} data={filtered as unknown as Record<string, unknown>[]} />
+        )}
       </PageContainer>
     </>
   );

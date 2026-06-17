@@ -6,12 +6,17 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ItemsGrid, LineItem } from '@/components/ui/ItemsGrid';
 import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createQuotation, updateQuotation, submitQuotation, deleteQuotation } from '@/actions/quotations';
-import { getDocumentApproval } from '@/actions/common';
+import { fetchApprovedPurchaseRequests } from '@/actions/purchase-requests';
+import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
+import { normalizePaymentMethod } from '@/lib/constants';
+import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { resolveSourceDocument } from '@/lib/document-cascade';
-import { DocumentFormHeader, DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import type { MasterData } from '@/types/master-data';
 
 interface ApprovedRequest {
@@ -50,15 +55,18 @@ export function QuotationForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [approval, setApproval] = useState<unknown>(null);
+  const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
+  const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
+  const [requestOptions, setRequestOptions] = useState(approvedRequests);
+  const [showUsedRequests, setShowUsedRequests] = useState(false);
 
-  const defaultRequest = resolveSourceDocument(approvedRequests, defaultRequestId);
+  const defaultRequest = resolveSourceDocument(requestOptions, defaultRequestId);
 
   const [form, setForm] = useState({
     purchaseRequestId: (existing?.purchaseRequestId as string) || defaultRequest?.id || '',
     branchId: (existing?.branchId as string) || defaultRequest?.branchId || masterData.branches[0]?.id || '',
     supplierId: (existing?.supplierId as string) || '',
-    paymentMethod: (existing?.paymentMethod as string) || '',
+    paymentMethod: normalizePaymentMethod(existing?.paymentMethod as string),
     costMethod: (existing?.costMethod as string) || '',
     creditPeriod: (existing?.creditPeriod as number) || 0,
     deliveryDays: (existing?.deliveryDays as number) || 0,
@@ -95,11 +103,19 @@ export function QuotationForm({
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('QUOTATION', existing.id as string).then(setApproval);
+      fetchDocumentUsage('QUOTATION', existing.id as string).then(setUsage);
     }
   }, [existing?.id]);
 
+  useEffect(() => {
+    if (!isNew) return;
+    fetchApprovedPurchaseRequests(showUsedRequests)
+      .then((rows) => setRequestOptions(rows as ApprovedRequest[]))
+      .catch(() => {});
+  }, [showUsedRequests, isNew]);
+
   const handleRequestChange = (requestId: string) => {
-    const request = approvedRequests.find((r) => r.id === requestId);
+    const request = requestOptions.find((r) => r.id === requestId);
     if (!request) return;
     setForm({
       ...form,
@@ -184,20 +200,32 @@ export function QuotationForm({
   const subtotal = form.items.reduce((s, i) => s + i.total, 0);
   const total = subtotal - form.discount - form.extraDiscount;
 
+  const refreshApproval = () => {
+    if (!existing?.id) return;
+    getDocumentApproval('QUOTATION', existing.id as string).then(setApproval);
+    router.refresh();
+  };
+
+  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+    operationType: 'quotation',
+    isNew,
+    existing,
+    usage,
+    approval,
+    loading,
+    onSave: handleSave,
+    onSubmitOnly: handleSubmitOnly,
+    onAfterWorkflowAction: refreshApproval,
+  });
+
   return (
     <>
       <Header
         title={isNew ? 'عرض سعر جديد' : `عرض سعر ${existing?.documentNo}`}
         subtitle="APST002"
-        actions={
-          <DocumentFormHeader
-            listHref="/purchases/quotations"
-            listLabel="قائمة عروض الأسعار"
-            status={existing?.status as string}
-          />
-        }
       />
       <PageContainer>
+        <OperationToolbar {...toolbarProps} />
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -221,10 +249,22 @@ export function QuotationForm({
                         value={form.purchaseRequestId}
                         onChange={(e) => handleRequestChange(e.target.value)}
                       >
-                        {approvedRequests.map((r) => (
-                          <option key={r.id} value={r.id}>{r.documentNo}</option>
-                        ))}
+                        {requestOptions.length === 0 ? (
+                          <option value="">لا توجد طلبات متاحة</option>
+                        ) : (
+                          requestOptions.map((r) => (
+                            <option key={r.id} value={r.id}>{r.documentNo}</option>
+                          ))
+                        )}
                       </select>
+                      <label className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={showUsedRequests}
+                          onChange={(e) => setShowUsedRequests(e.target.checked)}
+                        />
+                        إظهار المستخدمة
+                      </label>
                     </div>
                   </div>
                 )}
@@ -233,7 +273,7 @@ export function QuotationForm({
                   <select
                     className="form-input"
                     value={form.supplierId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
                   >
                     <option value="">-- اختر --</option>
@@ -247,7 +287,7 @@ export function QuotationForm({
                   <select
                     className="form-input"
                     value={form.currencyId}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, currencyId: e.target.value })}
                   >
                     {masterData.currencies.map((c) => (
@@ -257,11 +297,10 @@ export function QuotationForm({
                 </div>
                 <div>
                   <label className="form-label">طريقة الدفع</label>
-                  <input
-                    className="form-input"
+                  <PaymentMethodSelect
                     value={form.paymentMethod}
-                    disabled={!isEditable}
-                    onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                    disabled={!effectiveEditable}
+                    onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
                   />
                 </div>
                 <div>
@@ -270,7 +309,7 @@ export function QuotationForm({
                     type="number"
                     className="form-input"
                     value={form.deliveryDays}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, deliveryDays: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -280,7 +319,7 @@ export function QuotationForm({
                     type="date"
                     className="form-input"
                     value={form.expiryDate}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
                   />
                 </div>
@@ -290,7 +329,7 @@ export function QuotationForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!isEditable}
+                    disabled={!effectiveEditable}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -303,7 +342,7 @@ export function QuotationForm({
                 items={form.items}
                 onChange={(items) => setForm({ ...form, items })}
                 availableItems={masterData.items}
-                readOnly={!isEditable}
+                readOnly={!effectiveEditable}
               />
               <div className="mt-4 pt-4 border-t flex justify-between text-sm">
                 <span>الإجمالي: {formatCurrency(total)}</span>
@@ -312,14 +351,15 @@ export function QuotationForm({
 
             <DocumentFormFooter
               listHref="/purchases/quotations"
-              isEditable={isEditable}
+              isEditable={false}
               isNew={isNew}
               canDelete={existing?.status === 'Draft'}
               loading={loading}
               status={existing?.status as string}
-              onSaveDraft={() => handleSave(false)}
-              onSubmit={() => (isNew ? handleSave(true) : handleSubmitOnly())}
+              hideActions
+              hideReadOnlyMessage
               onDelete={handleDelete}
+              showSubmit={false}
             />
 
             {existing?.status === 'Approved' && (
@@ -338,13 +378,8 @@ export function QuotationForm({
             <div className="card">
               <h2 className="font-semibold mb-4">مسار الاعتماد</h2>
               <ApprovalTimeline
-                approval={approval as Parameters<typeof ApprovalTimeline>[0]['approval']}
-                onAction={() => {
-                  if (existing?.id) {
-                    getDocumentApproval('QUOTATION', existing.id as string).then(setApproval);
-                    router.refresh();
-                  }
-                }}
+                approval={approval}
+                onAction={refreshApproval}
               />
             </div>
           </div>

@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
+import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { saveApprovalRule, setApprovalRuleActive } from '@/actions/access-control';
 
 interface RuleRow {
@@ -26,6 +28,7 @@ export function ApprovalRulesClient({
   currencies: Array<{ id: string; code: string }>;
 }) {
   const [rows, setRows] = useState(initialData);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     module: 'purchases',
     operationType: 'high_value_po',
@@ -37,6 +40,11 @@ export function ApprovalRulesClient({
     isActive: true,
   });
   const [error, setError] = useState('');
+
+  const filtered = useMemo(
+    () => clientSearchMapped(rows as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.approvalRule),
+    [rows, search]
+  );
 
   const handleSave = async () => {
     setError('');
@@ -91,7 +99,14 @@ export function ApprovalRulesClient({
           <input className="form-input" placeholder="الصلاحية المطلوبة" value={form.requiredPermission} onChange={(e) => setForm({ ...form, requiredPermission: e.target.value })} />
           <button type="button" className="btn-primary" onClick={handleSave}>إضافة قاعدة</button>
         </div>
-        <DataTable columns={columns} data={rows as unknown as Record<string, unknown>[]} />
+        <div className="card mb-4">
+          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالوحدة أو نوع العملية..." />
+        </div>
+        {filtered.length === 0 ? (
+          <div className="card"><SearchEmptyState query={search} /></div>
+        ) : (
+          <DataTable columns={columns} data={filtered as unknown as Record<string, unknown>[]} />
+        )}
       </PageContainer>
     </>
   );

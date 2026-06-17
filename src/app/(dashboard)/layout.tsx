@@ -31,9 +31,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // ignore
   }
 
+  const isPrintRoute = /\/print(\/|$)/.test(pathname);
+
+  if (isPrintRoute) {
+    return (
+      <Providers>
+        <div id="print-layout-shell" className="min-h-screen bg-white print:min-h-0">
+          <main className="min-h-screen w-full print:min-h-0 print:w-full print:max-w-none">
+            {children}
+          </main>
+        </div>
+      </Providers>
+    );
+  }
+
   return (
     <Providers>
-      <div className="min-h-screen bg-gray-50 print:min-h-0 print:bg-white">
+      <div id="dashboard-app-shell" className="min-h-screen bg-gray-50 print:min-h-0 print:bg-white">
         <Sidebar unreadCount={unreadCount} allowedHrefs={allowedHrefs} />
         <main className="mr-64 min-h-screen print:mr-0 print:min-h-0 print:w-full print:max-w-none">
           {children}

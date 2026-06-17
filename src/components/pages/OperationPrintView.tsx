@@ -23,20 +23,22 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
 
   return (
     <>
-      <Header
-        title="معاينة الطباعة"
-        subtitle={data.title}
-        actions={
-          <div className="flex items-center gap-2">
-            <a href={listHref} className="btn-secondary text-sm">
-              {listLabel}
-            </a>
-            <button type="button" onClick={() => window.print()} className="btn-primary text-sm">
-              <Printer className="w-4 h-4" /> طباعة
-            </button>
-          </div>
-        }
-      />
+      <div id="print-controls" className="print:hidden">
+        <Header
+          title="معاينة الطباعة"
+          subtitle={data.title}
+          actions={
+            <div className="flex items-center gap-2">
+              <a href={listHref} className="btn-secondary text-sm">
+                {listLabel}
+              </a>
+              <button type="button" onClick={() => window.print()} className="btn-primary text-sm">
+                <Printer className="w-4 h-4" /> طباعة
+              </button>
+            </div>
+          }
+        />
+      </div>
       <PageContainer>
         <div id="operation-print-area" className="card max-w-5xl mx-auto print:shadow-none print:border-0 print:max-w-none">
           <div className="text-center border-b border-gray-200 pb-4 mb-4">

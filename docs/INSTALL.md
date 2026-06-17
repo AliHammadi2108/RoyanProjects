@@ -1,6 +1,38 @@
 # دليل التثبيت والتشغيل — نظام إدارة المشتريات
 
 دليل خطوة بخطوة لتركيب النظام على جهاز Windows جديد.
+---
+
+## تثبيت عبر ملف MSI / EXE (جهاز آخر بدون Git)
+
+للتثبيت على جهاز لا يحتوي على Git أو كود المصدر، استخدم **مُثبّت Windows** المُبني من مجلد `installer`:
+
+### على جهاز المطور (مرة واحدة)
+
+```powershell
+cd E:\Purchase_Web_System
+powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1
+```
+
+الناتج: `installer\dist\PurchaseSystem-Setup.msi` (WiX) أو `PurchaseSystem-Setup.exe` (Inno Setup).
+
+### على جهاز المستخدم
+
+1. ثبّت **Node.js 20 LTS** من [nodejs.org](https://nodejs.org/) إن لم يكن مثبتاً.
+2. شغّل `PurchaseSystem-Setup.msi` أو `.exe` **كمسؤول**.
+3. انتظر انتهاء إعداد ما بعد التثبيت (npm، قاعدة البيانات، build).
+4. شغّل **«نظام المشتريات»** من سطح المكتب أو `installer\start-installed.bat`.
+5. افتح `http://localhost:3000` — بعد seed: `admin` / `admin123`.
+
+إذا فشل الإعداد لعدم وجود Node.js:
+
+```powershell
+cd "C:\Program Files\PurchaseWebSystem"
+powershell -ExecutionPolicy Bypass -File .\installer\post-install.ps1
+```
+
+تفاصيل إضافية: [`installer/README.md`](../installer/README.md).
+
 
 ---
 

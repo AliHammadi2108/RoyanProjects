@@ -61,32 +61,53 @@
     @apply bg-white text-black;
   }
 
+  /* إخفاء كل شيء ثم إظهار منطقة الطباعة فقط */
+  body * {
+    visibility: hidden;
+  }
+
+  #operation-print-area,
+  #operation-print-area *,
+  #report-print-area,
+  #report-print-area * {
+    visibility: visible;
+  }
+
+  #operation-print-area,
+  #report-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   /* إخفاء واجهة النظام — السلايد الجانبي والهيدر والتنقل */
   #dashboard-sidebar,
+  #dashboard-app-shell > aside,
+  #print-layout-shell aside,
   aside,
   header,
   nav,
+  #print-controls,
   .print\:hidden {
     display: none !important;
+    visibility: hidden !important;
   }
 
   /* المحتوى الرئيسي بعرض كامل بدون هامش السلايد */
+  #dashboard-app-shell main,
+  #print-layout-shell main,
   main {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     min-height: auto !important;
-  }
-
-  #operation-print-area,
-  #report-print-area {
-    box-shadow: none !important;
-    border: none !important;
-    max-width: none !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
   }
 
   #operation-print-area table,

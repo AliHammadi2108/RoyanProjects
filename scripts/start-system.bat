@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul 2>&1
 setlocal EnableDelayedExpansion
 title نظام المشتريات
@@ -26,6 +26,16 @@ if not exist "%ROOT%\.next" (
   exit /b 1
 )
 
+if not exist "%ROOT%\.next" (
+  echo [تحذير] لا يوجد بناء — جاري البناء...
+  call npm run build
+  if errorlevel 1 (
+    echo [خطأ] فشل البناء
+    pause
+    exit /b 1
+  )
+)
+
 if not exist "%ROOT%\logs" mkdir "%ROOT%\logs"
 
 set PORT=3000
@@ -34,6 +44,26 @@ if not defined NEXTAUTH_URL set NEXTAUTH_URL=http://localhost:3000
 
 echo تجهيز Prisma...
 call npm run db:generate >nul 2>&1
+
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENING"') do (
+  echo [معلومة] المنفذ %PORT% مستخدم بالفعل.
+  start "" "http://localhost:%PORT%"
+  pause
+  exit /b 0
+)
+
+where pm2 >nul 2>&1
+if %ERRORLEVEL%==0 if /I not "%USE_PM2%"=="0" (
+  echo تشغيل عبر PM2...
+  pm2 delete purchase-web-system >nul 2>&1
+  pm2 start "%ROOT%\ecosystem.config.cjs"
+  pm2 save >nul 2>&1
+  timeout /t 3 /nobreak >nul
+  start "" "http://localhost:%PORT%"
+  echo النظام: http://localhost:%PORT%
+  pause
+  exit /b 0
+)
 
 echo الخادم: http://localhost:%PORT%
 echo للإيقاف: أغلق النافذة أو scripts\stop-system.bat

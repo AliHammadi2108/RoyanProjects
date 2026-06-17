@@ -1,0 +1,12 @@
+﻿After installation, post-setup runs automatically (npm install, database, build).
+
+Requirements on this PC:
+- Node.js 20 LTS or newer: https://nodejs.org/
+- Internet connection during first setup
+
+Start the app from the desktop shortcut or Start menu.
+Default URL: http://localhost:3000
+Default login (after seed): admin / admin123
+
+If post-install failed because Node.js was missing, install Node.js then run:
+  {app}\installer\post-install.ps1

@@ -75,7 +75,7 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
                     <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-10">#</th>
                     <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-24">الكود</th>
                     <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 min-w-[200px]">الصنف</th>
-                    <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-20">الوحدة</th>
+                    <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 min-w-[120px]">الوحدة</th>
                     <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-20">الكمية</th>
                     {showPricing && (
                       <>
@@ -95,7 +95,12 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
                       <td className="px-2 py-2 text-gray-500">{idx + 1}</td>
                       <td className="px-2 py-2 font-mono text-xs">{line.itemCode || '-'}</td>
                       <td className="px-2 py-2 font-medium whitespace-normal break-words">{line.itemName}</td>
-                      <td className="px-2 py-2">{line.unit || '-'}</td>
+                      <td
+                        className="px-2 py-2 whitespace-normal break-words"
+                        title={line.unit || undefined}
+                      >
+                        {line.unit || '-'}
+                      </td>
                       <td className="px-2 py-2">{line.quantity.toLocaleString('ar-SA')}</td>
                       {showPricing && (
                         <>

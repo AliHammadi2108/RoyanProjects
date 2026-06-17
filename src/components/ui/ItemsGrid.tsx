@@ -1,9 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { calculateLineTotal } from '@/lib/utils';
 import { calcBaseQty } from '@/lib/item-units';
+import { coerceInteger } from '@/lib/integer-stepper';
+import { IntegerStepperInput } from '@/components/ui/IntegerStepperInput';
+import { AutocompleteSelect } from '@/components/ui/AutocompleteSelect';
+import { searchItems } from '@/actions/search';
+import type { AutocompleteOption } from '@/lib/autocomplete';
 
 export interface ItemUnitOption {
   id: string;
@@ -19,6 +24,7 @@ export interface AvailableItem {
   id: string;
   code: string;
   nameAr: string;
+  barcode?: string | null;
   unitId?: string | null;
   itemUnits?: ItemUnitOption[];
 }
@@ -47,6 +53,13 @@ interface ItemsGridProps {
   readOnly?: boolean;
   unitMode?: 'purchase' | 'sale';
   showBaseQty?: boolean;
+  warehouseId?: string;
+  asyncItemSearch?: boolean;
+}
+
+function formatUnitLabel(unit: ItemUnitOption): string {
+  const name = unit.unit?.nameAr || '';
+  return unit.isBase ? `${name} (أساسية)` : name;
 }
 
 function pickDefaultUnit(item: AvailableItem, mode: 'purchase' | 'sale'): ItemUnitOption | undefined {
@@ -57,6 +70,24 @@ function pickDefaultUnit(item: AvailableItem, mode: 'purchase' | 'sale'): ItemUn
   return units.find((u) => u.isBase) ?? units[0];
 }
 
+function toItemOption(item: AvailableItem, stockBalance?: number | null): AutocompleteOption {
+  const sublabel = [
+    item.barcode ? `باركود: ${item.barcode}` : null,
+    stockBalance != null ? `الرصيد: ${stockBalance.toFixed(2)}` : null,
+    item.itemUnits?.find((u) => u.isBase)?.unit?.nameAr
+      ? `الوحدة الأساسية: ${item.itemUnits.find((u) => u.isBase)?.unit?.nameAr}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    value: item.id,
+    label: `${item.code} - ${item.nameAr}`,
+    sublabel: sublabel || undefined,
+    keywords: [item.code, item.nameAr, item.barcode].filter(Boolean).join(' '),
+  };
+}
+
 export function ItemsGrid({
   items,
   onChange,
@@ -64,6 +95,8 @@ export function ItemsGrid({
   readOnly,
   unitMode = 'purchase',
   showBaseQty = true,
+  warehouseId,
+  asyncItemSearch = true,
 }: ItemsGridProps) {
   const emptyRow = (): LineItem => ({
     itemId: '',
@@ -80,12 +113,71 @@ export function ItemsGrid({
   const [rows, setRows] = useState<LineItem[]>(
     items.length > 0 ? items : [emptyRow()]
   );
+  const [itemCache, setItemCache] = useState<Record<string, AvailableItem>>(() => {
+    const map: Record<string, AvailableItem> = {};
+    availableItems.forEach((item) => {
+      map[item.id] = item;
+    });
+    return map;
+  });
+
+  const localItemOptions = useMemo(
+    () => availableItems.map((item) => toItemOption(item)),
+    [availableItems]
+  );
+
+  const resolveItem = useCallback(
+    (itemId: string) => itemCache[itemId] ?? availableItems.find((i) => i.id === itemId),
+    [itemCache, availableItems]
+  );
+
+  useEffect(() => {
+    setItemCache((prev) => {
+      const next = { ...prev };
+      availableItems.forEach((item) => {
+        next[item.id] = item;
+      });
+      return next;
+    });
+  }, [availableItems]);
 
   useEffect(() => {
     if (items.length > 0) {
       setRows(items);
     }
   }, [items]);
+
+  const searchItemOptions = useCallback(
+    async (query: string): Promise<AutocompleteOption[]> => {
+      const results = await searchItems(query, { warehouseId, limit: 20 });
+      setItemCache((prev) => {
+        const next = { ...prev };
+        results.forEach((item) => {
+          next[item.id] = {
+            id: item.id,
+            code: item.code,
+            nameAr: item.nameAr,
+            barcode: item.barcode,
+            itemUnits: item.itemUnits,
+          };
+        });
+        return next;
+      });
+      return results.map((item) =>
+        toItemOption(
+          {
+            id: item.id,
+            code: item.code,
+            nameAr: item.nameAr,
+            barcode: item.barcode,
+            itemUnits: item.itemUnits,
+          },
+          item.stockBalance
+        )
+      );
+    },
+    [warehouseId]
+  );
 
   const updateRows = (newRows: LineItem[]) => {
     setRows(newRows);
@@ -122,7 +214,7 @@ export function ItemsGrid({
     const row = { ...newRows[idx], [field]: value };
 
     if (field === 'itemId') {
-      const item = availableItems.find((i) => i.id === value);
+      const item = resolveItem(value as string);
       if (item) {
         row.itemNameSnapshot = item.nameAr;
         applyItemUnit(row, item);
@@ -130,13 +222,18 @@ export function ItemsGrid({
     }
 
     if (field === 'itemUnitId') {
-      const item = availableItems.find((i) => i.id === row.itemId);
+      const item = resolveItem(row.itemId);
       if (item) applyItemUnit(row, item, value as string);
     }
 
     if (field === 'quantity') {
+      row.quantity = coerceInteger(value, 0);
       const factor = row.factorToBase ?? 1;
-      row.baseQty = calcBaseQty(Number(value) || 0, factor);
+      row.baseQty = calcBaseQty(row.quantity, factor);
+    }
+
+    if (field === 'unitPrice') {
+      row.unitPrice = coerceInteger(value, 0);
     }
 
     if (['quantity', 'unitPrice', 'discount', 'tax'].includes(field)) {
@@ -148,7 +245,7 @@ export function ItemsGrid({
   };
 
   const getUnitsForRow = (itemId: string) => {
-    const item = availableItems.find((i) => i.id === itemId);
+    const item = resolveItem(itemId);
     return item?.itemUnits ?? [];
   };
 
@@ -161,7 +258,7 @@ export function ItemsGrid({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2 text-right font-medium text-gray-600 min-w-[280px] w-[32%]">الصنف</th>
-              <th className="px-3 py-2 text-right font-medium text-gray-600 w-28">الوحدة</th>
+              <th className="px-3 py-2 text-right font-medium text-gray-600 min-w-[140px] w-[12%]">الوحدة</th>
               <th className="px-3 py-2 text-right font-medium text-gray-600 w-24">الكمية</th>
               {showBaseQty && (
                 <th className="px-3 py-2 text-right font-medium text-gray-600 w-24">أساسية</th>
@@ -176,6 +273,8 @@ export function ItemsGrid({
           <tbody className="divide-y divide-gray-100">
             {rows.map((row, idx) => {
               const unitOptions = getUnitsForRow(row.itemId);
+              const selectedUnit = unitOptions.find((u) => u.id === row.itemUnitId);
+              const unitDisplayText = selectedUnit ? formatUnitLabel(selectedUnit) : '-';
               return (
                 <tr key={idx}>
                   <td className="px-3 py-2 min-w-[280px] align-top">
@@ -187,50 +286,57 @@ export function ItemsGrid({
                         {row.itemNameSnapshot}
                       </span>
                     ) : (
-                      <select
-                        className="form-input text-sm w-full min-w-[260px] max-w-full"
+                      <AutocompleteSelect
                         value={row.itemId}
-                        onChange={(e) => updateRow(idx, 'itemId', e.target.value)}
-                        title={
-                          availableItems.find((i) => i.id === row.itemId)
-                            ? `${availableItems.find((i) => i.id === row.itemId)?.code} - ${row.itemNameSnapshot}`
-                            : undefined
-                        }
-                      >
-                        <option value="">اختر صنفاً</option>
-                        {availableItems.map((item) => (
-                          <option key={item.id} value={item.id} title={`${item.code} - ${item.nameAr}`}>
-                            {item.code} - {item.nameAr}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(next) => updateRow(idx, 'itemId', next)}
+                        options={localItemOptions}
+                        onSearch={asyncItemSearch ? searchItemOptions : undefined}
+                        className="min-w-[260px]"
+                        inputClassName="min-w-[260px]"
+                        allowEmpty
+                        emptyLabel="ابحث عن صنف..."
+                        placeholder="كود، اسم، باركود..."
+                        aria-label="اختيار الصنف"
+                      />
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 min-w-[140px] align-top">
                     {readOnly ? (
-                      unitOptions.find((u) => u.id === row.itemUnitId)?.unit?.nameAr || '-'
+                      <span
+                        className="block whitespace-normal break-words leading-relaxed text-gray-900"
+                        title={unitDisplayText !== '-' ? unitDisplayText : undefined}
+                      >
+                        {unitDisplayText}
+                      </span>
                     ) : unitOptions.length > 0 ? (
                       <select
-                        className="form-input text-sm"
+                        className="form-input text-sm w-full min-w-[120px] max-w-full"
                         value={row.itemUnitId || ''}
                         onChange={(e) => updateRow(idx, 'itemUnitId', e.target.value)}
                         disabled={!row.itemId}
+                        title={unitDisplayText !== '-' ? unitDisplayText : undefined}
                       >
-                        {unitOptions.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.unit?.nameAr}
-                            {u.isBase ? ' (أساسية)' : ''}
-                          </option>
-                        ))}
+                        {unitOptions.map((u) => {
+                          const label = formatUnitLabel(u);
+                          return (
+                            <option key={u.id} value={u.id} title={label}>
+                              {label}
+                            </option>
+                          );
+                        })}
                       </select>
                     ) : (
                       '-'
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 min-w-[7.5rem]">
                     {readOnly ? row.quantity : (
-                      <input type="number" min="0.01" step="0.01" className="form-input text-sm"
-                        value={row.quantity} onChange={(e) => updateRow(idx, 'quantity', parseFloat(e.target.value) || 0)} />
+                      <IntegerStepperInput
+                        value={row.quantity}
+                        onChange={(v) => updateRow(idx, 'quantity', v)}
+                        min={0}
+                        aria-label="الكمية"
+                      />
                     )}
                   </td>
                   {showBaseQty && (
@@ -238,10 +344,14 @@ export function ItemsGrid({
                       {(row.baseQty ?? row.quantity).toFixed(2)}
                     </td>
                   )}
-                  <td className="px-3 py-2">
-                    {readOnly ? row.unitPrice.toFixed(2) : (
-                      <input type="number" min="0" step="0.01" className="form-input text-sm"
-                        value={row.unitPrice} onChange={(e) => updateRow(idx, 'unitPrice', parseFloat(e.target.value) || 0)} />
+                  <td className="px-3 py-2 min-w-[7.5rem]">
+                    {readOnly ? row.unitPrice : (
+                      <IntegerStepperInput
+                        value={row.unitPrice}
+                        onChange={(v) => updateRow(idx, 'unitPrice', v)}
+                        min={0}
+                        aria-label="سعر الوحدة"
+                      />
                     )}
                   </td>
                   <td className="px-3 py-2">

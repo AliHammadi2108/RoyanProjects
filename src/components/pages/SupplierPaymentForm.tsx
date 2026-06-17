@@ -22,6 +22,7 @@ import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
+import { supplierPhoneFromMaster } from '@/lib/whatsapp';
 
 interface AllocationRow {
   invoiceId: string;
@@ -248,6 +249,11 @@ export function SupplierPaymentForm({
     status,
     onSave: handleSave,
     onSubmitOnly: () => handleSave(true),
+    whatsappMeta: {
+      supplierPhone: supplierPhoneFromMaster(masterData.suppliers, form.supplierId),
+      partyName: masterData.suppliers.find((s) => s.id === form.supplierId)?.nameAr,
+      total: formatCurrency(form.totalAmount),
+    },
   });
 
   return (

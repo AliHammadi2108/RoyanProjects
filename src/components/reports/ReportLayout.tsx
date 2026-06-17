@@ -20,6 +20,7 @@ interface ReportLayoutProps {
   loading?: boolean;
   canExport?: boolean;
   canPrint?: boolean;
+  canWhatsApp?: boolean;
   canChart?: boolean;
   exportFilename: string;
   exportColumns: { key: string; label: string }[];
@@ -39,6 +40,7 @@ export function ReportLayout({
   loading,
   canExport = true,
   canPrint = true,
+  canWhatsApp = true,
   canChart = true,
   exportFilename,
   exportColumns,
@@ -70,6 +72,7 @@ export function ReportLayout({
             summary={summary}
             canExport={canExport}
             canPrint={canPrint}
+            canWhatsApp={canWhatsApp}
           />
           <button
             type="button"

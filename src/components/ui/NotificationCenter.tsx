@@ -17,6 +17,7 @@ import {
   rememberLoginModalSeenIds,
 } from '@/lib/notification-session';
 import { formatDateTime } from '@/lib/utils';
+import { NotificationWhatsAppButton } from '@/components/ui/NotificationWhatsAppButton';
 
 interface NotificationRow {
   id: string;
@@ -213,22 +214,33 @@ export function NotificationCenter() {
                 <ul className="space-y-2">
                   {items.map((n) => (
                     <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => navigate(n)}
-                        className="w-full text-right p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-start gap-2">
-                          {n.priority === 'High' && (
-                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-gray-900">{n.title}</p>
-                            <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{n.message}</p>
-                            <p className="text-xs text-gray-400 mt-1">{formatDateTime(n.createdAt)}</p>
+                      <div className="flex items-stretch gap-1">
+                        <button
+                          type="button"
+                          onClick={() => navigate(n)}
+                          className="flex-1 text-right p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-start gap-2">
+                            {n.priority === 'High' && (
+                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-gray-900">{n.title}</p>
+                              <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{n.message}</p>
+                              <p className="text-xs text-gray-400 mt-1">{formatDateTime(n.createdAt)}</p>
+                            </div>
                           </div>
+                        </button>
+                        <div className="flex items-center pr-1">
+                          <NotificationWhatsAppButton
+                            title={n.title}
+                            message={n.message}
+                            route={n.route}
+                            actionUrl={n.actionUrl}
+                            createdAt={n.createdAt}
+                          />
                         </div>
-                      </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

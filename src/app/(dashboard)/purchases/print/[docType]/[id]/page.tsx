@@ -32,6 +32,8 @@ export default async function OperationPrintPage({
       data={data}
       listHref={config.listHref}
       listLabel={config.listLabel}
+      operationType={operationType}
+      documentId={params.id}
     />
   );
 }

@@ -17,6 +17,7 @@ import {
   buildInvoiceItemsFromReceiving,
 } from '@/lib/document-cascade';
 import type { MasterData } from '@/types/master-data';
+import { supplierPhoneFromMaster } from '@/lib/whatsapp';
 
 interface ReceivingOption {
   id: string;
@@ -164,6 +165,16 @@ export function InvoiceForm({
     saveLabel: 'حفظ الفاتورة',
     onSave: async () => {
       await handleSave();
+    },
+    whatsappMeta: {
+      supplierPhone: supplierPhoneFromMaster(
+        masterData.suppliers,
+        (existing?.supplierId as string) || form.supplierId
+      ),
+      partyName: masterData.suppliers.find(
+        (s) => s.id === ((existing?.supplierId as string) || form.supplierId)
+      )?.nameAr,
+      total: formatCurrency(netTotal),
     },
   });
 

@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db';
 import { NOTIFICATION_TYPES, DOCUMENT_ROUTES } from '@/lib/constants';
 import { isAdmin } from '@/lib/permissions';
+import { queueNotificationWhatsApp } from '@/services/whatsapp.service';
+import { buildAbsoluteUrl } from '@/lib/whatsapp';
 
 interface CreateNotificationInput {
   userId: string;
@@ -58,6 +60,15 @@ export async function createNotification(input: CreateNotificationInput) {
       isRead: false,
       status: 'Unread',
     },
+  }).then(async (notification) => {
+    const link = buildAbsoluteUrl(input.route || actionUrl);
+    await queueNotificationWhatsApp({
+      userId: input.userId,
+      title: input.title,
+      message: input.message,
+      link,
+    });
+    return notification;
   });
 }
 

@@ -43,4 +43,8 @@ export interface PrintDocumentData {
   statusBanner?: string;
   showLinePricing?: boolean;
   printedBy: string;
+  operationType?: string;
+  documentId?: string;
+  supplierPhone?: string | null;
+  partyName?: string;
 }

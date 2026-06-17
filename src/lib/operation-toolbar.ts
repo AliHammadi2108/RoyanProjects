@@ -153,6 +153,15 @@ export function canPrint(permissions: string[], permissionPrefix: string): boole
   );
 }
 
+export function canWhatsApp(permissions: string[], permissionPrefix?: string): boolean {
+  if (hasClientPermission(permissions, 'whatsapp.send')) return true;
+  if (permissionPrefix && canPrint(permissions, permissionPrefix)) return true;
+  return (
+    hasClientPermission(permissions, 'operations.print') ||
+    hasClientPermission(permissions, 'reports.export')
+  );
+}
+
 export function isDocumentLocked(status?: string): boolean {
   return !!status && LOCKED_STATUSES.includes(status);
 }

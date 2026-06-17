@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -8,8 +8,10 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDateTime } from '@/lib/utils';
-import { readNotification, readAllNotifications } from '@/actions/common';
+import { readNotification, readAllNotifications, getSessionPermissions } from '@/actions/common';
 import { DOCUMENT_LABELS_AR } from '@/lib/constants';
+import { NotificationWhatsAppButton } from '@/components/ui/NotificationWhatsAppButton';
+import { canWhatsApp } from '@/lib/operation-toolbar';
 
 interface NotificationItem {
   id: string;
@@ -33,6 +35,13 @@ export function NotificationsClient({
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  useEffect(() => {
+    getSessionPermissions().then(setPermissions);
+  }, []);
+
+  const canSendWhatsApp = canWhatsApp(permissions);
 
   const filtered = useMemo(
     () => clientSearchMapped(initialData as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.notification),
@@ -107,9 +116,19 @@ export function NotificationsClient({
                       </p>
                     )}
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">
-                    {formatDateTime(notification.createdAt)}
-                  </span>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span className="text-xs text-gray-400">
+                      {formatDateTime(notification.createdAt)}
+                    </span>
+                    <NotificationWhatsAppButton
+                      title={notification.title}
+                      message={notification.message}
+                      route={notification.route}
+                      actionUrl={notification.actionUrl}
+                      createdAt={notification.createdAt}
+                      disabled={!canSendWhatsApp}
+                    />
+                  </div>
                 </div>
               </div>
             );

@@ -97,10 +97,22 @@ function fields(...entries: Array<PrintField | null>): PrintField[] {
 }
 
 function withPrintedBy(
-  data: Omit<PrintDocumentData, 'printedBy'>,
-  user: { nameAr: string; username: string }
+  data: Omit<PrintDocumentData, 'printedBy' | 'operationType' | 'documentId' | 'supplierPhone' | 'partyName'>,
+  user: { nameAr: string; username: string },
+  meta?: {
+    operationType?: OperationType;
+    documentId?: string;
+    supplier?: { phone?: string | null; nameAr?: string } | null;
+  }
 ): PrintDocumentData {
-  return { ...data, printedBy: user.nameAr || user.username };
+  return {
+    ...data,
+    printedBy: user.nameAr || user.username,
+    operationType: meta?.operationType,
+    documentId: meta?.documentId,
+    supplierPhone: meta?.supplier?.phone ?? null,
+    partyName: meta?.supplier?.nameAr,
+  };
 }
 
 export async function getPrintDocument(
@@ -164,7 +176,12 @@ export async function getPrintDocument(
           notes: doc.notes || undefined,
           approval,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -210,7 +227,12 @@ export async function getPrintDocument(
           notes: doc.notes || undefined,
           approval,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -254,7 +276,12 @@ export async function getPrintDocument(
           notes: doc.notes || undefined,
           approval,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -299,7 +326,12 @@ export async function getPrintDocument(
           notes: doc.notes || undefined,
           approval,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -344,7 +376,12 @@ export async function getPrintDocument(
           notes: doc.notes || undefined,
           approval,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -385,7 +422,12 @@ export async function getPrintDocument(
           totals: [],
           notes: doc.notes || undefined,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -423,7 +465,12 @@ export async function getPrintDocument(
           totals: [],
           notes: doc.notes || undefined,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -468,7 +515,12 @@ export async function getPrintDocument(
           ],
           notes: doc.notes || undefined,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 
@@ -516,7 +568,12 @@ export async function getPrintDocument(
           notes: doc.notes || undefined,
           approval,
         },
-        user
+        user,
+        {
+          operationType,
+          documentId,
+          supplier: (doc as { supplier?: { phone?: string | null; nameAr?: string } }).supplier ?? null,
+        }
       );
     }
 

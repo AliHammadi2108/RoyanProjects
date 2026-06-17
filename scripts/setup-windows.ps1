@@ -49,6 +49,9 @@ $RequiredEnvKeys = @(
   "NEXTAUTH_URL"
 )
 
+# اختياري — إرسال واتساب تلقائي عبر Meta Cloud API:
+# WHATSAPP_CLOUD_API_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_AUTO_NOTIFY
+
 function Write-Ar {
   param([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::White)
   Write-Host $Message -ForegroundColor $Color

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from './StatusBadge';
@@ -63,6 +64,7 @@ export interface OperationToolbarProps {
   usage?: UsedDocumentInfo | null;
   loadingAction?: ToolbarButtonId | null;
   onAction?: (id: ToolbarButtonId) => void;
+  extraActions?: ReactNode;
   className?: string;
 }
 
@@ -72,6 +74,7 @@ export function OperationToolbar({
   usage,
   loadingAction,
   onAction,
+  extraActions,
   className,
 }: OperationToolbarProps) {
   const renderButton = (button: ToolbarButtonState) => {
@@ -122,7 +125,10 @@ export function OperationToolbar({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <DocumentStateBadges status={status} usage={usage} />
-        <div className="flex flex-wrap items-center gap-2">{buttons.map(renderButton)}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {buttons.map(renderButton)}
+          {extraActions}
+        </div>
       </div>
     </div>
   );

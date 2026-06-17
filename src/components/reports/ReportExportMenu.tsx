@@ -14,6 +14,8 @@ import {
   type ExportSummaryItem,
   type ReportExportFormat,
 } from '@/lib/export';
+import { formatReportMessage } from '@/lib/whatsapp';
+import { WhatsAppShareButton } from '@/components/ui/WhatsAppShareButton';
 
 interface ReportExportMenuProps {
   filename: string;
@@ -24,6 +26,7 @@ interface ReportExportMenuProps {
   summary?: ExportSummaryItem[];
   canExport?: boolean;
   canPrint?: boolean;
+  canWhatsApp?: boolean;
 }
 
 const EXPORT_OPTIONS: {
@@ -46,6 +49,7 @@ export function ReportExportMenu({
   summary,
   canExport = true,
   canPrint = true,
+  canWhatsApp = true,
 }: ReportExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -64,7 +68,18 @@ export function ReportExportMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  if (!canExport && !canPrint) return null;
+  if (!canExport && !canPrint && !canWhatsApp) return null;
+
+  const whatsappMessage = formatReportMessage({
+    reportTitle: title || filename,
+    subtitle,
+    summaryLines: summary?.map((s) => `${s.label}: ${s.value}`),
+    rowCount: rows.length,
+    attachNote:
+      rows.length > 0
+        ? 'لإرفاق التقرير الكامل: صدّر PDF/Excel ثم أرفق الملف يدوياً في واتساب'
+        : undefined,
+  });
 
   const handleExport = (format: ReportExportFormat) => {
     setOpen(false);
@@ -113,6 +128,20 @@ export function ReportExportMenu({
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {canWhatsApp ? (
+        <WhatsAppShareButton
+          message={whatsappMessage}
+          label="واتساب"
+          disabled={rows.length === 0}
+          disabledReason="لا توجد بيانات للإرسال"
+          attachNote={
+            typeof navigator !== 'undefined' && 'share' in navigator
+              ? 'يمكنك أيضاً مشاركة الملف المُصدَّر عبر زر المشاركة على الجوال'
+              : undefined
+          }
+        />
       ) : null}
 
       {canPrint ? (

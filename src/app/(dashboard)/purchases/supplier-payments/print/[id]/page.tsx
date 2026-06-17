@@ -17,6 +17,8 @@ export default async function SupplierPaymentPrintPage({
       data={data}
       listHref={config.listHref}
       listLabel={config.listLabel}
+      operationType="supplier_payment"
+      documentId={params.id}
     />
   );
 }

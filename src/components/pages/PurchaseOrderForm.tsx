@@ -22,6 +22,7 @@ import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
+import { supplierPhoneFromMaster } from '@/lib/whatsapp';
 
 interface ApprovedNomination {
   id: string;
@@ -258,6 +259,16 @@ export function PurchaseOrderForm({
     onSave: handleSave,
     onSubmitOnly: handleSubmitOnly,
     onAfterWorkflowAction: refreshApproval,
+    whatsappMeta: {
+      supplierPhone: supplierPhoneFromMaster(
+        masterData.suppliers,
+        (existing?.supplierId as string) || form.supplierId
+      ),
+      partyName: masterData.suppliers.find(
+        (s) => s.id === ((existing?.supplierId as string) || form.supplierId)
+      )?.nameAr,
+      total: formatCurrency(total),
+    },
   });
 
   return (

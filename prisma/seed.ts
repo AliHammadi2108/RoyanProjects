@@ -92,6 +92,7 @@ const MASTER_PERMISSIONS = [
   { name: 'operations.view_cost', nameAr: 'عرض التكلفة', module: 'operations', screenCode: 'reports', action: 'view_cost' },
   { name: 'operations.view_reports', nameAr: 'عرض التقارير', module: 'operations', screenCode: 'reports', action: 'view' },
   { name: 'operations.print', nameAr: 'طباعة العمليات', module: 'operations', screenCode: 'print', action: 'print' },
+  { name: 'whatsapp.send', nameAr: 'إرسال واتساب', module: 'operations', screenCode: 'whatsapp', action: 'send' },
 ];
 
 const REPORT_PERMISSIONS = [
@@ -171,7 +172,7 @@ const ROLES = [
     permissions: [
       'purchase_requests.view', 'quotations.view', 'comparisons.view',
       'supplier_selection.view', 'purchase_orders.view', 'approvals.view',
-      'approvals.action', 'operations.approve', 'operations.reject', 'operations.print',
+      'approvals.action', 'operations.approve', 'operations.reject', 'operations.print', 'whatsapp.send',
       'notifications.view', 'tracking.view', 'audit_logs.view',
       'profile.change_own_password',
       'profile.theme.view', 'profile.theme.edit',
@@ -198,7 +199,7 @@ const ROLES = [
       'reports.operations.view', 'reports.supplier_debt.view', 'reports.supplier_statement.view',
       'reports.supplier_statement.print', 'reports.supplier_statement.export',
       'reports.view_supplier_balance',
-      'reports.view_cost', 'reports.export', 'reports.print', 'reports.view_charts',
+      'reports.view_cost', 'reports.export', 'reports.print', 'reports.view_charts', 'whatsapp.send',
       'supplier_payment.view', 'supplier_payment.create', 'supplier_payment.edit',
       'supplier_payment.delete', 'supplier_payment.print', 'supplier_payment.approve',
       'supplier_payment.post', 'supplier_payment.cancel', 'supplier_payment.view_amounts',
@@ -213,11 +214,11 @@ const ROLES = [
       'purchase_requests.view', 'quotations.view', 'comparisons.view',
       'supplier_selection.view', 'purchase_orders.view', 'inspections.view',
       'receivings.view', 'invoices.view', 'tracking.view', 'audit_logs.view',
-      'operations.print',
+      'operations.print', 'whatsapp.send',
       'reports.operations.view', 'reports.quantity_cost.view', 'reports.supplier_debt.view',
       'reports.supplier_statement.view', 'reports.supplier_statement.print', 'reports.supplier_statement.export',
       'reports.approvals.view', 'reports.used_documents.view', 'reports.export', 'reports.print',
-      'reports.view_cost', 'reports.view_supplier_balance', 'reports.view_charts',
+      'reports.view_cost', 'reports.view_supplier_balance', 'reports.view_charts', 'whatsapp.send',
       'profile.change_own_password',
       'profile.theme.view', 'profile.theme.edit',
     ],

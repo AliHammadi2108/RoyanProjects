@@ -1,24 +1,48 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PrintFooter } from '@/components/ui/PrintFooter';
+import { DocumentWhatsAppButton } from '@/components/ui/DocumentWhatsAppButton';
+import { getSessionPermissions } from '@/actions/common';
 import type { PrintDocumentData } from '@/lib/print-types';
+import type { OperationType } from '@/lib/operation-toolbar';
 import { formatNumber } from '@/lib/utils';
 
 interface OperationPrintViewProps {
   data: PrintDocumentData;
   listHref: string;
   listLabel: string;
+  operationType: OperationType;
+  documentId: string;
 }
 
-export function OperationPrintView({ data, listHref, listLabel }: OperationPrintViewProps) {
+export function OperationPrintView({
+  data,
+  listHref,
+  listLabel,
+  operationType,
+  documentId,
+}: OperationPrintViewProps) {
+  const [permissions, setPermissions] = useState<string[]>([]);
+
   useEffect(() => {
     document.title = `طباعة - ${data.documentNo}`;
   }, [data.documentNo]);
+
+  useEffect(() => {
+    getSessionPermissions().then(setPermissions);
+  }, []);
+
+  const printTotal = useMemo(() => {
+    const net = data.totals.find((t) => /صافي|إجمالي|الإجمالي/.test(t.label));
+    return net?.value;
+  }, [data.totals]);
+
+  const partyName = data.partyName ?? data.fields.find((f) => f.label === 'المورد')?.value;
 
   const showPricing = data.showLinePricing !== false;
 
@@ -33,6 +57,17 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
               <a href={listHref} className="btn-secondary text-sm">
                 {listLabel}
               </a>
+              <DocumentWhatsAppButton
+                operationType={operationType}
+                documentId={documentId}
+                documentNo={data.documentNo}
+                documentDate={data.documentDate}
+                status={data.status}
+                total={printTotal}
+                partyName={partyName}
+                supplierPhone={data.supplierPhone}
+                permissions={permissions}
+              />
               <button type="button" onClick={() => window.print()} className="btn-primary text-sm">
                 <Printer className="w-4 h-4" /> طباعة
               </button>

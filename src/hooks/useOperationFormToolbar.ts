@@ -1,15 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, createElement } from 'react';
 import { checkCanApprove, processApproval } from '@/actions/common';
 import { confirmToolbarAction, type OperationToolbarProps } from '@/components/ui/OperationToolbar';
+import { DocumentWhatsAppButton } from '@/components/ui/DocumentWhatsAppButton';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { useOperationToolbar } from '@/hooks/useOperationToolbar';
 import type { OperationType, ToolbarButtonId } from '@/lib/operation-toolbar';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface ApprovalLike {
   id: string;
   status: string;
+}
+
+export interface WhatsAppFormMeta {
+  total?: string;
+  supplierPhone?: string | null;
+  partyName?: string;
+  documentDate?: string;
 }
 
 export interface UseOperationFormToolbarOptions {
@@ -24,6 +33,7 @@ export interface UseOperationFormToolbarOptions {
   submitLabel?: string;
   status?: string;
   editableOverride?: boolean;
+  whatsappMeta?: WhatsAppFormMeta;
   onSave: (submit: boolean) => Promise<void>;
   onSubmitOnly?: () => Promise<void>;
   onAfterWorkflowAction?: () => void;
@@ -127,12 +137,59 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     [approval?.id, isNew, onAfterWorkflowAction, onSave, onSubmitOnly, toolbar]
   );
 
+  const whatsappExtra = useMemo(() => {
+    if (isNew || !documentId) return undefined;
+    const docNo = String(existing?.documentNo ?? '');
+    if (!docNo) return undefined;
+
+    const rawDate = options.whatsappMeta?.documentDate ?? existing?.documentDate;
+    const documentDate = rawDate
+      ? typeof rawDate === 'string'
+        ? formatDate(rawDate)
+        : formatDate(String(rawDate))
+      : undefined;
+
+    const rawTotal =
+      options.whatsappMeta?.total ??
+      (existing?.netTotal != null
+        ? formatCurrency(Number(existing.netTotal))
+        : existing?.totalAmount != null
+          ? formatCurrency(Number(existing.totalAmount))
+          : existing?.total != null
+            ? formatCurrency(Number(existing.total))
+            : undefined);
+
+    return createElement(DocumentWhatsAppButton, {
+      operationType,
+      documentId,
+      documentNo: docNo,
+      documentDate,
+      status,
+      total: rawTotal,
+      partyName: options.whatsappMeta?.partyName,
+      supplierPhone: options.whatsappMeta?.supplierPhone,
+      permissions: toolbar.permissions,
+      disabled: loading || loadingAction !== null,
+    });
+  }, [
+    isNew,
+    documentId,
+    existing,
+    options.whatsappMeta,
+    operationType,
+    status,
+    toolbar.permissions,
+    loading,
+    loadingAction,
+  ]);
+
   const toolbarProps: OperationToolbarProps = {
     buttons: toolbar.buttons,
     status,
     usage,
     loadingAction,
     onAction: handleToolbarAction,
+    extraActions: whatsappExtra,
   };
 
   return {

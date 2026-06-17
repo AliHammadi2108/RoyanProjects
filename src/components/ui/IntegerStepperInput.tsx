@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { coerceInteger, stepInteger } from '@/lib/integer-stepper';
@@ -16,6 +16,12 @@ interface IntegerStepperInputProps {
   'aria-label'?: string;
 }
 
+function isPartialNumericInput(raw: string, min: number): boolean {
+  if (raw === '') return true;
+  if (min < 0) return /^-?\d*$/.test(raw);
+  return /^\d*$/.test(raw);
+}
+
 export function IntegerStepperInput({
   value,
   onChange,
@@ -27,28 +33,38 @@ export function IntegerStepperInput({
   'aria-label': ariaLabel,
 }: IntegerStepperInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
+  const focusedRef = useRef(false);
   const displayValue = draft ?? String(value);
+
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setDraft(null);
+    }
+  }, [value]);
 
   const commit = (raw: string) => {
     setDraft(null);
     onChange(coerceInteger(raw, min));
   };
 
+  const currentNumeric = () =>
+    draft !== null ? coerceInteger(draft, min) : coerceInteger(value, min);
+
   const adjust = (delta: number) => {
     setDraft(null);
-    onChange(stepInteger(value, delta * step, min));
+    onChange(stepInteger(currentNumeric(), delta * step, min));
   };
 
   const buttonClass =
-    'absolute top-1/2 z-[1] inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 p-1.5 text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
-    <div className={cn('relative w-full', className)} dir="ltr">
+    <div className={cn('flex w-full items-center gap-1', className)} dir="ltr">
       <button
         type="button"
-        className={cn(buttonClass, 'left-1')}
+        className={buttonClass}
         onClick={() => adjust(-1)}
-        disabled={disabled || coerceInteger(value, min) <= min}
+        disabled={disabled || currentNumeric() <= min}
         aria-label="تقليل"
         tabIndex={-1}
       >
@@ -58,12 +74,23 @@ export function IntegerStepperInput({
         type="text"
         inputMode="numeric"
         className={cn(
-          'form-input w-full px-9 py-2 text-center text-sm tabular-nums',
+          'form-input min-w-0 flex-1 px-2 py-2 text-center text-sm tabular-nums',
           inputClassName
         )}
         value={displayValue}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={(e) => commit(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (isPartialNumericInput(next, min)) {
+            setDraft(next);
+          }
+        }}
+        onFocus={() => {
+          focusedRef.current = true;
+        }}
+        onBlur={(e) => {
+          focusedRef.current = false;
+          commit(e.target.value);
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -72,11 +99,12 @@ export function IntegerStepperInput({
           }
         }}
         disabled={disabled}
+        readOnly={false}
         aria-label={ariaLabel}
       />
       <button
         type="button"
-        className={cn(buttonClass, 'right-1')}
+        className={buttonClass}
         onClick={() => adjust(1)}
         disabled={disabled}
         aria-label="زيادة"

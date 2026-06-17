@@ -141,11 +141,22 @@ export function ItemsGrid({
     });
   }, [availableItems]);
 
+  const itemsFingerprint = useMemo(
+    () =>
+      items
+        .map(
+          (i) =>
+            `${i.itemId}|${i.quantity}|${i.unitPrice}|${i.discount}|${i.tax}|${i.itemUnitId ?? ''}|${i.notes ?? ''}`
+        )
+        .join(';;'),
+    [items]
+  );
+
   useEffect(() => {
     if (items.length > 0) {
       setRows(items);
     }
-  }, [items]);
+  }, [itemsFingerprint, items.length]);
 
   const searchItemOptions = useCallback(
     async (query: string): Promise<AutocompleteOption[]> => {
@@ -259,11 +270,11 @@ export function ItemsGrid({
             <tr>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[38%]">الصنف</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[14%]">الوحدة</th>
-              <th className="px-3 py-2.5 text-right font-medium text-gray-600">الكمية</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600 min-w-[7.5rem]">الكمية</th>
               {showBaseQty && (
                 <th className="px-3 py-2.5 text-right font-medium text-gray-600">أساسية</th>
               )}
-              <th className="px-3 py-2.5 text-right font-medium text-gray-600">سعر الوحدة</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600 min-w-[7.5rem]">سعر الوحدة</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600">الخصم</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600">الإجمالي</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[12%]">البيان</th>
@@ -329,12 +340,13 @@ export function ItemsGrid({
                       '-'
                     )}
                   </td>
-                  <td className="px-3 py-3 align-top">
+                  <td className="px-3 py-3 align-top min-w-[7.5rem]">
                     {readOnly ? row.quantity : (
                       <IntegerStepperInput
                         value={row.quantity}
                         onChange={(v) => updateRow(idx, 'quantity', v)}
                         min={0}
+                        inputClassName="text-sm w-full"
                         aria-label="الكمية"
                       />
                     )}
@@ -344,12 +356,13 @@ export function ItemsGrid({
                       {(row.baseQty ?? row.quantity).toFixed(2)}
                     </td>
                   )}
-                  <td className="px-3 py-3 align-top">
+                  <td className="px-3 py-3 align-top min-w-[7.5rem]">
                     {readOnly ? row.unitPrice : (
                       <IntegerStepperInput
                         value={row.unitPrice}
                         onChange={(v) => updateRow(idx, 'unitPrice', v)}
                         min={0}
+                        inputClassName="text-sm w-full"
                         aria-label="سعر الوحدة"
                       />
                     )}

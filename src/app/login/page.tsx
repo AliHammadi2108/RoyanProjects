@@ -149,7 +149,7 @@ export default function LoginPage() {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                className="form-input"
+                className="form-input text-center tabular-nums"
                 value={userNo}
                 onChange={(e) => setUserNo(e.target.value.replace(/\D/g, ''))}
                 placeholder="1"

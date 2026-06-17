@@ -1,0 +1,1183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Auth & RBAC ====================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  nameAr       String
+  nameEn       String?
+  isActive     Boolean  @default(true)
+  branchId     String?
+  departmentId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch     Branch?     @relation(fields: [branchId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  roles      UserRole[]
+
+  purchaseRequestsCreated  PurchaseRequest[] @relation("PRCreatedBy")
+  purchaseRequestsUpdated  PurchaseRequest[] @relation("PRUpdatedBy")
+  quotationsCreated        Quotation[]       @relation("QCreatedBy")
+  quotationsUpdated        Quotation[]       @relation("QUpdatedBy")
+  comparisonsCreated       TechnicalComparison[] @relation("TCCreatedBy")
+  comparisonsUpdated       TechnicalComparison[] @relation("TCUpdatedBy")
+  nominationsCreated       SupplierNomination[] @relation("SNCreatedBy")
+  nominationsUpdated       SupplierNomination[] @relation("SNUpdatedBy")
+  ordersCreated            PurchaseOrder[]   @relation("POCreatedBy")
+  ordersUpdated            PurchaseOrder[]   @relation("POUpdatedBy")
+  inspectionsCreated       PurchaseOrderInspection[] @relation("PICreatedBy")
+  receivingsCreated        PurchaseReceiving[] @relation("PRCVCreatedBy")
+  invoicesCreated          PurchaseInvoice[] @relation("PINVCreatedBy")
+  approvalsRequested       Approval[]        @relation("ApprovalRequestedBy")
+  approvalSteps            ApprovalStep[]    @relation("ApprovalStepUser")
+  approvalStepsActioned    ApprovalStep[]    @relation("ApprovalStepActionBy")
+  approvalLogs             ApprovalLog[]
+  notifications            Notification[]
+  auditLogs                AuditLog[]
+  attachments              Attachment[]
+  userPermissions          UserPermission[]
+  supplierPermissions      UserSupplierPermission[]
+  approvalRulesCreated     ApprovalRule[]
+  approvalRequestsCreated  ApprovalRequest[] @relation("ApprovalRequestRequester")
+  approvalRequestActions   ApprovalRequestAction[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String?  @unique
+  nameAr      String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  users       UserRole[]
+  permissions RolePermission[]
+  approvalMatrices ApprovalMatrix[]
+  approvalSteps    ApprovalStep[]
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  nameAr      String
+  module      String
+  screenCode  String?
+  action      String?
+  description String?
+
+  roles            RolePermission[]
+  userPermissions  UserPermission[]
+}
+
+model UserPermission {
+  id           String @id @default(cuid())
+  userId       String
+  permissionId String
+  effect       String @default("allow")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+// ==================== Master Data ====================
+
+model Branch {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameAr    String
+  nameEn    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users            User[]
+  departments      Department[]
+  warehouses       Warehouse[]
+  purchaseCycles   PurchaseCycle[]
+  purchaseRequests PurchaseRequest[]
+  quotations       Quotation[]
+  comparisons      TechnicalComparison[]
+  nominations      SupplierNomination[]
+  orders           PurchaseOrder[]
+  receivings       PurchaseReceiving[]
+  invoices         PurchaseInvoice[]
+  approvalMatrices ApprovalMatrix[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameAr    String
+  nameEn    String?
+  branchId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  branch           Branch?           @relation(fields: [branchId], references: [id])
+  users            User[]
+  purchaseRequests PurchaseRequest[]
+  approvalMatrices ApprovalMatrix[]
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameAr    String
+  nameEn    String?
+  branchId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  branch           Branch?           @relation(fields: [branchId], references: [id])
+  purchaseRequests PurchaseRequest[]
+  orders           PurchaseOrder[]
+  inspections      PurchaseOrderInspection[]
+  receivings       PurchaseReceiving[]
+  invoices         PurchaseInvoice[]
+  stockBalances    StockBalance[]
+  stockMovements   StockMovement[]
+}
+
+model Supplier {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  nameAr            String
+  nameEn            String?
+  phone             String?
+  email             String?
+  address           String?
+  taxNo             String?
+  defaultCurrencyId String?
+  openingBalance    Float    @default(0)
+  notes             String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  defaultCurrency      Currency?              @relation(fields: [defaultCurrencyId], references: [id])
+  purchaseRequests     PurchaseRequest[]
+  quotations           Quotation[]
+  nominations          SupplierNomination[]
+  orders               PurchaseOrder[]
+  inspections          PurchaseOrderInspection[]
+  receivings           PurchaseReceiving[]
+  invoices             PurchaseInvoice[]
+  userPermissions      UserSupplierPermission[]
+
+  @@index([defaultCurrencyId])
+  @@index([isActive])
+}
+
+model Unit {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  nameAr      String
+  nameEn      String?
+  symbol      String?
+  description String?
+  isActive    Boolean @default(true)
+
+  legacyItems Item[]     @relation("ItemLegacyUnit")
+  itemUnits   ItemUnit[]
+
+  @@index([isActive])
+}
+
+model Currency {
+  id         String  @id @default(cuid())
+  code       String  @unique
+  nameAr     String
+  nameEn     String?
+  symbol     String
+  rate       Float   @default(1)
+  rateToBase Float   @default(1)
+  isBase     Boolean @default(false)
+  isActive   Boolean @default(true)
+
+  suppliers        Supplier[]
+  purchaseRequests PurchaseRequest[]
+  quotations       Quotation[]
+  comparisons      TechnicalComparison[]
+  nominations      SupplierNomination[]
+  orders           PurchaseOrder[]
+  receivings       PurchaseReceiving[]
+  approvalRules    ApprovalRule[]
+  approvalRequests ApprovalRequest[]
+
+  @@index([isBase])
+  @@index([isActive])
+}
+
+model ItemCategory {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  nameAr   String
+  nameEn   String?
+  isActive Boolean @default(true)
+
+  items Item[]
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  nameAr      String
+  nameEn      String?
+  unitId      String?
+  barcode     String?
+  specs       String?
+  description String?
+  categoryId  String?
+  minStock    Float?
+  maxStock    Float?
+  isStockItem Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  legacyUnit Unit?         @relation("ItemLegacyUnit", fields: [unitId], references: [id])
+  category   ItemCategory? @relation(fields: [categoryId], references: [id])
+  itemUnits  ItemUnit[]
+  stockBalances StockBalance[]
+  stockMovements StockMovement[]
+
+  purchaseRequestItems PurchaseRequestItem[]
+  quotationItems       QuotationItem[]
+  comparisonItems      TechnicalComparisonItem[]
+  nominationItems      SupplierNominationItem[]
+  orderItems           PurchaseOrderItem[]
+  inspectionItems      PurchaseOrderInspectionItem[]
+  receivingItems       PurchaseReceivingItem[]
+  invoiceItems         PurchaseInvoiceItem[]
+
+  @@index([barcode])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model ItemUnit {
+  id                 String  @id @default(cuid())
+  itemId             String
+  unitId             String
+  isBase             Boolean @default(false)
+  factorToBase       Float   @default(1)
+  barcode            String?
+  purchasePrice      Float?
+  salePrice          Float?
+  isDefaultPurchase  Boolean @default(false)
+  isDefaultSale      Boolean @default(false)
+  isActive           Boolean @default(true)
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@unique([itemId, unitId])
+  @@index([itemId])
+  @@index([barcode])
+}
+
+model StockBalance {
+  id          String @id @default(cuid())
+  warehouseId String
+  itemId      String
+  baseQty     Float  @default(0)
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@unique([warehouseId, itemId])
+  @@index([itemId])
+}
+
+model StockMovement {
+  id            String   @id @default(cuid())
+  warehouseId   String
+  itemId        String
+  itemUnitId    String?
+  unitId        String?
+  qty           Float
+  factorToBase  Float    @default(1)
+  baseQty       Float
+  movementType  String
+  referenceType String?
+  referenceId   String?
+  notes         String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@index([warehouseId, itemId])
+  @@index([referenceType, referenceId])
+}
+
+model UserSupplierPermission {
+  id                      String  @id @default(cuid())
+  userId                  String
+  supplierId              String
+  canView                 Boolean @default(true)
+  canUseInPurchase        Boolean @default(false)
+  canViewBalance          Boolean @default(false)
+  canEdit                 Boolean @default(false)
+  canApproveTransactions  Boolean @default(false)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, supplierId])
+  @@index([userId])
+  @@index([supplierId])
+}
+
+model ApprovalRule {
+  id                 String  @id @default(cuid())
+  module             String
+  operationType      String
+  minAmount          Float?
+  maxAmount          Float?
+  currencyId         String?
+  requiredPermission String?
+  approvalLevel      Int     @default(1)
+  isActive           Boolean @default(true)
+  createdBy          String?
+  createdAt          DateTime @default(now())
+
+  currency Currency? @relation(fields: [currencyId], references: [id])
+  creator  User?     @relation(fields: [createdBy], references: [id])
+
+  @@index([module, operationType, isActive])
+}
+
+model ApprovalRequest {
+  id            String    @id @default(cuid())
+  module        String
+  operationType String
+  referenceId   String
+  requestedBy   String
+  status        String    @default("pending")
+  level         Int       @default(1)
+  amount        Float?
+  currencyId    String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  requester User      @relation("ApprovalRequestRequester", fields: [requestedBy], references: [id])
+  currency  Currency? @relation(fields: [currencyId], references: [id])
+  actions   ApprovalRequestAction[]
+
+  @@index([module, operationType, referenceId])
+  @@index([status])
+  @@index([requestedBy])
+}
+
+model ApprovalRequestAction {
+  id        String   @id @default(cuid())
+  requestId String
+  userId    String
+  action    String
+  level     Int
+  notes     String?
+  createdAt DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@index([requestId])
+}
+
+// ==================== Purchase Cycle ====================
+
+model PurchaseCycle {
+  id              String   @id @default(cuid())
+  cycleNo         String   @unique
+  branchId        String
+  departmentId    String?
+  currentStage    String   @default("PURCHASE_REQUEST")
+  nextAction      String   @default("Awaiting Purchase Request Approval")
+  status          String   @default("IN_PROGRESS")
+  totalAmount     Float    @default(0)
+  currencyId      String?
+  supplierId      String?
+  expectedArrival DateTime?
+  isLate          Boolean  @default(false)
+  lateDays        Int      @default(0)
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  branch           Branch            @relation(fields: [branchId], references: [id])
+  purchaseRequests PurchaseRequest[]
+  quotations       Quotation[]
+  comparisons      TechnicalComparison[]
+  nominations      SupplierNomination[]
+  orders           PurchaseOrder[]
+  inspections      PurchaseOrderInspection[]
+  receivings       PurchaseReceiving[]
+  invoices         PurchaseInvoice[]
+}
+
+// ==================== Purchase Request ====================
+
+model PurchaseRequest {
+  id              String    @id @default(cuid())
+  documentNo      String
+  purchaseCycleId String
+  branchId        String
+  departmentId    String?
+  requestDate     DateTime  @default(now())
+  requesterUnit   String?
+  purchaseType    String    @default("LOCAL")
+  operationNo     String?
+  warehouseId     String?
+  supplierId      String?
+  currencyId      String?
+  exchangeRate    Float     @default(1)
+  referenceNo     String?
+  qualityLevel    String?
+  requiredDate    DateTime?
+  status          String    @default("Draft")
+  approvalStatus  String    @default("None")
+  notes           String?
+  totalAmount     Float     @default(0)
+  createdBy       String
+  updatedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  purchaseCycle PurchaseCycle @relation(fields: [purchaseCycleId], references: [id])
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  department    Department?   @relation(fields: [departmentId], references: [id])
+  warehouse     Warehouse?    @relation(fields: [warehouseId], references: [id])
+  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
+  currency      Currency?     @relation(fields: [currencyId], references: [id])
+  creator       User          @relation("PRCreatedBy", fields: [createdBy], references: [id])
+  updater       User?         @relation("PRUpdatedBy", fields: [updatedBy], references: [id])
+
+  items      PurchaseRequestItem[]
+  quotations Quotation[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+  @@index([status])
+}
+
+model PurchaseRequestItem {
+  id                String    @id @default(cuid())
+  purchaseRequestId String
+  itemId            String
+  itemUnitId        String?
+  itemNameSnapshot  String
+  unitId            String?
+  factorToBase      Float     @default(1)
+  baseQty           Float     @default(0)
+  packaging         String?
+  specs             String?
+  numericUnit       String?
+  numericQty        Float?
+  unitPrice         Float     @default(0)
+  expiryDate        DateTime?
+  quantity          Float
+  supplierPrice     Float?
+  expectedDelivery  DateTime?
+  notes             String?
+  discount          Float     @default(0)
+  tax               Float     @default(0)
+  total             Float     @default(0)
+  sortOrder         Int       @default(0)
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  item            Item            @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Quotation ====================
+
+model Quotation {
+  id                String    @id @default(cuid())
+  documentNo        String
+  purchaseCycleId   String
+  purchaseRequestId String
+  branchId          String
+  supplierId        String
+  quotationDate     DateTime  @default(now())
+  paymentMethod     String?
+  costMethod        String?
+  creditPeriod      Int?
+  requiredDays      Int?
+  deliveryLocation  String?
+  paymentTerms      String?
+  status            String    @default("Draft")
+  approvalStatus    String    @default("None")
+  currencyId        String?
+  exchangeRate      Float     @default(1)
+  activityNo        String?
+  referenceNo       String?
+  expiryDate        DateTime?
+  deliveryDays      Int?
+  tenderDate        DateTime?
+  tenderNo          String?
+  operationNo       String?
+  notes             String?
+  subtotal          Float     @default(0)
+  discount          Float     @default(0)
+  total             Float     @default(0)
+  extraDiscount     Float     @default(0)
+  createdBy         String
+  updatedBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  purchaseCycle   PurchaseCycle   @relation(fields: [purchaseCycleId], references: [id])
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  branch          Branch          @relation(fields: [branchId], references: [id])
+  supplier        Supplier        @relation(fields: [supplierId], references: [id])
+  currency        Currency?       @relation(fields: [currencyId], references: [id])
+  creator         User            @relation("QCreatedBy", fields: [createdBy], references: [id])
+  updater         User?           @relation("QUpdatedBy", fields: [updatedBy], references: [id])
+
+  items       QuotationItem[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+  @@index([purchaseRequestId])
+}
+
+model QuotationItem {
+  id               String  @id @default(cuid())
+  quotationId      String
+  itemId           String
+  itemUnitId       String?
+  itemNameSnapshot String
+  unitId           String?
+  factorToBase     Float   @default(1)
+  baseQty          Float   @default(0)
+  quantity         Float
+  unitPrice        Float   @default(0)
+  purchaseRequestNo String?
+  amount           Float   @default(0)
+  notes            String?
+  barcode          String?
+  discount         Float   @default(0)
+  tax              Float   @default(0)
+  total            Float   @default(0)
+  sortOrder        Int     @default(0)
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  item      Item      @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Technical Comparison ====================
+
+model TechnicalComparison {
+  id              String   @id @default(cuid())
+  documentNo      String
+  purchaseCycleId String
+  branchId        String
+  currencyId      String?
+  paymentMethod   String?
+  creditPeriod    Int?
+  deliveryDays    Int?
+  referenceNo     String?
+  quotationIds    String?
+  operationNo     String?
+  status          String   @default("Draft")
+  approvalStatus  String   @default("None")
+  notes           String?
+  totalAmount     Float    @default(0)
+  createdBy       String
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseCycle PurchaseCycle @relation(fields: [purchaseCycleId], references: [id])
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  currency      Currency?     @relation(fields: [currencyId], references: [id])
+  creator       User          @relation("TCCreatedBy", fields: [createdBy], references: [id])
+  updater       User?         @relation("TCUpdatedBy", fields: [updatedBy], references: [id])
+
+  items       TechnicalComparisonItem[]
+  nominations SupplierNomination[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+}
+
+model TechnicalComparisonItem {
+  id                    String  @id @default(cuid())
+  technicalComparisonId String
+  itemId                String
+  itemNameSnapshot      String
+  unitId                String?
+  supplierId            String?
+  supplierName          String?
+  quantity              Float
+  netAmount             Float   @default(0)
+  isSelected            Boolean @default(false)
+  quotationId           String?
+  quotationNo           String?
+  notes                 String?
+  unitPrice             Float   @default(0)
+  discount              Float   @default(0)
+  tax                   Float   @default(0)
+  total                 Float   @default(0)
+  sortOrder             Int     @default(0)
+
+  technicalComparison TechnicalComparison @relation(fields: [technicalComparisonId], references: [id], onDelete: Cascade)
+  item                Item                @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Supplier Nomination ====================
+
+model SupplierNomination {
+  id                    String   @id @default(cuid())
+  documentNo            String
+  purchaseCycleId       String
+  technicalComparisonId String
+  branchId              String
+  currencyId            String?
+  comparisonType        String?
+  referenceNo           String?
+  operationNo           String?
+  supplierId            String?
+  status                String   @default("Draft")
+  approvalStatus        String   @default("None")
+  committeeMembers      String?
+  notes                 String?
+  totalAmount           Float    @default(0)
+  createdBy             String
+  updatedBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  purchaseCycle       PurchaseCycle       @relation(fields: [purchaseCycleId], references: [id])
+  technicalComparison TechnicalComparison @relation(fields: [technicalComparisonId], references: [id])
+  branch              Branch              @relation(fields: [branchId], references: [id])
+  currency            Currency?           @relation(fields: [currencyId], references: [id])
+  supplier            Supplier?           @relation(fields: [supplierId], references: [id])
+  creator             User                @relation("SNCreatedBy", fields: [createdBy], references: [id])
+  updater             User?               @relation("SNUpdatedBy", fields: [updatedBy], references: [id])
+
+  items  SupplierNominationItem[]
+  orders PurchaseOrder[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+}
+
+model SupplierNominationItem {
+  id                    String  @id @default(cuid())
+  supplierNominationId  String
+  itemId                String
+  itemNameSnapshot      String
+  unitId                String?
+  quantity              Float
+  unitPrice             Float   @default(0)
+  netAmount             Float   @default(0)
+  isApproved            Boolean @default(false)
+  supplierId            String?
+  supplierName          String?
+  technicalComparisonId String?
+  quotationId           String?
+  quotationNo           String?
+  notes                 String?
+  discount              Float   @default(0)
+  tax                   Float   @default(0)
+  total                 Float   @default(0)
+  sortOrder             Int     @default(0)
+
+  supplierNomination SupplierNomination @relation(fields: [supplierNominationId], references: [id], onDelete: Cascade)
+  item               Item               @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Purchase Order ====================
+
+model PurchaseOrder {
+  id                   String    @id @default(cuid())
+  documentNo           String
+  purchaseCycleId      String
+  supplierNominationId String?
+  purchaseRequestId    String?
+  branchId             String
+  supplierId           String
+  orderDate            DateTime  @default(now())
+  purchaseType         String    @default("LOCAL")
+  warehouseId          String?
+  referenceNo          String?
+  operationNo          String?
+  currencyId           String?
+  exchangeRate         Float     @default(1)
+  paymentMethod        String?
+  itemsCost            Float     @default(0)
+  representativeNo     String?
+  activityNo           String?
+  orderExpiryDate      DateTime?
+  expectedArrival      DateTime?
+  status               String    @default("Draft")
+  approvalStatus       String    @default("None")
+  notes                String?
+  subtotal             Float     @default(0)
+  discount             Float     @default(0)
+  discountPercent      Float     @default(0)
+  total                Float     @default(0)
+  createdBy            String
+  updatedBy            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  purchaseCycle      PurchaseCycle      @relation(fields: [purchaseCycleId], references: [id])
+  supplierNomination SupplierNomination? @relation(fields: [supplierNominationId], references: [id])
+  branch             Branch             @relation(fields: [branchId], references: [id])
+  supplier           Supplier           @relation(fields: [supplierId], references: [id])
+  warehouse          Warehouse?         @relation(fields: [warehouseId], references: [id])
+  currency           Currency?          @relation(fields: [currencyId], references: [id])
+  creator            User               @relation("POCreatedBy", fields: [createdBy], references: [id])
+  updater            User?              @relation("POUpdatedBy", fields: [updatedBy], references: [id])
+
+  items       PurchaseOrderItem[]
+  inspections PurchaseOrderInspection[]
+  receivings  PurchaseReceiving[]
+  invoices    PurchaseInvoice[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+}
+
+model PurchaseOrderItem {
+  id                String    @id @default(cuid())
+  purchaseOrderId   String
+  itemId            String
+  itemUnitId        String?
+  itemNameSnapshot  String
+  unitId            String?
+  factorToBase      Float     @default(1)
+  baseQty           Float     @default(0)
+  packaging         String?
+  specs             String?
+  numericUnit       String?
+  numericQty        Float?
+  unitPrice         Float     @default(0)
+  groupName         String?
+  availableQty      Float?
+  expiryDate        DateTime?
+  quantity          Float
+  freeQuantity      Float     @default(0)
+  price             Float     @default(0)
+  supplierInvoiceNo String?
+  supplierInvoiceDate DateTime?
+  notes             String?
+  discount          Float     @default(0)
+  tax               Float     @default(0)
+  total             Float     @default(0)
+  sortOrder         Int       @default(0)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  item          Item          @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Inspection ====================
+
+model PurchaseOrderInspection {
+  id              String   @id @default(cuid())
+  documentNo      String
+  purchaseCycleId String
+  purchaseOrderId String
+  supplierId      String
+  inspectionDate  DateTime @default(now())
+  referenceNo     String?
+  representativeNo String?
+  warehouseId     String?
+  operationNo     String?
+  manualEntry     Boolean  @default(false)
+  inspectionResult String  @default("Pending")
+  status          String   @default("Draft")
+  rejectionReason String?
+  notes           String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseCycle PurchaseCycle @relation(fields: [purchaseCycleId], references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  supplier      Supplier      @relation(fields: [supplierId], references: [id])
+  warehouse     Warehouse?    @relation(fields: [warehouseId], references: [id])
+  creator       User          @relation("PICreatedBy", fields: [createdBy], references: [id])
+
+  items      PurchaseOrderInspectionItem[]
+  receivings PurchaseReceiving[]
+
+  @@unique([documentNo])
+  @@index([purchaseCycleId])
+  @@index([purchaseOrderId])
+}
+
+model PurchaseOrderInspectionItem {
+  id            String  @id @default(cuid())
+  inspectionId  String
+  itemId        String
+  itemNameSnapshot String
+  unitId        String?
+  expiryDate    DateTime?
+  quantity      Float
+  previouslyMatched Float @default(0)
+  freeQuantity  Float   @default(0)
+  notPreviouslyMatched Boolean @default(false)
+  matchStatus   String  @default("Pending")
+  matchedQty    Float   @default(0)
+  unmatchedQty  Float   @default(0)
+  purchaseOrderNo String?
+  notes         String?
+  sortOrder     Int     @default(0)
+
+  inspection PurchaseOrderInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  item       Item                    @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Receiving ====================
+
+model PurchaseReceiving {
+  id              String   @id @default(cuid())
+  documentNo      String
+  purchaseCycleId String
+  purchaseOrderId String
+  inspectionId    String?
+  purchaseRequestId String?
+  branchId        String
+  supplierType    String?
+  supplierId      String
+  warehouseId     String?
+  representativeNo String?
+  currencyId      String?
+  exchangeRate    Float    @default(1)
+  contractNo      String?
+  referenceNo     String?
+  supplierInvoiceNo String?
+  supplierInvoiceDate DateTime?
+  operationNo     String?
+  receivingStatus String  @default("Not Received")
+  notes           String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseCycle PurchaseCycle             @relation(fields: [purchaseCycleId], references: [id])
+  purchaseOrder PurchaseOrder             @relation(fields: [purchaseOrderId], references: [id])
+  inspection    PurchaseOrderInspection?  @relation(fields: [inspectionId], references: [id])
+  branch        Branch                    @relation(fields: [branchId], references: [id])
+  supplier      Supplier                  @relation(fields: [supplierId], references: [id])
+  warehouse     Warehouse?                @relation(fields: [warehouseId], references: [id])
+  currency      Currency?                 @relation(fields: [currencyId], references: [id])
+  creator       User                      @relation("PRCVCreatedBy", fields: [createdBy], references: [id])
+
+  items    PurchaseReceivingItem[]
+  invoices PurchaseInvoice[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+  @@index([purchaseOrderId])
+}
+
+model PurchaseReceivingItem {
+  id                String    @id @default(cuid())
+  receivingId       String
+  itemId            String
+  itemUnitId        String?
+  itemNameSnapshot  String
+  unitId            String?
+  factorToBase      Float     @default(1)
+  baseQty           Float     @default(0)
+  packaging         String?
+  specs             String?
+  numericUnit       String?
+  numericQty        Float?
+  expiryDate        DateTime?
+  receivedQty       Float
+  freeQuantity      Float     @default(0)
+  purchaseOrderNo   String?
+  poLineNo          String?
+  requestQty        Float?
+  notes             String?
+  barcode           String?
+  sortOrder         Int       @default(0)
+
+  receiving PurchaseReceiving @relation(fields: [receivingId], references: [id], onDelete: Cascade)
+  item      Item              @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Invoice ====================
+
+model PurchaseInvoice {
+  id                String    @id @default(cuid())
+  documentNo        String
+  purchaseCycleId   String
+  purchaseOrderId   String
+  receivingId       String?
+  branchId          String
+  warehouseId       String?
+  invoiceType       String    @default("STANDARD")
+  paymentMethod     String?
+  accountNo         String?
+  accountName       String?
+  exchangeRate      Float     @default(1)
+  supplierId        String
+  beneficiaryBranch String?
+  dueDate           DateTime?
+  paymentDueDate    DateTime?
+  activityNo        String?
+  notes             String?
+  supplierInvoiceNo String?
+  supplierInvoiceDate DateTime?
+  referenceNo       String?
+  representativeNo  String?
+  reviewNotes       String?
+  status            String    @default("Draft")
+  paymentStatus     String    @default("Unpaid")
+  subtotal          Float     @default(0)
+  discount          Float     @default(0)
+  supplierDiscount  Float     @default(0)
+  supplierNet       Float     @default(0)
+  otherExpenses     Float     @default(0)
+  discountPercent   Float     @default(0)
+  otherDiscounts    Float     @default(0)
+  netTotal          Float     @default(0)
+  createdBy         String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  purchaseCycle PurchaseCycle      @relation(fields: [purchaseCycleId], references: [id])
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  receiving     PurchaseReceiving? @relation(fields: [receivingId], references: [id])
+  branch        Branch             @relation(fields: [branchId], references: [id])
+  warehouse     Warehouse?         @relation(fields: [warehouseId], references: [id])
+  supplier      Supplier           @relation(fields: [supplierId], references: [id])
+  creator       User               @relation("PINVCreatedBy", fields: [createdBy], references: [id])
+
+  items PurchaseInvoiceItem[]
+
+  @@unique([documentNo, branchId])
+  @@index([purchaseCycleId])
+  @@index([purchaseOrderId])
+}
+
+model PurchaseInvoiceItem {
+  id               String    @id @default(cuid())
+  invoiceId        String
+  itemId           String
+  itemUnitId       String?
+  itemNameSnapshot String
+  unitId           String?
+  factorToBase     Float     @default(1)
+  baseQty          Float     @default(0)
+  packaging        String?
+  specs            String?
+  numericUnit      String?
+  numericQty       Float?
+  unitPrice        Float     @default(0)
+  expiryDate       DateTime?
+  quantity         Float
+  freeQuantity     Float     @default(0)
+  price            Float     @default(0)
+  priceType        String?
+  notes            String?
+  discount         Float     @default(0)
+  tax              Float     @default(0)
+  total            Float     @default(0)
+  sortOrder        Int       @default(0)
+
+  invoice PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item    Item            @relation(fields: [itemId], references: [id])
+}
+
+// ==================== Approval System ====================
+
+model ApprovalMatrix {
+  id                    String  @id @default(cuid())
+  documentType          String
+  branchId              String?
+  departmentId          String?
+  minAmount             Float?
+  maxAmount             Float?
+  level                 Int
+  roleId                String?
+  userId                String?
+  requiredApprovalsCount Int    @default(1)
+  approvalMode          String  @default("Sequential")
+  isActive              Boolean @default(true)
+  createdAt             DateTime @default(now())
+
+  branch     Branch?     @relation(fields: [branchId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  role       Role?       @relation(fields: [roleId], references: [id])
+
+  @@index([documentType, branchId, departmentId])
+}
+
+model Approval {
+  id            String    @id @default(cuid())
+  documentType  String
+  documentId    String
+  currentLevel  Int       @default(1)
+  status        String    @default("Pending")
+  requestedBy   String
+  requestedAt   DateTime  @default(now())
+  completedAt   DateTime?
+  totalAmount   Float     @default(0)
+  branchId      String?
+  departmentId  String?
+
+  requester User           @relation("ApprovalRequestedBy", fields: [requestedBy], references: [id])
+  steps     ApprovalStep[]
+  logs      ApprovalLog[]
+  notifications Notification[]
+
+  @@index([documentType, documentId])
+  @@index([status])
+}
+
+model ApprovalStep {
+  id              String    @id @default(cuid())
+  approvalId      String
+  level           Int
+  approverUserId  String?
+  approverRoleId  String?
+  status          String    @default("Pending")
+  actionBy        String?
+  actionAt        DateTime?
+  notes           String?
+
+  approval     Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  approverUser User?    @relation("ApprovalStepUser", fields: [approverUserId], references: [id])
+  approverRole Role?    @relation(fields: [approverRoleId], references: [id])
+  actionUser   User?    @relation("ApprovalStepActionBy", fields: [actionBy], references: [id])
+
+  @@index([approvalId, level])
+}
+
+model ApprovalLog {
+  id           String   @id @default(cuid())
+  approvalId   String
+  documentType String
+  documentId   String
+  action       String
+  oldStatus    String?
+  newStatus    String?
+  performedBy  String
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  approval  Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  performer User     @relation(fields: [performedBy], references: [id])
+}
+
+// ==================== Notifications ====================
+
+model Notification {
+  id           String    @id @default(cuid())
+  userId       String
+  type         String
+  title        String
+  message      String
+  documentType String?
+  documentId   String?
+  approvalId   String?
+  actionUrl    String?
+  status       String    @default("Unread")
+  priority     String    @default("Normal")
+  createdAt    DateTime  @default(now())
+  readAt       DateTime?
+  actionedAt   DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approval Approval? @relation(fields: [approvalId], references: [id])
+
+  @@index([userId, status])
+}
+
+// ==================== Supporting Tables ====================
+
+model Attachment {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  fileName     String
+  filePath     String
+  fileSize     Int?
+  mimeType     String?
+  uploadedBy   String
+  createdAt    DateTime @default(now())
+
+  uploader User @relation(fields: [uploadedBy], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  oldValues  String?
+  newValues  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model DocumentSequence {
+  id           String @id @default(cuid())
+  documentType String
+  branchId     String?
+  prefix       String
+  lastNumber   Int    @default(0)
+  year         Int
+
+  @@unique([documentType, branchId, year])
+}
+
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}

@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { processStructuredApprovalRequest } from '@/actions/access-control';
-import { formatCurrency } from '@/lib/utils';
+import { formatDocumentCurrency } from '@/lib/utils';
 
 interface RequestRow {
   id: string;
@@ -20,7 +20,7 @@ interface RequestRow {
   amount?: number | null;
   notes?: string | null;
   requester?: { nameAr: string };
-  currency?: { code: string } | null;
+  currency?: { symbol?: string | null; code?: string | null } | null;
 }
 
 export function ApprovalRequestsClient({ initialData }: { initialData: RequestRow[] }) {
@@ -55,7 +55,12 @@ export function ApprovalRequestsClient({ initialData }: { initialData: RequestRo
       key: 'amount',
       label: 'المبلغ',
       render: (row: Record<string, unknown>) =>
-        row.amount != null ? formatCurrency(row.amount as number) : '-',
+        row.amount != null
+          ? formatDocumentCurrency(
+              row.amount as number,
+              row.currency as { symbol?: string; code?: string } | undefined
+            )
+          : '-',
     },
     {
       key: 'status',

@@ -25,7 +25,12 @@ import { assertSupplierAccess } from '@/services/supplier-access.service';
 export async function getPurchaseOrders() {
   await requirePermission('purchase_orders.view');
   return prisma.purchaseOrder.findMany({
-    include: { branch: true, supplier: true, creator: { select: { nameAr: true } } },
+    include: {
+      branch: true,
+      supplier: true,
+      currency: true,
+      creator: { select: { nameAr: true } },
+    },
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -498,7 +503,11 @@ export async function createReceiving(data: unknown) {
 export async function getInvoices() {
   await requirePermission('invoices.view');
   return prisma.purchaseInvoice.findMany({
-    include: { supplier: true, purchaseOrder: true },
+    include: {
+      supplier: true,
+      currency: true,
+      purchaseOrder: { include: { currency: true } },
+    },
     orderBy: { createdAt: 'desc' },
   });
 }

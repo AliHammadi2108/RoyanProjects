@@ -6,7 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatDocumentCurrency } from '@/lib/utils';
 
 interface DocumentListPageProps {
   title: string;
@@ -75,6 +75,9 @@ export const defaultDocColumns = [
     key: 'totalAmount',
     label: 'المبلغ',
     render: (row: Record<string, unknown>) =>
-      formatCurrency((row.totalAmount as number) || (row.total as number) || 0),
+      formatDocumentCurrency(
+        (row.totalAmount as number) || (row.total as number) || 0,
+        row.currency as { symbol?: string; code?: string } | undefined
+      ),
   },
 ];

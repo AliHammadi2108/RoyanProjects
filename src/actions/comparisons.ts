@@ -15,7 +15,11 @@ import { assertDocumentMutable } from '@/services/document-guard.service';
 export async function getComparisons() {
   await requirePermission('comparisons.view');
   return prisma.technicalComparison.findMany({
-    include: { branch: true, creator: { select: { nameAr: true } } },
+    include: {
+      branch: true,
+      currency: true,
+      creator: { select: { nameAr: true } },
+    },
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -186,7 +190,12 @@ export async function deleteComparison(id: string) {
 export async function getNominations() {
   await requirePermission('supplier_selection.view');
   return prisma.supplierNomination.findMany({
-    include: { branch: true, supplier: true, technicalComparison: true },
+    include: {
+      branch: true,
+      supplier: true,
+      currency: true,
+      technicalComparison: true,
+    },
     orderBy: { createdAt: 'desc' },
   });
 }

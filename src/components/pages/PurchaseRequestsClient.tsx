@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatDocumentCurrency } from '@/lib/utils';
 import { deletePurchaseRequest } from '@/actions/purchase-requests';
 
 const STATUS_FILTERS = [
@@ -157,7 +157,12 @@ export function PurchaseRequestsClient({
                       <td className="px-4 py-3">{(row.department as { nameAr: string })?.nameAr || '-'}</td>
                       <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                       <td className="px-4 py-3">{formatDate(row.requestDate as string)}</td>
-                      <td className="px-4 py-3">{formatCurrency(row.totalAmount as number)}</td>
+                      <td className="px-4 py-3">
+                        {formatDocumentCurrency(
+                          row.totalAmount as number,
+                          row.currency as { symbol?: string; code?: string } | undefined
+                        )}
+                      </td>
                       <td className="px-4 py-3">{(row.creator as { nameAr: string })?.nameAr || '-'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">

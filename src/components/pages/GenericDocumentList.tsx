@@ -10,8 +10,18 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatDocumentCurrency, resolveDocumentCurrency, type CurrencyLike } from '@/lib/utils';
 import { EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
+import { deleteQuotation } from '@/actions/quotations';
+import { deleteComparison, deleteNomination } from '@/actions/comparisons';
+import { deletePurchaseOrder, deleteInspection, deleteReceiving, deleteInvoice } from '@/actions/purchase-orders';
+
+function formatRowAmount(row: Record<string, unknown>, amountKey: string): string {
+  return formatDocumentCurrency(
+    (row[amountKey] as number) ?? 0,
+    resolveDocumentCurrency(row as { currency?: CurrencyLike; purchaseOrder?: { currency?: CurrencyLike } })
+  );
+}
 
 type ColumnDef = {
   key: string;
@@ -27,6 +37,17 @@ export type DocumentListVariant =
   | 'inspection'
   | 'receiving'
   | 'invoice';
+
+const DELETE_HANDLERS: Partial<Record<DocumentListVariant, (id: string) => Promise<unknown>>> = {
+  quotation: deleteQuotation,
+  comparison: deleteComparison,
+  nomination: deleteNomination,
+  order: deletePurchaseOrder,
+  inspection: deleteInspection,
+  receiving: deleteReceiving,
+  invoice: deleteInvoice,
+};
+
 
 const STATUS_FILTERS = [
   { value: '', label: 'الكل' },
@@ -87,7 +108,7 @@ const VARIANT_CONFIG: Record<
       {
         key: 'total',
         label: 'المبلغ',
-        render: (row) => formatCurrency(row.total as number),
+        render: (row) => formatRowAmount(row, 'total'),
       },
     ],
   },
@@ -121,7 +142,7 @@ const VARIANT_CONFIG: Record<
       {
         key: 'totalAmount',
         label: 'المبلغ',
-        render: (row) => formatCurrency(row.totalAmount as number),
+        render: (row) => formatRowAmount(row, 'totalAmount'),
       },
       {
         key: 'creator',
@@ -166,7 +187,7 @@ const VARIANT_CONFIG: Record<
       {
         key: 'totalAmount',
         label: 'المبلغ',
-        render: (row) => formatCurrency(row.totalAmount as number),
+        render: (row) => formatRowAmount(row, 'totalAmount'),
       },
     ],
   },
@@ -200,7 +221,7 @@ const VARIANT_CONFIG: Record<
       {
         key: 'total',
         label: 'المبلغ',
-        render: (row) => formatCurrency(row.total as number),
+        render: (row) => formatRowAmount(row, 'total'),
       },
       {
         key: 'creator',
@@ -315,7 +336,7 @@ const VARIANT_CONFIG: Record<
       {
         key: 'netTotal',
         label: 'صافي المبلغ',
-        render: (row) => formatCurrency(row.netTotal as number),
+        render: (row) => formatRowAmount(row, 'netTotal'),
       },
     ],
   },
@@ -323,8 +344,7 @@ const VARIANT_CONFIG: Record<
 
 interface GenericDocumentListProps {
   variant: DocumentListVariant;
-  data: Record<string, unknown>[];
-  onDelete?: (id: string) => Promise<unknown>;
+  data: Record<string, unknown>[];
   usageMap?: Record<string, UsedDocumentInfo>;
 }
 
@@ -333,7 +353,7 @@ const SEARCH_EXTRA: Partial<Record<DocumentListVariant, string[]>> = {
   order: ['operationNo'],
 };
 
-export function GenericDocumentList({ variant, data, onDelete, usageMap = {} }: GenericDocumentListProps) {
+export function GenericDocumentList({ variant, data, usageMap = {} }: GenericDocumentListProps) {
   const config = VARIANT_CONFIG[variant];
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState('');
@@ -366,13 +386,15 @@ export function GenericDocumentList({ variant, data, onDelete, usageMap = {} }: 
   const isRowDeletable = (row: Record<string, unknown>) =>
     config.canDelete(row) && !usageMap[row.id as string]?.isUsed;
 
+  const deleteHandler = DELETE_HANDLERS[variant];
+
   const handleDelete = async (id: string, documentNo: string) => {
-    if (!onDelete) return;
+    if (!deleteHandler) return;
     if (!confirm(`هل تريد حذف ${documentNo}؟`)) return;
     setDeletingId(id);
     setError('');
     try {
-      await onDelete(id);
+      await deleteHandler(id);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الحذف');
@@ -506,7 +528,7 @@ export function GenericDocumentList({ variant, data, onDelete, usageMap = {} }: 
                                 <Pencil className="w-3.5 h-3.5" /> تعديل
                               </Link>
                             )}
-                            {onDelete && isRowDeletable(row) && (
+                            {deleteHandler && isRowDeletable(row) && (
                               <button
                                 type="button"
                                 disabled={deletingId === id}

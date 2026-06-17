@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox } from '@/components/ui/SearchBox';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDocumentCurrency, formatDate } from '@/lib/utils';
 import { removeSupplierPayment } from '@/actions/supplier-payments';
 
 interface PaymentRow {
@@ -19,6 +19,7 @@ interface PaymentRow {
   totalAmount: number;
   supplier: { nameAr: string; code: string };
   branch: { nameAr: string };
+  currency?: { symbol?: string | null; code?: string | null } | null;
 }
 
 interface SupplierPaymentListProps {
@@ -114,7 +115,9 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
                     <td>{row.supplier.nameAr}</td>
                     <td>{row.branch.nameAr}</td>
                     <td>{formatDate(row.paymentDate)}</td>
-                    {canViewAmounts ? <td>{formatCurrency(row.totalAmount)}</td> : null}
+                    {canViewAmounts ? (
+                      <td>{formatDocumentCurrency(row.totalAmount, row.currency)}</td>
+                    ) : null}
                     <td><StatusBadge status={row.status} /></td>
                     <td>
                       <div className="flex items-center gap-1">

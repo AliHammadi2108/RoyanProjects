@@ -28,6 +28,14 @@ export function formatDocumentCurrency(amount: number, currency?: CurrencyLike, 
   return formatCurrency(amount, getCurrencySymbol(currency, fallback));
 }
 
+/** Resolve currency from a list row (document or linked purchase order). */
+export function resolveDocumentCurrency(row: {
+  currency?: CurrencyLike;
+  purchaseOrder?: { currency?: CurrencyLike } | null;
+}): CurrencyLike {
+  return row.currency ?? row.purchaseOrder?.currency;
+}
+
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;

@@ -9,6 +9,10 @@ globs:
   - .env.example
   - prisma/schema.prisma
   - prisma/seed.ts
+  - installer/post-install.ps1
+  - installer/build-installer.ps1
+  - installer/PurchaseSystem.iss
+  - docs/INSTALL.md
 alwaysApply: false
 ---
 

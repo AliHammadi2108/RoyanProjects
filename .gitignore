@@ -41,3 +41,9 @@ prisma/dev.db-journal
 # runtime logs
 logs/*.log
 logs/*.log.*
+
+# Windows installer build output
+installer/dist/
+installer/staging/
+installer/obj/
+installer/ProductComponents.wxs

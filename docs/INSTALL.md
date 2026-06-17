@@ -1,4 +1,4 @@
-# دليل التثبيت والتشغيل — نظام إدارة المشتريات
+﻿# دليل التثبيت والتشغيل — نظام إدارة المشتريات
 
 دليل خطوة بخطوة لتركيب النظام على جهاز Windows جديد.
 
@@ -16,7 +16,15 @@
 
 > **إلزامي:** ثبّت Node.js 20 LTS **قبل** `setup.bat` أو أي أوامر `npm`. تحقق: `node -v` (يجب أن يكون v20 أو أحدث).
 
-> **ملاحظة:** لا حاجة لتثبيت SQLite منفصلاً — Prisma يتعامل مع قاعدة SQLite محلياً.
+### 2.2 التثبيت بملف EXE (Inno Setup)
+
+1. على جهاز البناء: `powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1` → `installer\dist\PurchaseSystem-Setup.exe` (انسخ الـ EXE يدوياً؛ `dist/` في `.gitignore`).
+2. على جهاز المستخدم: شغّل `PurchaseSystem-Setup.exe` (صلاحيات مسؤول موصى بها).
+3. **Node.js 20 LTS** مطلوب؛ المُثبّت ينبهك و`post-install.ps1` قد يثبت Node عبر **winget**.
+4. بعد النجاح: اختصار **«نظام المشتريات»** أو `installer\start-installed.bat` — `http://localhost:3000` (`admin` / `admin123`).
+5. إن فشل الإعداد: من مجلد التثبيت شغّل `setup.bat` مرة أخرى.
+
+راجع [installer/README.md](../installer/README.md).
 
 ---
 

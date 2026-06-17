@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requirePermission } from '@/lib/permissions';
+import { assertCanResetUserPassword } from '@/actions/password';
 import { createAuditLog } from '@/services/audit.service';
 import { deactivateUser, getUserById, getUsers, saveUser } from '@/services/user.service';
 import { prisma } from '@/lib/db';
@@ -80,6 +81,9 @@ export async function saveUserAction(data: unknown, id?: string) {
   }
 
   const parsed = userFormSchema.parse(data);
+  if (parsed.password && parsed.password.length > 0) {
+    await assertCanResetUserPassword(actor.id);
+  }
   const result = await saveUser(parsed, id);
   await createAuditLog({
     userId: actor.id,

@@ -11,6 +11,8 @@ describe('screen-access', () => {
   it('maps settings screens to view permissions', () => {
     expect(getScreenPermissionForPath('/settings/currencies')).toBe('master.currencies.view');
     expect(getScreenPermissionForPath('/settings/roles')).toBe('access.roles.view');
+    expect(getScreenPermissionForPath('/settings/change-password')).toBe('profile.change_own_password');
+    expect(getScreenPermissionForPath('/settings/appearance')).toBe('profile.theme.view');
   });
 
   it('returns null for unknown paths', () => {

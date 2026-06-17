@@ -35,6 +35,8 @@ import {
   Scale,
   FileCheck,
   AlertTriangle,
+  KeyRound,
+  Palette,
   type LucideIcon,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
@@ -107,6 +109,8 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/settings/roles', label: 'الأدوار والصلاحيات', icon: Shield },
       { href: '/settings/users', label: 'إدارة المستخدمين', icon: Users },
+      { href: '/settings/change-password', label: 'تغيير كلمة المرور', icon: KeyRound },
+      { href: '/settings/appearance', label: 'إعدادات المظهر', icon: Palette },
       { href: '/settings/user-permissions', label: 'صلاحيات المستخدمين', icon: Users },
       { href: '/settings/supplier-permissions', label: 'صلاحيات الموردين', icon: FileKey },
       { href: '/settings/approval-rules', label: 'قواعد الاعتماد', icon: ClipboardList },

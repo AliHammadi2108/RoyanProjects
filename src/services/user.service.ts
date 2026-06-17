@@ -182,3 +182,40 @@ export async function deactivateUser(id: string) {
   }
   return prisma.user.delete({ where: { id } });
 }
+
+export async function changeOwnPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('المستخدم غير موجود');
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new Error('كلمة المرور الحالية غير صحيحة');
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  try {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  } catch (err) {
+    throw new Error(formatActionError(err));
+  }
+}
+
+export async function resetUserPassword(userId: string, newPassword: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('المستخدم غير موجود');
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  try {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  } catch (err) {
+    throw new Error(formatActionError(err));
+  }
+}

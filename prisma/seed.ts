@@ -77,6 +77,10 @@ const MASTER_PERMISSIONS = [
   { name: 'access.roles.edit', nameAr: 'تعديل دور', module: 'access', screenCode: 'roles', action: 'edit' },
   { name: 'access.users.view', nameAr: 'عرض صلاحيات المستخدمين', module: 'access', screenCode: 'users', action: 'view' },
   { name: 'access.users.edit', nameAr: 'تعديل صلاحيات المستخدمين', module: 'access', screenCode: 'users', action: 'edit' },
+  { name: 'access.users.reset_password', nameAr: 'إعادة تعيين كلمة مرور مستخدم', module: 'access', screenCode: 'users', action: 'reset_password' },
+  { name: 'profile.change_own_password', nameAr: 'تغيير كلمة المرور الخاصة', module: 'profile', screenCode: 'change_password', action: 'change' },
+  { name: 'profile.theme.view', nameAr: 'عرض إعدادات المظهر', module: 'profile', screenCode: 'appearance', action: 'view' },
+  { name: 'profile.theme.edit', nameAr: 'تعديل إعدادات المظهر', module: 'profile', screenCode: 'appearance', action: 'edit' },
   { name: 'access.supplier_permissions.view', nameAr: 'عرض صلاحيات الموردين', module: 'access', screenCode: 'supplier_permissions', action: 'view' },
   { name: 'access.supplier_permissions.edit', nameAr: 'تعديل صلاحيات الموردين', module: 'access', screenCode: 'supplier_permissions', action: 'edit' },
   { name: 'access.approval_rules.view', nameAr: 'عرض قواعد الاعتماد', module: 'access', screenCode: 'approval_rules', action: 'view' },
@@ -141,6 +145,8 @@ const ROLES = [
     permissions: [
       'purchase_requests.create', 'purchase_requests.view', 'purchase_requests.update',
       'purchase_requests.submit', 'notifications.view', 'tracking.view',
+      'profile.change_own_password',
+      'profile.theme.view', 'profile.theme.edit',
     ],
   },
   {
@@ -155,6 +161,8 @@ const ROLES = [
       'reports.operations.view', 'reports.used_documents.view', 'reports.export', 'reports.view_charts',
       'inventory.reorder_alerts.view', 'inventory.reorder_alerts.create_purchase_request',
       'inventory.reorder_alerts.export',
+      'profile.change_own_password',
+      'profile.theme.view', 'profile.theme.edit',
     ],
   },
   {
@@ -165,6 +173,8 @@ const ROLES = [
       'supplier_selection.view', 'purchase_orders.view', 'approvals.view',
       'approvals.action', 'operations.approve', 'operations.reject', 'operations.print',
       'notifications.view', 'tracking.view', 'audit_logs.view',
+      'profile.change_own_password',
+      'profile.theme.view', 'profile.theme.edit',
     ],
   },
   {
@@ -175,6 +185,8 @@ const ROLES = [
       'receivings.create', 'receivings.view', 'notifications.view', 'tracking.view',
       'inventory.reorder_settings.view', 'inventory.reorder_settings.edit',
       'inventory.reorder_alerts.view', 'inventory.reorder_alerts.print', 'inventory.reorder_alerts.export',
+      'profile.change_own_password',
+      'profile.theme.view', 'profile.theme.edit',
     ],
   },
   {
@@ -190,6 +202,8 @@ const ROLES = [
       'supplier_payment.view', 'supplier_payment.create', 'supplier_payment.edit',
       'supplier_payment.delete', 'supplier_payment.print', 'supplier_payment.approve',
       'supplier_payment.post', 'supplier_payment.cancel', 'supplier_payment.view_amounts',
+      'profile.change_own_password',
+      'profile.theme.view', 'profile.theme.edit',
     ],
   },
   {
@@ -204,6 +218,8 @@ const ROLES = [
       'reports.supplier_statement.view', 'reports.supplier_statement.print', 'reports.supplier_statement.export',
       'reports.approvals.view', 'reports.used_documents.view', 'reports.export', 'reports.print',
       'reports.view_cost', 'reports.view_supplier_balance', 'reports.view_charts',
+      'profile.change_own_password',
+      'profile.theme.view', 'profile.theme.edit',
     ],
   },
 ];

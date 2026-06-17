@@ -1,5 +1,6 @@
 'use client';
 
+import { formatNumber } from '@/lib/utils';
 import type { ReportChartPoint } from '@/services/reports/types';
 
 interface ReportChartsProps {
@@ -37,7 +38,7 @@ export function ReportCharts({
                 </span>
                 <span className="shrink-0 font-medium text-gray-800">
                   {valuePrefix}
-                  {point.value.toLocaleString('ar-SA')}
+                  {formatNumber(point.value)}
                 </span>
               </div>
               <div className="h-3 bg-gray-100 rounded-full overflow-hidden">

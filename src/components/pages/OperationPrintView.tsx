@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { PrintDocumentData } from '@/lib/print-types';
+import { formatNumber } from '@/lib/utils';
 
 interface OperationPrintViewProps {
   data: PrintDocumentData;
@@ -101,7 +102,7 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
                       >
                         {line.unit || '-'}
                       </td>
-                      <td className="px-2 py-2">{line.quantity.toLocaleString('ar-SA')}</td>
+                      <td className="px-2 py-2">{formatNumber(line.quantity)}</td>
                       {showPricing && (
                         <>
                           <td className="px-2 py-2 text-gray-600">

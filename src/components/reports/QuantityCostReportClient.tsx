@@ -11,7 +11,7 @@ import {
   reportInputClass,
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import type { QuantityCostRow, ReportResult } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
@@ -53,10 +53,10 @@ export function QuantityCostReportClient({
   const columns: ReportGridColumn<QuantityCostRow>[] = [
     { key: 'itemCode', label: 'كود الصنف' },
     { key: 'itemName', label: 'الصنف' },
-    { key: 'orderedBaseQty', label: 'كمية أمر', render: (r) => r.orderedBaseQty.toLocaleString('ar-SA') },
-    { key: 'receivedBaseQty', label: 'كمية مستلمة', render: (r) => r.receivedBaseQty.toLocaleString('ar-SA') },
-    { key: 'invoicedBaseQty', label: 'كمية مفوترة', render: (r) => r.invoicedBaseQty.toLocaleString('ar-SA') },
-    { key: 'varianceQty', label: 'فرق الكمية', render: (r) => r.varianceQty.toLocaleString('ar-SA') },
+    { key: 'orderedBaseQty', label: 'كمية أمر', render: (r) => formatNumber(r.orderedBaseQty) },
+    { key: 'receivedBaseQty', label: 'كمية مستلمة', render: (r) => formatNumber(r.receivedBaseQty) },
+    { key: 'invoicedBaseQty', label: 'كمية مفوترة', render: (r) => formatNumber(r.invoicedBaseQty) },
+    { key: 'varianceQty', label: 'فرق الكمية', render: (r) => formatNumber(r.varianceQty) },
     ...(permissions.viewCost
       ? [
           { key: 'orderedCost', label: 'تكلفة أمر', render: (r: QuantityCostRow) => formatCurrency(r.orderedCost) },
@@ -82,8 +82,8 @@ export function QuantityCostReportClient({
       exportRows={data.rows as unknown as Record<string, unknown>[]}
       summary={[
         { label: 'عدد الأصناف', value: data.summary.itemCount ?? 0 },
-        { label: 'إجمالي كمية الأمر', value: Number(data.summary.totalOrderedQty ?? 0).toLocaleString('ar-SA') },
-        { label: 'إجمالي فرق الكمية', value: Number(data.summary.totalVarianceQty ?? 0).toLocaleString('ar-SA') },
+        { label: 'إجمالي كمية الأمر', value: formatNumber(Number(data.summary.totalOrderedQty ?? 0)) },
+        { label: 'إجمالي فرق الكمية', value: formatNumber(Number(data.summary.totalVarianceQty ?? 0)) },
       ]}
       filters={
         <ReportFiltersBar onApply={load} onReset={() => { setSupplierId(''); setWarehouseId(''); setItemId(''); setSearch(''); }}>

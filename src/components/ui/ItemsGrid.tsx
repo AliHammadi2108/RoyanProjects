@@ -252,22 +252,22 @@ export function ItemsGrid({
   const grandTotal = rows.reduce((sum, r) => sum + (r.total || 0), 0);
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full text-sm">
+    <div className="space-y-3 w-full">
+      <div className="w-full rounded-lg border border-gray-200">
+        <table className="w-full table-auto text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-right font-medium text-gray-600 min-w-[280px] w-[32%]">الصنف</th>
-              <th className="px-3 py-2 text-right font-medium text-gray-600 min-w-[140px] w-[12%]">الوحدة</th>
-              <th className="px-3 py-2 text-right font-medium text-gray-600 w-24">الكمية</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[38%]">الصنف</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600 min-w-[140px] w-[14%]">الوحدة</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600">الكمية</th>
               {showBaseQty && (
-                <th className="px-3 py-2 text-right font-medium text-gray-600 w-24">أساسية</th>
+                <th className="px-3 py-2.5 text-right font-medium text-gray-600">أساسية</th>
               )}
-              <th className="px-3 py-2 text-right font-medium text-gray-600 w-28">سعر الوحدة</th>
-              <th className="px-3 py-2 text-right font-medium text-gray-600 w-24">الخصم</th>
-              <th className="px-3 py-2 text-right font-medium text-gray-600 w-28">الإجمالي</th>
-              <th className="px-3 py-2 text-right font-medium text-gray-600">البيان</th>
-              {!readOnly && <th className="px-3 py-2 w-10"></th>}
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600">سعر الوحدة</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600">الخصم</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600">الإجمالي</th>
+              <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[12%]">البيان</th>
+              {!readOnly && <th className="px-3 py-2.5 w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -276,8 +276,8 @@ export function ItemsGrid({
               const selectedUnit = unitOptions.find((u) => u.id === row.itemUnitId);
               const unitDisplayText = selectedUnit ? formatUnitLabel(selectedUnit) : '-';
               return (
-                <tr key={idx}>
-                  <td className="px-3 py-2 min-w-[280px] align-top">
+                <tr key={idx} className="align-top">
+                  <td className="px-3 py-3 align-top">
                     {readOnly ? (
                       <span
                         className="block whitespace-normal break-words leading-relaxed text-gray-900"
@@ -291,8 +291,8 @@ export function ItemsGrid({
                         onChange={(next) => updateRow(idx, 'itemId', next)}
                         options={localItemOptions}
                         onSearch={asyncItemSearch ? searchItemOptions : undefined}
-                        className="min-w-[260px]"
-                        inputClassName="min-w-[260px]"
+                        className="w-full"
+                        inputClassName="w-full"
                         allowEmpty
                         emptyLabel="ابحث عن صنف..."
                         placeholder="كود، اسم، باركود..."
@@ -300,7 +300,7 @@ export function ItemsGrid({
                       />
                     )}
                   </td>
-                  <td className="px-3 py-2 min-w-[140px] align-top">
+                  <td className="px-3 py-3 min-w-[140px] align-top">
                     {readOnly ? (
                       <span
                         className="block whitespace-normal break-words leading-relaxed text-gray-900"
@@ -329,7 +329,7 @@ export function ItemsGrid({
                       '-'
                     )}
                   </td>
-                  <td className="px-3 py-2 min-w-[7.5rem]">
+                  <td className="px-3 py-3">
                     {readOnly ? row.quantity : (
                       <IntegerStepperInput
                         value={row.quantity}
@@ -340,11 +340,11 @@ export function ItemsGrid({
                     )}
                   </td>
                   {showBaseQty && (
-                    <td className="px-3 py-2 text-gray-500">
+                    <td className="px-3 py-3 text-gray-500 whitespace-nowrap">
                       {(row.baseQty ?? row.quantity).toFixed(2)}
                     </td>
                   )}
-                  <td className="px-3 py-2 min-w-[7.5rem]">
+                  <td className="px-3 py-3">
                     {readOnly ? row.unitPrice : (
                       <IntegerStepperInput
                         value={row.unitPrice}
@@ -354,21 +354,25 @@ export function ItemsGrid({
                       />
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-3">
                     {readOnly ? row.discount.toFixed(2) : (
                       <input type="number" min="0" step="0.01" className="form-input text-sm"
                         value={row.discount} onChange={(e) => updateRow(idx, 'discount', parseFloat(e.target.value) || 0)} />
                     )}
                   </td>
-                  <td className="px-3 py-2 font-medium">{row.total.toFixed(2)}</td>
-                  <td className="px-3 py-2">
-                    {readOnly ? (row.notes || '-') : (
-                      <input type="text" className="form-input text-sm"
+                  <td className="px-3 py-3 font-medium whitespace-nowrap">{row.total.toFixed(2)}</td>
+                  <td className="px-3 py-3">
+                    {readOnly ? (
+                      <span className="block whitespace-normal break-words leading-relaxed text-gray-900">
+                        {row.notes || '-'}
+                      </span>
+                    ) : (
+                      <input type="text" className="form-input text-sm w-full"
                         value={row.notes || ''} onChange={(e) => updateRow(idx, 'notes', e.target.value)} />
                     )}
                   </td>
                   {!readOnly && (
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-3">
                       <button type="button" onClick={() => removeRow(idx)} className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
                       </button>

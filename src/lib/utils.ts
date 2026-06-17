@@ -7,14 +7,21 @@ export function cn(...inputs: ClassValue[]) {
 
 export type CurrencyLike = { symbol?: string | null; code?: string | null } | null | undefined;
 
+/** Arabic locale with Western (Latin) numerals — keeps RTL-friendly formatting without Arabic-Indic digits */
+export const ARABIC_LOCALE_LATIN = 'ar-SA-u-nu-latn';
+
 export function getCurrencySymbol(currency?: CurrencyLike, fallback = 'ر.س'): string {
   if (currency?.symbol?.trim()) return currency.symbol.trim();
   if (currency?.code?.trim()) return currency.code.trim();
   return fallback;
 }
 
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  return value.toLocaleString(ARABIC_LOCALE_LATIN, options);
+}
+
 export function formatCurrency(amount: number, symbol = 'ر.س'): string {
-  return `${amount.toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+  return `${formatNumber(amount, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
 }
 
 export function formatDocumentCurrency(amount: number, currency?: CurrencyLike, fallback = 'ر.س'): string {
@@ -24,13 +31,13 @@ export function formatDocumentCurrency(amount: number, currency?: CurrencyLike, 
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('ar-SA');
+  return d.toLocaleDateString(ARABIC_LOCALE_LATIN);
 }
 
 export function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleString('ar-SA');
+  return d.toLocaleString(ARABIC_LOCALE_LATIN);
 }
 
 export function calculateLineTotal(quantity: number, unitPrice: number, discount = 0, tax = 0): number {

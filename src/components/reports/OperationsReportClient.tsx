@@ -12,7 +12,7 @@ import {
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import type { OperationsReportRow, ReportResult } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
@@ -124,7 +124,7 @@ export function OperationsReportClient({
       key: 'baseQtyTotal',
       label: 'كمية أساسية',
       sortable: true,
-      render: (row) => (row.baseQtyTotal ?? 0).toLocaleString('ar-SA'),
+      render: (row) => formatNumber(row.baseQtyTotal ?? 0),
     },
   ];
 
@@ -159,7 +159,7 @@ export function OperationsReportClient({
         ...(permissions.viewCost
           ? [{ label: 'إجمالي المبالغ', value: formatCurrency(Number(data.summary.totalAmount ?? 0)) }]
           : []),
-        { label: 'إجمالي الكميات الأساسية', value: Number(data.summary.totalBaseQty ?? 0).toLocaleString('ar-SA') },
+        { label: 'إجمالي الكميات الأساسية', value: formatNumber(Number(data.summary.totalBaseQty ?? 0)) },
       ]}
       filters={
         <ReportFiltersBar

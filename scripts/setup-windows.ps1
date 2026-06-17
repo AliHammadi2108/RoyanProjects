@@ -1,13 +1,11 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Single source of truth for Purchase Web System setup (dev clone or MSI/EXE install).
+  Single source of truth for Purchase Web System setup (dev clone from Git).
 .PARAMETER ProjectRoot
   Project directory. Defaults to parent of the scripts folder.
 .PARAMETER SkipShortcuts
   Skip desktop / start-menu shortcuts.
-.PARAMETER InstallerMode
-  Shortcut targets installer\start-installed.bat and creates Start menu entry.
 .PARAMETER InstallAutostart
   Optionally register PM2 Windows autostart after setup.
 .PARAMETER SkipHealthCheck
@@ -19,7 +17,6 @@
 param(
   [string] $ProjectRoot = "",
   [switch] $SkipShortcuts,
-  [switch] $InstallerMode,
   [switch] $InstallAutostart,
   [switch] $SkipHealthCheck,
   [switch] $DryRun
@@ -154,39 +151,20 @@ function New-SetupShortcuts {
   $desktop = [Environment]::GetFolderPath("Desktop")
   $shortcutPath = Join-Path $desktop "نظام المشتريات.lnk"
 
-  if ($InstallerMode) {
-    $targetBat = Join-Path $ProjectRoot "installer\start-installed.bat"
-    $sc = $wsh.CreateShortcut($shortcutPath)
-    $sc.TargetPath = $targetBat
-    $sc.WorkingDirectory = $ProjectRoot
-    $sc.Description = "Purchase Web System"
-    $sc.Save()
-    Write-Ar "اختصار سطح المكتب: $shortcutPath" Green
-
-    $startMenuDir = Join-Path ([Environment]::GetFolderPath("Programs")) "PurchaseWebSystem"
-    New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
-    $menuScPath = Join-Path $startMenuDir "نظام المشتريات.lnk"
-    $sc2 = $wsh.CreateShortcut($menuScPath)
-    $sc2.TargetPath = $targetBat
-    $sc2.WorkingDirectory = $ProjectRoot
-    $sc2.Description = "Purchase Web System"
-    $sc2.Save()
-    Write-Ar "قائمة ابدأ: $menuScPath" Green
-  } else {
-    $startBat = Join-Path $ProjectRoot "scripts\start-system.bat"
-    if (-not (Test-Path $startBat)) {
-      Write-Ar "تحذير: لم يُعثر على scripts\start-system.bat" Yellow
-      return
-    }
-    $sc = $wsh.CreateShortcut($shortcutPath)
-    $sc.TargetPath = $startBat
-    $sc.WorkingDirectory = $ProjectRoot
-    $sc.Description = "تشغيل نظام المشتريات على المنفذ 3000"
-    $iconDll = Join-Path $env:SystemRoot "System32\imageres.dll"
-    if (Test-Path $iconDll) { $sc.IconLocation = "$iconDll,109" }
-    $sc.Save()
-    Write-Ar "اختصار سطح المكتب: $shortcutPath" Green
+  $startBat = Join-Path $ProjectRoot "scripts\start-system.bat"
+  if (-not (Test-Path $startBat)) {
+    Write-Ar "تحذير: لم يُعثر على scripts\start-system.bat" Yellow
+    return
   }
+  $sc = $wsh.CreateShortcut($shortcutPath)
+  $sc.TargetPath = $startBat
+  $sc.WorkingDirectory = $ProjectRoot
+  $sc.Description = "تشغيل نظام المشتريات على المنفذ 3000"
+  $iconDll = Join-Path $env:SystemRoot "System32\imageres.dll"
+  if (Test-Path $iconDll) { $sc.IconLocation = "$iconDll,109" }
+  $sc.Save()
+  Write-Ar "اختصار سطح المكتب: $shortcutPath" Green
+
 }
 
 function Install-Pm2Autostart {
@@ -335,11 +313,9 @@ Write-Ar "========================================" Green
 Write-Ar "  اكتمل التثبيت." Green
 Write-Ar "  URL: http://localhost:3000" Green
 Write-Ar "  بعد seed: admin / admin123" Green
-if ($InstallerMode) {
-  Write-Ar "  شغّل: installer\start-installed.bat أو اختصار سطح المكتب" Green
-} else {
   Write-Ar "  شغّل: اختصار «نظام المشتريات» أو scripts\start-system.bat" Green
-}
+
 Write-Ar "  PM2 اختياري: scripts\install-autostart.ps1 (كمسؤول)" Gray
 Write-Ar "========================================" Green
 exit 0
+

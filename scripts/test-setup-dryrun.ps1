@@ -23,9 +23,6 @@ Write-Host "Project: $ProjectRoot`n"
 $requiredFiles = @(
   @{ Path = "setup.bat"; Label = "setup.bat" },
   @{ Path = "scripts\setup-windows.ps1"; Label = "setup-windows.ps1" },
-  @{ Path = "installer\post-install.ps1"; Label = "post-install.ps1" },
-  @{ Path = "installer\start-installed.bat"; Label = "start-installed.bat" },
-  @{ Path = "installer\build-installer.ps1"; Label = "build-installer.ps1" },
   @{ Path = "scripts\install-autostart.ps1"; Label = "install-autostart.ps1" },
   @{ Path = "scripts\restart-system.bat"; Label = "restart-system.bat" },
   @{ Path = "scripts\health-check.ps1"; Label = "health-check.ps1" },
@@ -52,13 +49,6 @@ if ($setupBat -notmatch 'setup-windows\.ps1') {
   Write-Host "  OK setup.bat -> setup-windows.ps1" -ForegroundColor Green
 }
 
-$postInstall = Get-Content (Join-Path $ProjectRoot "installer\post-install.ps1") -Raw
-if ($postInstall -notmatch 'setup-windows\.ps1') {
-  $failures += "post-install.ps1 does not call setup-windows.ps1"
-  Write-Host "  FAIL post-install delegation" -ForegroundColor Red
-} else {
-  Write-Host "  OK post-install -> setup-windows.ps1" -ForegroundColor Green
-}
 
 $pkg = Get-Content (Join-Path $ProjectRoot "package.json") -Raw | ConvertFrom-Json
 foreach ($script in @("db:push", "db:seed", "build", "db:generate")) {

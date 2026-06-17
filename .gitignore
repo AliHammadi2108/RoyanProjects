@@ -41,12 +41,3 @@ prisma/dev.db-journal
 # runtime logs
 logs/*.log
 logs/*.log.*
-
-
-# Installer build artifacts
-installer/staging/
-installer/obj/
-installer/dist/
-installer/ProductComponents.wxs
-installer/staging/robocopy.log
-

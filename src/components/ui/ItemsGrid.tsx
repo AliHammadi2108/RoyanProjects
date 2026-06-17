@@ -329,7 +329,7 @@ export function ItemsGrid({
                       '-'
                     )}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 align-top">
                     {readOnly ? row.quantity : (
                       <IntegerStepperInput
                         value={row.quantity}
@@ -344,7 +344,7 @@ export function ItemsGrid({
                       {(row.baseQty ?? row.quantity).toFixed(2)}
                     </td>
                   )}
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 align-top">
                     {readOnly ? row.unitPrice : (
                       <IntegerStepperInput
                         value={row.unitPrice}
@@ -354,14 +354,14 @@ export function ItemsGrid({
                       />
                     )}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 align-top">
                     {readOnly ? row.discount.toFixed(2) : (
-                      <input type="number" min="0" step="0.01" className="form-input text-sm"
+                      <input type="number" min="0" step="0.01" className="form-input text-sm w-full"
                         value={row.discount} onChange={(e) => updateRow(idx, 'discount', parseFloat(e.target.value) || 0)} />
                     )}
                   </td>
                   <td className="px-3 py-3 font-medium whitespace-nowrap">{row.total.toFixed(2)}</td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 align-top">
                     {readOnly ? (
                       <span className="block whitespace-normal break-words leading-relaxed text-gray-900">
                         {row.notes || '-'}

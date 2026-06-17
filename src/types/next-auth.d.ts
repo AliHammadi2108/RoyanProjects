@@ -1,16 +1,17 @@
 import 'next-auth';
+import { DefaultSession } from 'next-auth';
 
 declare module 'next-auth' {
   interface Session {
     user: {
       id: string;
-      email?: string | null;
-      name?: string | null;
       nameAr?: string;
       userNo?: string;
       username?: string;
       roles?: string[];
-    };
+      themePreference?: 'light' | 'dark' | 'system';
+      primaryColor?: string;
+    } & DefaultSession['user'];
   }
 
   interface User {
@@ -18,6 +19,8 @@ declare module 'next-auth' {
     userNo?: string;
     username?: string;
     roles?: string[];
+    themePreference?: 'light' | 'dark' | 'system';
+    primaryColor?: string;
   }
 }
 
@@ -28,5 +31,7 @@ declare module 'next-auth/jwt' {
     userNo?: string;
     username?: string;
     roles?: string[];
+    themePreference?: 'light' | 'dark' | 'system';
+    primaryColor?: string;
   }
 }

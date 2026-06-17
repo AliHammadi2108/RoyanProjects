@@ -61,12 +61,14 @@ export const authOptions: NextAuthOptions = {
           userNo: user.userNo ?? undefined,
           username: user.username,
           roles: user.roles.map((r) => r.role.name),
+          themePreference: (user.themePreference as 'light' | 'dark' | 'system' | null) ?? 'system',
+          primaryColor: user.primaryColor ?? '#2563eb',
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
@@ -74,17 +76,37 @@ export const authOptions: NextAuthOptions = {
         token.userNo = (user as { userNo?: string }).userNo;
         token.username = (user as { username?: string }).username;
         token.roles = (user as { roles?: string[] }).roles;
+        token.themePreference = (user as { themePreference?: string }).themePreference as
+          | 'light'
+          | 'dark'
+          | 'system'
+          | undefined;
+        token.primaryColor = (user as { primaryColor?: string }).primaryColor;
+      }
+      if (trigger === 'update' && session) {
+        const s = session as {
+          themePreference?: 'light' | 'dark' | 'system';
+          primaryColor?: string;
+        };
+        if (s.themePreference) token.themePreference = s.themePreference;
+        if (s.primaryColor) token.primaryColor = s.primaryColor;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.name = token.name as string;
-        session.user.nameAr = token.nameAr as string;
-        session.user.userNo = token.userNo as string;
-        session.user.username = token.username as string;
-        session.user.roles = token.roles as string[];
+        const user = session.user as typeof session.user & {
+          themePreference?: 'light' | 'dark' | 'system';
+          primaryColor?: string;
+        };
+        user.id = token.id as string;
+        user.name = token.name as string;
+        user.nameAr = token.nameAr as string;
+        user.userNo = token.userNo as string;
+        user.username = token.username as string;
+        user.roles = token.roles as string[];
+        user.themePreference = token.themePreference;
+        user.primaryColor = token.primaryColor;
       }
       return session;
     },

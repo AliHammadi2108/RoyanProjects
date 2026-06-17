@@ -19,11 +19,13 @@ model User {
   nameEn       String?
   phone        String?
   notes        String?
-  isActive     Boolean  @default(true)
-  branchId     String?
-  departmentId String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isActive         Boolean  @default(true)
+  themePreference  String?
+  primaryColor     String?
+  branchId         String?
+  departmentId     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   branch     Branch?     @relation(fields: [branchId], references: [id])
   department Department? @relation(fields: [departmentId], references: [id])

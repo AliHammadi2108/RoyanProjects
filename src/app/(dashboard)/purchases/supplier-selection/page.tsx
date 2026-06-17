@@ -1,4 +1,4 @@
-import { getNominations, deleteNomination } from '@/actions/comparisons';
+import { getNominations } from '@/actions/comparisons';
 import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 
@@ -12,7 +12,6 @@ export default async function SupplierSelectionPage() {
     <GenericDocumentList
       variant="nomination"
       data={JSON.parse(JSON.stringify(nominations))}
-      onDelete={deleteNomination}
       usageMap={usageMap}
     />
   );

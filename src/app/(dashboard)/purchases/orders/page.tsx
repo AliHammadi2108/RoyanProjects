@@ -1,4 +1,4 @@
-import { getPurchaseOrders, deletePurchaseOrder } from '@/actions/purchase-orders';
+import { getPurchaseOrders } from '@/actions/purchase-orders';
 import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 
@@ -12,7 +12,6 @@ export default async function PurchaseOrdersPage() {
     <GenericDocumentList
       variant="order"
       data={JSON.parse(JSON.stringify(orders))}
-      onDelete={deletePurchaseOrder}
       usageMap={usageMap}
     />
   );

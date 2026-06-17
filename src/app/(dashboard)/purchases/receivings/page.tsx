@@ -1,4 +1,4 @@
-import { getReceivings, deleteReceiving } from '@/actions/purchase-orders';
+import { getReceivings } from '@/actions/purchase-orders';
 import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 
@@ -12,7 +12,6 @@ export default async function ReceivingsPage() {
     <GenericDocumentList
       variant="receiving"
       data={JSON.parse(JSON.stringify(receivings))}
-      onDelete={deleteReceiving}
       usageMap={usageMap}
     />
   );

@@ -1,4 +1,4 @@
-import { getQuotations, deleteQuotation } from '@/actions/quotations';
+import { getQuotations } from '@/actions/quotations';
 import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 
@@ -12,7 +12,6 @@ export default async function QuotationsPage() {
     <GenericDocumentList
       variant="quotation"
       data={JSON.parse(JSON.stringify(quotations))}
-      onDelete={deleteQuotation}
       usageMap={usageMap}
     />
   );

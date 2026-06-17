@@ -1,4 +1,4 @@
-import { getInspections, deleteInspection } from '@/actions/purchase-orders';
+import { getInspections } from '@/actions/purchase-orders';
 import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 
@@ -12,7 +12,6 @@ export default async function InspectionsPage() {
     <GenericDocumentList
       variant="inspection"
       data={JSON.parse(JSON.stringify(inspections))}
-      onDelete={deleteInspection}
       usageMap={usageMap}
     />
   );

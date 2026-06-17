@@ -1,4 +1,4 @@
-import { getInvoices, deleteInvoice } from '@/actions/purchase-orders';
+import { getInvoices } from '@/actions/purchase-orders';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 
 export default async function InvoicesPage() {
@@ -7,7 +7,6 @@ export default async function InvoicesPage() {
     <GenericDocumentList
       variant="invoice"
       data={JSON.parse(JSON.stringify(invoices))}
-      onDelete={deleteInvoice}
     />
   );
 }

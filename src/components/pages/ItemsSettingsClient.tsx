@@ -5,8 +5,10 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { ListSearchAutocomplete, SearchEmptyState } from '@/components/ui/ListSearchAutocomplete';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
+import type { AutocompleteOption } from '@/lib/autocomplete';
 import { saveItem, setItemActive } from '@/actions/master-data';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -89,6 +91,18 @@ export function ItemsSettingsClient({
   const filtered = useMemo(
     () => clientSearchMapped(rows as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.item),
     [rows, search]
+  );
+
+  const searchOptions = useMemo<AutocompleteOption[]>(
+    () =>
+      rows.map((row) => ({
+        value: row.id,
+        label: `${row.code} - ${row.nameAr}`,
+        sublabel: row.barcode ? `باركود: ${row.barcode}` : undefined,
+        filterText: [row.code, row.nameAr, row.barcode].filter(Boolean).join(' '),
+        keywords: [row.code, row.nameAr, row.barcode].filter(Boolean).join(' '),
+      })),
+    [rows]
   );
 
   const addUnitRow = () => {
@@ -267,7 +281,12 @@ export function ItemsSettingsClient({
       <PageContainer>
         {error && <div className="alert-error mb-4">{error}</div>}
         <div className="card mb-4">
-          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالكود أو الاسم أو الباركود..." />
+          <ListSearchAutocomplete
+            value={search}
+            onChange={setSearch}
+            options={searchOptions}
+            placeholder="بحث بالكود أو الاسم أو الباركود..."
+          />
         </div>
 
         <div className="card mb-6 space-y-4">
@@ -374,16 +393,13 @@ export function ItemsSettingsClient({
                 </div>
                 <div>
                   <label className="text-xs text-gray-600 block mb-1">المورد المفضل</label>
-                  <select
-                    className="form-input"
+                  <MasterDataSelect
+                    kind="supplier"
                     value={form.preferredSupplierId}
-                    onChange={(e) => setForm({ ...form, preferredSupplierId: e.target.value })}
-                  >
-                    <option value="">—</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.nameAr}</option>
-                    ))}
-                  </select>
+                    onChange={(preferredSupplierId) => setForm({ ...form, preferredSupplierId })}
+                    options={suppliers}
+                    emptyLabel="—"
+                  />
                 </div>
                 <div className="flex items-end pb-2">
                   <label className="inline-flex items-center gap-2 text-sm">

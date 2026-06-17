@@ -5,8 +5,9 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { ListSearchAutocomplete, SearchEmptyState } from '@/components/ui/ListSearchAutocomplete';
 import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
+import type { AutocompleteOption } from '@/lib/autocomplete';
 import { saveUnit, setUnitActive } from '@/actions/master-data';
 
 interface UnitRow {
@@ -43,6 +44,18 @@ export function UnitsClient({ initialData }: { initialData: UnitRow[] }) {
   const filtered = useMemo(
     () => clientSearchMapped(rows as unknown as Record<string, unknown>[], search, SEARCH_MAPPINGS.unit),
     [rows, search]
+  );
+
+  const searchOptions = useMemo<AutocompleteOption[]>(
+    () =>
+      rows.map((row) => ({
+        value: row.id,
+        label: `${row.code} - ${row.nameAr}`,
+        sublabel: row.symbol ? `رمز: ${row.symbol}` : undefined,
+        filterText: [row.code, row.nameAr, row.symbol].filter(Boolean).join(' '),
+        keywords: [row.code, row.nameAr, row.symbol].filter(Boolean).join(' '),
+      })),
+    [rows]
   );
 
   const columns = [
@@ -90,7 +103,12 @@ export function UnitsClient({ initialData }: { initialData: UnitRow[] }) {
           </div>
         </div>
         <div className="card mb-4">
-          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالكود أو الاسم أو الرمز..." />
+          <ListSearchAutocomplete
+            value={search}
+            onChange={setSearch}
+            options={searchOptions}
+            placeholder="بحث بالكود أو الاسم أو الرمز..."
+          />
         </div>
         {filtered.length === 0 ? (
           <div className="card"><SearchEmptyState query={search} /></div>

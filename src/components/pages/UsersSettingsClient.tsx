@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
-import { SearchBox } from '@/components/ui/SearchBox';
+import { ListSearchAutocomplete } from '@/components/ui/ListSearchAutocomplete';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
+import type { AutocompleteOption } from '@/lib/autocomplete';
 import { fetchUsers, getUsersFormOptions, removeUserAction, saveUserAction } from '@/actions/users';
 
 type UserRow = Record<string, unknown> & {
@@ -71,6 +72,18 @@ export function UsersSettingsClient({ initialData }: { initialData: UserRow[] })
     if (serverSearch) return rows;
     return clientSearch(rows, search, [(r) => SEARCH_MAPPINGS.user(r).join(' ')]);
   }, [rows, search, serverSearch]);
+
+  const searchOptions = useMemo<AutocompleteOption[]>(
+    () =>
+      rows.map((row) => ({
+        value: row.id,
+        label: `${row.userNo} - ${row.nameAr}`,
+        sublabel: [row.phone, row.email].filter(Boolean).join(' · ') || undefined,
+        filterText: SEARCH_MAPPINGS.user(row).join(' '),
+        keywords: SEARCH_MAPPINGS.user(row).join(' '),
+      })),
+    [rows]
+  );
 
   const resetForm = () => {
     setEditId(null);
@@ -342,9 +355,10 @@ export function UsersSettingsClient({ initialData }: { initialData: UserRow[] })
         <div className="card">
           <div className="flex flex-wrap gap-3 justify-between items-center mb-4">
             <h3 className="font-semibold">قائمة المستخدمين ({filtered.length})</h3>
-            <SearchBox
+            <ListSearchAutocomplete
               value={search}
               onChange={setSearch}
+              options={searchOptions}
               onDebouncedChange={(q) => {
                 if (rows.length > 20) setServerSearch(q);
                 else setServerSearch('');

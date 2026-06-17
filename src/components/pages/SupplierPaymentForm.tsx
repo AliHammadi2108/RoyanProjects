@@ -20,6 +20,7 @@ import {
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
 interface AllocationRow {
@@ -269,30 +270,24 @@ export function SupplierPaymentForm({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="form-label">الفرع</label>
-              <select
-                className="form-input"
+              <MasterDataSelect
+                kind="branch"
                 value={form.branchId}
+                onChange={(branchId) => setForm({ ...form, branchId })}
+                options={masterData.branches}
                 disabled={!isEditable}
-                onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-              >
-                {masterData.branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.nameAr}</option>
-                ))}
-              </select>
+                allowEmpty={false}
+              />
             </div>
             <div>
               <label className="form-label">المورد</label>
-              <select
-                className="form-input"
+              <MasterDataSelect
+                kind="supplier"
                 value={form.supplierId}
+                onChange={(supplierId) => setForm({ ...form, supplierId, currencyId: '' })}
+                options={masterData.suppliers}
                 disabled={!isEditable || !isNew}
-                onChange={(e) => setForm({ ...form, supplierId: e.target.value, currencyId: '' })}
-              >
-                <option value="">اختر مورداً...</option>
-                {masterData.suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>{s.code} - {s.nameAr}</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="form-label">تاريخ الدفع</label>
@@ -306,24 +301,21 @@ export function SupplierPaymentForm({
             </div>
             <div>
               <label className="form-label">العملة</label>
-              <select
-                className="form-input"
+              <MasterDataSelect
+                kind="currency"
                 value={form.currencyId}
-                disabled={!isEditable}
-                onChange={(e) => {
-                  const cur = masterData.currencies.find((c) => c.id === e.target.value);
+                onChange={(currencyId) => {
+                  const cur = masterData.currencies.find((c) => c.id === currencyId);
                   setForm({
                     ...form,
-                    currencyId: e.target.value,
+                    currencyId,
                     exchangeRate: cur?.rateToBase || 1,
                   });
                 }}
-              >
-                <option value="">افتراضي المورد</option>
-                {masterData.currencies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.code} - {c.nameAr}</option>
-                ))}
-              </select>
+                options={masterData.currencies}
+                disabled={!isEditable}
+                emptyLabel="افتراضي المورد"
+              />
             </div>
             <div>
               <label className="form-label">سعر الصرف</label>
@@ -352,7 +344,9 @@ export function SupplierPaymentForm({
               <PaymentMethodSelect
                 value={form.paymentMethod}
                 disabled={!isEditable}
-                onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                onChange={(paymentMethod) =>
+                  setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
+                }
               />
             </div>
             <div>

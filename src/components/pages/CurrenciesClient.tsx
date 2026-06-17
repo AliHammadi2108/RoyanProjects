@@ -5,8 +5,9 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
+import { ListSearchAutocomplete, SearchEmptyState } from '@/components/ui/ListSearchAutocomplete';
 import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
+import type { AutocompleteOption } from '@/lib/autocomplete';
 import { saveCurrency, setCurrencyActive, setBaseCurrency } from '@/actions/master-data';
 
 interface CurrencyRow {
@@ -98,6 +99,18 @@ export function CurrenciesClient({ initialData }: { initialData: CurrencyRow[] }
     [rows, search]
   );
 
+  const searchOptions = useMemo<AutocompleteOption[]>(
+    () =>
+      rows.map((row) => ({
+        value: row.id,
+        label: `${row.code} - ${row.nameAr}`,
+        sublabel: row.symbol ? `رمز: ${row.symbol}` : undefined,
+        filterText: [row.code, row.nameAr, row.symbol].filter(Boolean).join(' '),
+        keywords: [row.code, row.nameAr, row.symbol].filter(Boolean).join(' '),
+      })),
+    [rows]
+  );
+
   const columns = [
     { key: 'code', label: 'الرمز' },
     { key: 'nameAr', label: 'الاسم' },
@@ -172,7 +185,12 @@ export function CurrenciesClient({ initialData }: { initialData: CurrencyRow[] }
         </div>
 
         <div className="card mb-4">
-          <SearchBox value={search} onChange={setSearch} placeholder="بحث بالرمز أو الاسم..." />
+          <ListSearchAutocomplete
+            value={search}
+            onChange={setSearch}
+            options={searchOptions}
+            placeholder="بحث بالرمز أو الاسم..."
+          />
         </div>
         {filtered.length === 0 ? (
           <div className="card"><SearchEmptyState query={search} /></div>

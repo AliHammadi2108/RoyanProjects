@@ -14,6 +14,7 @@ import {
   resolveSourceDocument,
   buildReceivingItemsFromOrder,
 } from '@/lib/document-cascade';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
 interface OrderOption {
@@ -219,17 +220,13 @@ export function ReceivingForm({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="form-label">المخزن</label>
-                <select
-                  className="form-input"
+                <MasterDataSelect
+                  kind="warehouse"
                   value={form.warehouseId}
+                  onChange={(warehouseId) => setForm({ ...form, warehouseId })}
+                  options={masterData.warehouses}
                   disabled={!effectiveEditable}
-                  onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
-                >
-                  <option value="">-- اختر --</option>
-                  {masterData.warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>{w.nameAr}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="form-label">رقم فاتورة المورد</label>

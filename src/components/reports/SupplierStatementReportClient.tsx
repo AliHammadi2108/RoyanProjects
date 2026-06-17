@@ -14,7 +14,9 @@ import {
   reportInputClass,
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
-import { SearchBox } from '@/components/ui/SearchBox';
+import { ListSearchAutocomplete } from '@/components/ui/ListSearchAutocomplete';
+import { AutocompleteSelect } from '@/components/ui/AutocompleteSelect';
+import type { AutocompleteOption } from '@/lib/autocomplete';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { ReportResult, SupplierStatementRow } from '@/services/reports/types';
 
@@ -158,6 +160,21 @@ export function SupplierStatementReportClient({
     loadStatement({ sortBy: key, sortDir: nextDir, page: 1 });
   };
 
+  const supplierOptions: AutocompleteOption[] = suppliers.map((s) => ({
+    value: s.id,
+    label: `${s.code} - ${s.nameAr}`,
+    sublabel: `${s.invoiceCount} فاتورة${s.phone ? ` · ${s.phone}` : ''}`,
+    keywords: [s.code, s.nameAr, s.phone, s.taxNo].filter(Boolean).join(' '),
+  }));
+
+  const listSearchOptions: AutocompleteOption[] = suppliers.map((s) => ({
+    value: s.id,
+    label: `${s.code} - ${s.nameAr}`,
+    sublabel: s.phone ? `هاتف: ${s.phone}` : undefined,
+    filterText: [s.code, s.nameAr, s.phone, s.taxNo].filter(Boolean).join(' '),
+    keywords: [s.code, s.nameAr, s.phone, s.taxNo].filter(Boolean).join(' '),
+  }));
+
   const handleRowClick = (row: SupplierStatementRow) => {
     if (row.route) router.push(row.route);
   };
@@ -167,9 +184,10 @@ export function SupplierStatementReportClient({
       <div className="card p-4 space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <ReportFilterField label="بحث عن مورد">
-            <SearchBox
+            <ListSearchAutocomplete
               value={search}
               onChange={setSearch}
+              options={listSearchOptions}
               onDebouncedChange={searchSuppliers}
               placeholder="كود، اسم، هاتف، رقم ضريبي..."
               debounceMs={300}
@@ -177,18 +195,14 @@ export function SupplierStatementReportClient({
             />
           </ReportFilterField>
           <ReportFilterField label="المورد">
-            <select
-              className={reportSelectClass()}
+            <AutocompleteSelect
               value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-            >
-              <option value="">اختر مورداً...</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.code} - {s.nameAr} ({s.invoiceCount} فاتورة)
-                </option>
-              ))}
-            </select>
+              onChange={setSupplierId}
+              options={supplierOptions}
+              placeholder="اختر مورداً..."
+              emptyLabel="اختر مورداً..."
+              className="min-w-[16rem]"
+            />
           </ReportFilterField>
         </div>
         {!supplierId && suppliers.length === 0 ? (

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { DataTable } from '@/components/ui/DataTable';
-import { SearchBox } from '@/components/ui/SearchBox';
+import { ListSearchAutocomplete } from '@/components/ui/ListSearchAutocomplete';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { saveSupplier, setSupplierActive } from '@/actions/master-data';
+import type { AutocompleteOption } from '@/lib/autocomplete';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 
 interface SupplierRow {
   id: string;
@@ -50,6 +52,18 @@ export function SuppliersSettingsClient({
       r.code.includes(search) ||
       r.nameAr.includes(search) ||
       (r.phone || '').includes(search)
+  );
+
+  const searchOptions = useMemo<AutocompleteOption[]>(
+    () =>
+      rows.map((row) => ({
+        value: row.id,
+        label: `${row.code} - ${row.nameAr}`,
+        sublabel: row.phone ? `هاتف: ${row.phone}` : undefined,
+        filterText: [row.code, row.nameAr, row.phone].filter(Boolean).join(' '),
+        keywords: [row.code, row.nameAr, row.phone, row.email].filter(Boolean).join(' '),
+      })),
+    [rows]
   );
 
   const handleSave = async () => {
@@ -147,10 +161,11 @@ export function SuppliersSettingsClient({
       <Header title="إدارة الموردين" subtitle="بيانات الموردين وعملاتهم الافتراضية" />
       <PageContainer>
         {error && <div className="alert-error mb-4">{error}</div>}
-        <SearchBox
+        <ListSearchAutocomplete
           className="mb-4"
           value={search}
           onChange={setSearch}
+          options={searchOptions}
           placeholder="بحث بالكود أو الاسم أو الهاتف..."
         />
 
@@ -159,11 +174,13 @@ export function SuppliersSettingsClient({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input className="form-input" placeholder="الكود *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
             <input className="form-input" placeholder="الاسم *" value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} />
-            <select className="form-input" value={form.defaultCurrencyId} onChange={(e) => setForm({ ...form, defaultCurrencyId: e.target.value })}>
-              {currencies.map((c) => (
-                <option key={c.id} value={c.id}>{c.nameAr} ({c.code})</option>
-              ))}
-            </select>
+            <MasterDataSelect
+              kind="currency"
+              value={form.defaultCurrencyId}
+              onChange={(defaultCurrencyId) => setForm({ ...form, defaultCurrencyId })}
+              options={currencies}
+              allowEmpty={false}
+            />
             <input className="form-input" placeholder="الهاتف" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             <input className="form-input" placeholder="البريد" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             <input className="form-input" placeholder="الرقم الضريبي" value={form.taxNo} onChange={(e) => setForm({ ...form, taxNo: e.target.value })} />

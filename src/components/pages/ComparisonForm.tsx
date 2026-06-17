@@ -333,7 +333,9 @@ export function ComparisonForm({
                   <PaymentMethodSelect
                     value={form.paymentMethod}
                     disabled={!effectiveEditable}
-                    onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                    onChange={(paymentMethod) =>
+                      setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
+                    }
                   />
                 </div>
                 <div className="col-span-2">

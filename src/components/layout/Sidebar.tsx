@@ -159,7 +159,10 @@ export function Sidebar({ unreadCount = 0, allowedHrefs }: SidebarProps) {
   };
 
   return (
-    <aside className="fixed right-0 top-0 h-full w-64 bg-white border-l border-gray-200 shadow-sm z-40 flex flex-col">
+    <aside
+      id="dashboard-sidebar"
+      className="fixed right-0 top-0 h-full w-64 bg-white border-l border-gray-200 shadow-sm z-40 flex flex-col print:hidden"
+    >
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="w-6 h-6 text-primary-600" />

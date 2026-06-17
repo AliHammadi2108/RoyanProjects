@@ -5,7 +5,7 @@ interface PageContainerProps {
 }
 
 export function PageContainer({ children }: PageContainerProps) {
-  return <div className="p-6 space-y-6">{children}</div>;
+  return <div className="p-6 space-y-6 print:p-0 print:space-y-0">{children}</div>;
 }
 
 interface StatCardProps {

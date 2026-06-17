@@ -27,7 +27,7 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
         title="معاينة الطباعة"
         subtitle={data.title}
         actions={
-          <div className="flex items-center gap-2 print:hidden">
+          <div className="flex items-center gap-2">
             <a href={listHref} className="btn-secondary text-sm">
               {listLabel}
             </a>

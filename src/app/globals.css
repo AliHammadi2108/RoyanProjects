@@ -53,28 +53,49 @@
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
   body {
     @apply bg-white text-black;
   }
 
+  /* إخفاء واجهة النظام — السلايد الجانبي والهيدر والتنقل */
+  #dashboard-sidebar,
+  aside,
   header,
   nav,
   .print\:hidden {
     display: none !important;
   }
 
-  #operation-print-area {
+  /* المحتوى الرئيسي بعرض كامل بدون هامش السلايد */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+  }
+
+  #operation-print-area,
+  #report-print-area {
     box-shadow: none !important;
     border: none !important;
     max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
   }
 
-  #operation-print-area table {
+  #operation-print-area table,
+  #report-print-area table {
     page-break-inside: auto;
   }
 
-  #operation-print-area tr {
+  #operation-print-area tr,
+  #report-print-area tr {
     page-break-inside: avoid;
   }
 }

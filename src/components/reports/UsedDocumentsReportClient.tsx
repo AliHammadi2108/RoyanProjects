@@ -20,6 +20,7 @@ import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 interface UsedDocumentsReportClientProps {
   initialData: ReportResult<UsedDocumentRow>;
   permissions: { export: boolean; print: boolean; charts: boolean };
+  printedBy?: string;
 }
 
 const DOC_TYPE_OPTIONS = [
@@ -45,6 +46,7 @@ const EXPORT_COLUMNS = [
 export function UsedDocumentsReportClient({
   initialData,
   permissions,
+  printedBy,
 }: UsedDocumentsReportClientProps) {
   const [data, setData] = useState(initialData);
   const [viewMode, setViewMode] = useState<ReportViewMode>('grid');
@@ -124,6 +126,7 @@ export function UsedDocumentsReportClient({
       loading={pending}
       canExport={permissions.export}
       canPrint={permissions.print}
+      printedBy={printedBy}
       canChart={permissions.charts}
       exportFilename="used-documents"
       exportColumns={EXPORT_COLUMNS}

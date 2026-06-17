@@ -5,6 +5,7 @@ import { Printer } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { PrintFooter } from '@/components/ui/PrintFooter';
 import type { PrintDocumentData } from '@/lib/print-types';
 import { formatNumber } from '@/lib/utils';
 
@@ -176,6 +177,8 @@ export function OperationPrintView({ data, listHref, listLabel }: OperationPrint
               <div className="border-t border-gray-400 pt-1">................</div>
             </div>
           </div>
+
+          <PrintFooter printedBy={data.printedBy} />
         </div>
       </PageContainer>
     </>

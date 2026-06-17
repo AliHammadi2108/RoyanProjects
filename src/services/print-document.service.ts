@@ -96,6 +96,13 @@ function fields(...entries: Array<PrintField | null>): PrintField[] {
   return entries.filter((e): e is PrintField => e !== null);
 }
 
+function withPrintedBy(
+  data: Omit<PrintDocumentData, 'printedBy'>,
+  user: { nameAr: string; username: string }
+): PrintDocumentData {
+  return { ...data, printedBy: user.nameAr || user.username };
+}
+
 export async function getPrintDocument(
   operationType: OperationType,
   documentId: string
@@ -129,33 +136,36 @@ export async function getPrintDocument(
       if (!doc) return null;
       const unitMap = await loadUnitNames(doc.items.map((i) => i.unitId || ''));
       const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.requestDate),
-        status: doc.status,
-        approvalStatus: doc.approvalStatus,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('الفرع', doc.branch?.nameAr),
-          field('الإدارة', doc.department?.nameAr),
-          field('المخزن', doc.warehouse?.nameAr),
-          field('المورد', doc.supplier?.nameAr),
-          field('نوع الشراء', doc.purchaseType),
-          field('رقم العملية', doc.operationNo),
-          field('المرجع', doc.referenceNo),
-          field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
-          field('سعر الصرف', doc.exchangeRate !== 1 ? String(doc.exchangeRate) : undefined),
-          field('تاريخ الاحتياج', formatDate(doc.requiredDate)),
-          field('مقدم الطلب', doc.creator?.nameAr),
-          field('وحدة الطالب', doc.requesterUnit)
-        ),
-        lines: mapStandardLines(doc.items, unitMap),
-        totals: [{ label: 'الإجمالي', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
-        notes: doc.notes || undefined,
-        approval,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.requestDate),
+          status: doc.status,
+          approvalStatus: doc.approvalStatus,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('الفرع', doc.branch?.nameAr),
+            field('الإدارة', doc.department?.nameAr),
+            field('المخزن', doc.warehouse?.nameAr),
+            field('المورد', doc.supplier?.nameAr),
+            field('نوع الشراء', doc.purchaseType),
+            field('رقم العملية', doc.operationNo),
+            field('المرجع', doc.referenceNo),
+            field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
+            field('سعر الصرف', doc.exchangeRate !== 1 ? String(doc.exchangeRate) : undefined),
+            field('تاريخ الاحتياج', formatDate(doc.requiredDate)),
+            field('مقدم الطلب', doc.creator?.nameAr),
+            field('وحدة الطالب', doc.requesterUnit)
+          ),
+          lines: mapStandardLines(doc.items, unitMap),
+          totals: [{ label: 'الإجمالي', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
+          notes: doc.notes || undefined,
+          approval,
+        },
+        user
+      );
     }
 
     case 'quotation': {
@@ -173,32 +183,35 @@ export async function getPrintDocument(
       if (!doc) return null;
       const unitMap = await loadUnitNames(doc.items.map((i) => i.unitId || ''));
       const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.status,
-        approvalStatus: doc.approvalStatus,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('المورد', doc.supplier?.nameAr),
-          field('طلب الشراء', doc.purchaseRequest?.documentNo),
-          field('الفرع', doc.branch?.nameAr),
-          field('المرجع', doc.referenceNo),
-          field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
-          field('صلاحية العرض', formatDate(doc.expiryDate)),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: mapStandardLines(doc.items, unitMap),
-        totals: [
-          { label: 'المجموع الفرعي', value: formatCurrency(doc.subtotal, doc.currency?.symbol) },
-          { label: 'الخصم', value: formatCurrency(doc.discount + doc.extraDiscount, doc.currency?.symbol) },
-          { label: 'الإجمالي', value: formatCurrency(doc.total, doc.currency?.symbol) },
-        ],
-        notes: doc.notes || undefined,
-        approval,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.status,
+          approvalStatus: doc.approvalStatus,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('المورد', doc.supplier?.nameAr),
+            field('طلب الشراء', doc.purchaseRequest?.documentNo),
+            field('الفرع', doc.branch?.nameAr),
+            field('المرجع', doc.referenceNo),
+            field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
+            field('صلاحية العرض', formatDate(doc.expiryDate)),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: mapStandardLines(doc.items, unitMap),
+          totals: [
+            { label: 'المجموع الفرعي', value: formatCurrency(doc.subtotal, doc.currency?.symbol) },
+            { label: 'الخصم', value: formatCurrency(doc.discount + doc.extraDiscount, doc.currency?.symbol) },
+            { label: 'الإجمالي', value: formatCurrency(doc.total, doc.currency?.symbol) },
+          ],
+          notes: doc.notes || undefined,
+          approval,
+        },
+        user
+      );
     }
 
     case 'comparison': {
@@ -214,32 +227,35 @@ export async function getPrintDocument(
       if (!doc) return null;
       const unitMap = await loadUnitNames(doc.items.map((i) => i.unitId || ''));
       const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.status,
-        approvalStatus: doc.approvalStatus,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('الفرع', doc.branch?.nameAr),
-          field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: doc.items.map((item) => ({
-          itemCode: item.item?.code || '',
-          itemName: item.itemNameSnapshot,
-          unit: item.unitId ? unitMap.get(item.unitId) : undefined,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: item.netAmount,
-          notes: [item.supplierName, item.quotationNo, item.notes].filter(Boolean).join(' — ') || undefined,
-        })),
-        totals: [{ label: 'الإجمالي', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
-        notes: doc.notes || undefined,
-        approval,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.status,
+          approvalStatus: doc.approvalStatus,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('الفرع', doc.branch?.nameAr),
+            field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: doc.items.map((item) => ({
+            itemCode: item.item?.code || '',
+            itemName: item.itemNameSnapshot,
+            unit: item.unitId ? unitMap.get(item.unitId) : undefined,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.netAmount,
+            notes: [item.supplierName, item.quotationNo, item.notes].filter(Boolean).join(' — ') || undefined,
+          })),
+          totals: [{ label: 'الإجمالي', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
+          notes: doc.notes || undefined,
+          approval,
+        },
+        user
+      );
     }
 
     case 'nomination': {
@@ -255,33 +271,36 @@ export async function getPrintDocument(
       });
       if (!doc) return null;
       const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.status,
-        approvalStatus: doc.approvalStatus,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('المورد', doc.supplier?.nameAr),
-          field('المقارنة الفنية', doc.technicalComparison?.documentNo),
-          field('الفرع', doc.branch?.nameAr),
-          field('نوع المقارنة', doc.comparisonType),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: doc.items.map((item) => ({
-          itemCode: item.item?.code || '',
-          itemName: item.itemNameSnapshot,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: item.quantity * item.unitPrice,
-          notes: item.notes || undefined,
-        })),
-        totals: [{ label: 'الإجمالي', value: formatCurrency(doc.totalAmount) }],
-        notes: doc.notes || undefined,
-        approval,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.status,
+          approvalStatus: doc.approvalStatus,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('المورد', doc.supplier?.nameAr),
+            field('المقارنة الفنية', doc.technicalComparison?.documentNo),
+            field('الفرع', doc.branch?.nameAr),
+            field('نوع المقارنة', doc.comparisonType),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: doc.items.map((item) => ({
+            itemCode: item.item?.code || '',
+            itemName: item.itemNameSnapshot,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.quantity * item.unitPrice,
+            notes: item.notes || undefined,
+          })),
+          totals: [{ label: 'الإجمالي', value: formatCurrency(doc.totalAmount) }],
+          notes: doc.notes || undefined,
+          approval,
+        },
+        user
+      );
     }
 
     case 'purchase_order': {
@@ -299,31 +318,34 @@ export async function getPrintDocument(
       if (!doc) return null;
       const unitMap = await loadUnitNames(doc.items.map((i) => i.unitId || ''));
       const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.status,
-        approvalStatus: doc.approvalStatus,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('المورد', doc.supplier?.nameAr),
-          field('المخزن', doc.warehouse?.nameAr),
-          field('الفرع', doc.branch?.nameAr),
-          field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
-          field('تاريخ الوصول المتوقع', formatDate(doc.expectedArrival)),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: mapStandardLines(doc.items, unitMap),
-        totals: [
-          { label: 'المجموع الفرعي', value: formatCurrency(doc.subtotal, doc.currency?.symbol) },
-          { label: 'الخصم', value: formatCurrency(doc.discount, doc.currency?.symbol) },
-          { label: 'الإجمالي', value: formatCurrency(doc.total, doc.currency?.symbol) },
-        ],
-        notes: doc.notes || undefined,
-        approval,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.status,
+          approvalStatus: doc.approvalStatus,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('المورد', doc.supplier?.nameAr),
+            field('المخزن', doc.warehouse?.nameAr),
+            field('الفرع', doc.branch?.nameAr),
+            field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
+            field('تاريخ الوصول المتوقع', formatDate(doc.expectedArrival)),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: mapStandardLines(doc.items, unitMap),
+          totals: [
+            { label: 'المجموع الفرعي', value: formatCurrency(doc.subtotal, doc.currency?.symbol) },
+            { label: 'الخصم', value: formatCurrency(doc.discount, doc.currency?.symbol) },
+            { label: 'الإجمالي', value: formatCurrency(doc.total, doc.currency?.symbol) },
+          ],
+          notes: doc.notes || undefined,
+          approval,
+        },
+        user
+      );
     }
 
     case 'inspection': {
@@ -338,30 +360,33 @@ export async function getPrintDocument(
         },
       });
       if (!doc) return null;
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.inspectionResult,
-        statusBanner: doc.inspectionResult === 'Rejected' ? 'فحص مرفوض' : undefined,
-        showLinePricing: false,
-        fields: fields(
-          field('أمر الشراء', doc.purchaseOrder?.documentNo),
-          field('المورد', doc.supplier?.nameAr),
-          field('المخزن', doc.warehouse?.nameAr),
-          field('نتيجة الفحص', doc.inspectionResult),
-          field('سبب الرفض', doc.rejectionReason),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: doc.items.map((item) => ({
-          itemCode: item.item?.code || '',
-          itemName: item.itemNameSnapshot,
-          quantity: item.quantity,
-          notes: `مطابق: ${item.matchedQty} | غير مطابق: ${item.unmatchedQty}`,
-        })),
-        totals: [],
-        notes: doc.notes || undefined,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.inspectionResult,
+          statusBanner: doc.inspectionResult === 'Rejected' ? 'فحص مرفوض' : undefined,
+          showLinePricing: false,
+          fields: fields(
+            field('أمر الشراء', doc.purchaseOrder?.documentNo),
+            field('المورد', doc.supplier?.nameAr),
+            field('المخزن', doc.warehouse?.nameAr),
+            field('نتيجة الفحص', doc.inspectionResult),
+            field('سبب الرفض', doc.rejectionReason),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: doc.items.map((item) => ({
+            itemCode: item.item?.code || '',
+            itemName: item.itemNameSnapshot,
+            quantity: item.quantity,
+            notes: `مطابق: ${item.matchedQty} | غير مطابق: ${item.unmatchedQty}`,
+          })),
+          totals: [],
+          notes: doc.notes || undefined,
+        },
+        user
+      );
     }
 
     case 'receiving': {
@@ -376,27 +401,30 @@ export async function getPrintDocument(
         },
       });
       if (!doc) return null;
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.receivingStatus,
-        showLinePricing: false,
-        fields: fields(
-          field('أمر الشراء', doc.purchaseOrder?.documentNo),
-          field('المورد', doc.supplier?.nameAr),
-          field('المخزن', doc.warehouse?.nameAr),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: doc.items.map((item) => ({
-          itemCode: item.item?.code || '',
-          itemName: item.itemNameSnapshot,
-          quantity: item.receivedQty,
-          notes: item.notes || undefined,
-        })),
-        totals: [],
-        notes: doc.notes || undefined,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.receivingStatus,
+          showLinePricing: false,
+          fields: fields(
+            field('أمر الشراء', doc.purchaseOrder?.documentNo),
+            field('المورد', doc.supplier?.nameAr),
+            field('المخزن', doc.warehouse?.nameAr),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: doc.items.map((item) => ({
+            itemCode: item.item?.code || '',
+            itemName: item.itemNameSnapshot,
+            quantity: item.receivedQty,
+            notes: item.notes || undefined,
+          })),
+          totals: [],
+          notes: doc.notes || undefined,
+        },
+        user
+      );
     }
 
     case 'invoice': {
@@ -413,32 +441,35 @@ export async function getPrintDocument(
       });
       if (!doc) return null;
       const unitMap = await loadUnitNames(doc.items.map((i) => i.unitId || ''));
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.createdAt),
-        status: doc.status,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('المورد', doc.supplier?.nameAr),
-          field('أمر الشراء', doc.purchaseOrder?.documentNo),
-          field('إذن التوريد', doc.receiving?.documentNo),
-          field('الفرع', doc.branch?.nameAr),
-          field('رقم فاتورة المورد', doc.supplierInvoiceNo),
-          field('تاريخ الاستحقاق', formatDate(doc.dueDate)),
-          field('حالة السداد', doc.paymentStatus),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: mapStandardLines(doc.items, unitMap),
-        totals: [
-          { label: 'المجموع الفرعي', value: formatCurrency(doc.subtotal) },
-          { label: 'الخصم', value: formatCurrency(doc.discount) },
-          { label: 'مصاريف أخرى', value: formatCurrency(doc.otherExpenses) },
-          { label: 'صافي المبلغ', value: formatCurrency(doc.netTotal) },
-        ],
-        notes: doc.notes || undefined,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.createdAt),
+          status: doc.status,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('المورد', doc.supplier?.nameAr),
+            field('أمر الشراء', doc.purchaseOrder?.documentNo),
+            field('إذن التوريد', doc.receiving?.documentNo),
+            field('الفرع', doc.branch?.nameAr),
+            field('رقم فاتورة المورد', doc.supplierInvoiceNo),
+            field('تاريخ الاستحقاق', formatDate(doc.dueDate)),
+            field('حالة السداد', doc.paymentStatus),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: mapStandardLines(doc.items, unitMap),
+          totals: [
+            { label: 'المجموع الفرعي', value: formatCurrency(doc.subtotal) },
+            { label: 'الخصم', value: formatCurrency(doc.discount) },
+            { label: 'مصاريف أخرى', value: formatCurrency(doc.otherExpenses) },
+            { label: 'صافي المبلغ', value: formatCurrency(doc.netTotal) },
+          ],
+          notes: doc.notes || undefined,
+        },
+        user
+      );
     }
 
     case 'supplier_payment': {
@@ -457,33 +488,36 @@ export async function getPrintDocument(
       });
       if (!doc) return null;
       const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
-      return {
-        title,
-        documentNo: doc.documentNo,
-        documentDate: formatDate(doc.paymentDate || doc.createdAt),
-        status: doc.status,
-        approvalStatus: doc.approvalStatus,
-        statusBanner: statusBanner(doc.status),
-        showLinePricing: true,
-        fields: fields(
-          field('المورد', doc.supplier?.nameAr),
-          field('الفرع', doc.branch?.nameAr),
-          field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
-          field('سعر الصرف', doc.exchangeRate !== 1 ? String(doc.exchangeRate) : undefined),
-          field('طريقة الدفع', doc.paymentMethod),
-          field('مرجع الدفع', doc.bankReference),
-          field('المُنشئ', doc.creator?.nameAr)
-        ),
-        lines: doc.allocations.map((a) => ({
-          itemCode: a.invoice?.documentNo || '',
-          itemName: `فاتورة ${a.invoice?.documentNo || ''}`,
-          quantity: 1,
-          total: a.allocatedAmount,
-        })),
-        totals: [{ label: 'إجمالي المدفوع', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
-        notes: doc.notes || undefined,
-        approval,
-      };
+      return withPrintedBy(
+        {
+          title,
+          documentNo: doc.documentNo,
+          documentDate: formatDate(doc.paymentDate || doc.createdAt),
+          status: doc.status,
+          approvalStatus: doc.approvalStatus,
+          statusBanner: statusBanner(doc.status),
+          showLinePricing: true,
+          fields: fields(
+            field('المورد', doc.supplier?.nameAr),
+            field('الفرع', doc.branch?.nameAr),
+            field('العملة', doc.currency ? `${doc.currency.nameAr} (${doc.currency.code})` : undefined),
+            field('سعر الصرف', doc.exchangeRate !== 1 ? String(doc.exchangeRate) : undefined),
+            field('طريقة الدفع', doc.paymentMethod),
+            field('مرجع الدفع', doc.bankReference),
+            field('المُنشئ', doc.creator?.nameAr)
+          ),
+          lines: doc.allocations.map((a) => ({
+            itemCode: a.invoice?.documentNo || '',
+            itemName: `فاتورة ${a.invoice?.documentNo || ''}`,
+            quantity: 1,
+            total: a.allocatedAmount,
+          })),
+          totals: [{ label: 'إجمالي المدفوع', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
+          notes: doc.notes || undefined,
+          approval,
+        },
+        user
+      );
     }
 
     default:

@@ -29,6 +29,7 @@ interface ReorderAlertsReportClientProps {
     warehouses: Array<{ id: string; nameAr: string }>;
     suppliers: Array<{ id: string; code: string; nameAr: string }>;
   };
+  printedBy?: string;
 }
 
 const EXPORT_COLUMNS = [
@@ -47,6 +48,7 @@ export function ReorderAlertsReportClient({
   initialData,
   permissions,
   filterOptions,
+  printedBy,
 }: ReorderAlertsReportClientProps) {
   const searchParams = useSearchParams();
   const [data, setData] = useState(initialData);
@@ -150,6 +152,7 @@ export function ReorderAlertsReportClient({
       loading={pending}
       canExport={permissions.export}
       canPrint={permissions.print}
+      printedBy={printedBy}
       canChart={false}
       exportFilename="reorder_alerts"
       exportColumns={EXPORT_COLUMNS}

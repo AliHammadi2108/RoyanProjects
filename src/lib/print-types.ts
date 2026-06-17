@@ -42,4 +42,5 @@ export interface PrintDocumentData {
   approval?: PrintApprovalInfo;
   statusBanner?: string;
   showLinePricing?: boolean;
+  printedBy: string;
 }

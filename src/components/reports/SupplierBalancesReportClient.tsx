@@ -19,6 +19,7 @@ interface SupplierBalancesReportClientProps {
   initialData: ReportResult<SupplierBalanceRow>;
   suppliers: { id: string; code: string; nameAr: string }[];
   permissions: { export: boolean; print: boolean; charts: boolean; viewBalance: boolean };
+  printedBy?: string;
 }
 
 const EXPORT_COLUMNS = [
@@ -34,6 +35,7 @@ export function SupplierBalancesReportClient({
   initialData,
   suppliers,
   permissions,
+  printedBy,
 }: SupplierBalancesReportClientProps) {
   const [data, setData] = useState(initialData);
   const [viewMode, setViewMode] = useState<ReportViewMode>('grid');
@@ -114,6 +116,7 @@ export function SupplierBalancesReportClient({
       loading={pending}
       canExport={permissions.export}
       canPrint={permissions.print}
+      printedBy={printedBy}
       canChart={permissions.charts && permissions.viewBalance}
       exportFilename="supplier-balances"
       exportColumns={EXPORT_COLUMNS}

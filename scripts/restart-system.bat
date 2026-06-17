@@ -36,11 +36,14 @@ if defined DO_BUILD (
   )
 )
 
+set "ECO=%ROOT%\ecosystem.config.cjs"
+if not exist "%ECO%" set "ECO=%ROOT%\scripts\ecosystem.config.cjs"
+
 where pm2 >nul 2>&1
 if %ERRORLEVEL%==0 (
   echo تشغيل عبر PM2...
   pm2 delete purchase-web-system >nul 2>&1
-  pm2 start "%ROOT%\ecosystem.config.cjs"
+  pm2 start "%ECO%"
   pm2 save >nul 2>&1
   timeout /t 3 /nobreak >nul
   start "" "http://localhost:3000"

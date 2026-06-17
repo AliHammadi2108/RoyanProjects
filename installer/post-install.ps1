@@ -1,12 +1,19 @@
-﻿# Post-install setup for Purchase Web System (after MSI/EXE install)
+﻿# Post-install wrapper — delegates to scripts\setup-windows.ps1 (single source of truth)
 param(
   [Parameter(Mandatory = $false)]
-  [string] $InstallDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-  [switch] $SkipShortcuts
+  [string] $InstallDir = "",
+  [switch] $SkipShortcuts,
+  [switch] $InstallAutostart,
+  [switch] $DryRun
 )
 
 $ErrorActionPreference = 'Stop'
-Set-Location $InstallDir
+
+if (-not $InstallDir) {
+  $InstallDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+} else {
+  $InstallDir = (Resolve-Path $InstallDir).Path
+}
 
 function Show-NodeRequiredMessage {
   try {
@@ -22,67 +29,32 @@ function Show-NodeRequiredMessage {
   }
 }
 
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-  Show-NodeRequiredMessage
-  exit 1
+if (-not $DryRun) {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    Show-NodeRequiredMessage
+    exit 1
+  }
+  $major = [int](node -p "process.versions.node.split('.')[0]")
+  if ($major -lt 20) {
+    Show-NodeRequiredMessage
+    exit 1
+  }
 }
 
-$major = [int](node -p "process.versions.node.split('.')[0]")
-if ($major -lt 20) {
-  Show-NodeRequiredMessage
-  exit 1
+$setupScript = Join-Path $InstallDir 'scripts\setup-windows.ps1'
+if (-not (Test-Path $setupScript)) {
+  throw "setup script not found: $setupScript"
 }
 
-Write-Host 'Installing npm dependencies (may take several minutes)...'
-npm install --production=false
-if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+$setupArgs = @(
+  '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $setupScript,
+  '-ProjectRoot', $InstallDir,
+  '-InstallerMode'
+)
+if ($SkipShortcuts) { $setupArgs += '-SkipShortcuts' }
+if ($InstallAutostart) { $setupArgs += '-InstallAutostart' }
+if ($DryRun) { $setupArgs += '-DryRun' }
 
-$envExample = Join-Path $InstallDir '.env.example'
-$envFile = Join-Path $InstallDir '.env'
-if (-not (Test-Path $envFile) -and (Test-Path $envExample)) {
-  Copy-Item $envExample $envFile
-  Write-Host 'Created .env from .env.example — change NEXTAUTH_SECRET for production.'
-}
-
-Write-Host 'Prisma generate...'
-npm run db:generate
-if ($LASTEXITCODE -ne 0) { throw 'prisma generate failed' }
-
-Write-Host 'Database push...'
-npm run db:push
-if ($LASTEXITCODE -ne 0) { throw 'prisma db push failed' }
-
-Write-Host 'Seeding database...'
-npm run db:seed
-if ($LASTEXITCODE -ne 0) { throw 'db seed failed' }
-
-Write-Host 'Building Next.js...'
-npm run build
-if ($LASTEXITCODE -ne 0) { throw 'npm run build failed' }
-
-if (-not $SkipShortcuts) {
-  $batPath = Join-Path $InstallDir 'installer\start-installed.bat'
-  $wsh = New-Object -ComObject WScript.Shell
-  $desktop = [Environment]::GetFolderPath('Desktop')
-  $shortcutPath = Join-Path $desktop 'نظام المشتريات.lnk'
-  $sc = $wsh.CreateShortcut($shortcutPath)
-  $sc.TargetPath = $batPath
-  $sc.WorkingDirectory = $InstallDir
-  $sc.Description = 'Purchase Web System'
-  $sc.Save()
-  Write-Host "Desktop shortcut: $shortcutPath"
-
-  $startMenuDir = Join-Path ([Environment]::GetFolderPath('Programs')) 'PurchaseWebSystem'
-  New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
-  $menuScPath = Join-Path $startMenuDir 'نظام المشتريات.lnk'
-  $sc2 = $wsh.CreateShortcut($menuScPath)
-  $sc2.TargetPath = $batPath
-  $sc2.WorkingDirectory = $InstallDir
-  $sc2.Description = 'Purchase Web System'
-  $sc2.Save()
-  Write-Host "Start menu: $menuScPath"
-}
-
-Write-Host ''
-Write-Host 'Setup complete. Run installer\start-installed.bat or the desktop shortcut.'
-Write-Host 'Default login after seed: admin / admin123'
+Write-Host "Running unified setup: scripts\setup-windows.ps1 -InstallerMode"
+& powershell @setupArgs
+exit $LASTEXITCODE

@@ -7,8 +7,10 @@ import {
   canPrintReports,
   canViewReportCharts,
 } from '@/actions/reports';
+import { getCurrentUser } from '@/lib/permissions';
 
 export default async function UsedDocumentsReportPage() {
+  const user = await getCurrentUser();
   const [data, canExport, canPrint, canCharts] = await Promise.all([
     fetchUsedDocumentsReport({ usageType: 'all' }),
     canExportReports(),
@@ -23,6 +25,7 @@ export default async function UsedDocumentsReportPage() {
         <UsedDocumentsReportClient
           initialData={JSON.parse(JSON.stringify(data))}
           permissions={{ export: canExport, print: canPrint, charts: canCharts }}
+          printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>
     </>

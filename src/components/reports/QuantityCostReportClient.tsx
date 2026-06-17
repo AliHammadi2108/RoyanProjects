@@ -23,12 +23,14 @@ interface QuantityCostReportClientProps {
     items: { id: string; code: string; nameAr: string }[];
   };
   permissions: { export: boolean; print: boolean; charts: boolean; viewCost: boolean };
+  printedBy?: string;
 }
 
 export function QuantityCostReportClient({
   initialData,
   filterOptions,
   permissions,
+  printedBy,
 }: QuantityCostReportClientProps) {
   const [data, setData] = useState(initialData);
   const [viewMode, setViewMode] = useState<ReportViewMode>('grid');
@@ -76,6 +78,7 @@ export function QuantityCostReportClient({
       loading={pending}
       canExport={permissions.export}
       canPrint={permissions.print}
+      printedBy={printedBy}
       canChart={permissions.charts}
       exportFilename="quantity-cost"
       exportColumns={columns.map((c) => ({ key: c.key, label: c.label }))}

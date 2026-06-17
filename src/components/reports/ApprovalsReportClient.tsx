@@ -19,9 +19,10 @@ import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 interface ApprovalsReportClientProps {
   initialData: ReportResult<ApprovalsReportRow>;
   permissions: { export: boolean; print: boolean; charts: boolean };
+  printedBy?: string;
 }
 
-export function ApprovalsReportClient({ initialData, permissions }: ApprovalsReportClientProps) {
+export function ApprovalsReportClient({ initialData, permissions, printedBy }: ApprovalsReportClientProps) {
   const [data, setData] = useState(initialData);
   const [viewMode, setViewMode] = useState<ReportViewMode>('grid');
   const [pending, startTransition] = useTransition();
@@ -71,6 +72,7 @@ export function ApprovalsReportClient({ initialData, permissions }: ApprovalsRep
       loading={pending}
       canExport={permissions.export}
       canPrint={permissions.print}
+      printedBy={printedBy}
       canChart={permissions.charts}
       exportFilename="approvals-report"
       exportColumns={columns.map((c) => ({ key: c.key, label: c.label }))}

@@ -80,12 +80,36 @@ C:\Program Files\PurchaseWebSystem\installer\start-installed.bat
 
 | ملف | الوظيفة |
 |-----|---------|
+| `../scripts/setup-windows.ps1` | **المصدر الوحيد للإعداد** (npm، .env، Prisma، seed، build، تحقق) |
+| `../setup.bat` | يستدعي `setup-windows.ps1` (تثبيت من Git) |
 | `build-installer.ps1` | تجهيز + بناء MSI/EXE |
 | `PurchaseSystem.wxs` | تعريف WiX |
 | `PurchaseSystem.iss` | تعريف Inno Setup |
-| `post-install.ps1` | npm، Prisma، build، اختصارات |
+| `post-install.ps1` | غلاف يستدعي `setup-windows.ps1 -InstallerMode` |
 | `start-installed.bat` | تشغيل الإنتاج بعد التثبيت |
 | `dist\` | مخرجات البناء |
+
+## قاعدة المطوّرين — مزامنة الإعداد
+
+**أي تغيير من الآن فصاعداً يجب تضمينه في الإعداد** إذا كان يؤثر على التثبيت الأول:
+
+| عند إضافة/تعديل | حدّث |
+|-----------------|------|
+| حزمة npm (`xlsx`, `jspdf`, `docx`, …) | `package.json` — `npm install` في الإعداد يكفي؛ أضف للتحقق في `setup-windows.ps1` إن لزم |
+| متغير بيئة | `.env.example` + `setup-windows.ps1` (`$RequiredEnvKeys`) |
+| Prisma schema | `db:push` و `db:seed` مدمجان في الإعداد |
+| بيانات seed (صلاحيات، ثيم، …) | `prisma/seed.ts` |
+| سكربت build جديد | `package.json` + خطوة في `setup-windows.ps1` |
+
+الملفات الإلزامية: `setup.bat`، `scripts/setup-windows.ps1`، `installer/post-install.ps1`، `.env.example`
+
+تفاصيل: [`scripts/sync-setup-checklist.md`](../scripts/sync-setup-checklist.md) و [`.cursor/rules/setup-sync.mdc`](../.cursor/rules/setup-sync.mdc)
+
+### اختبار الإعداد
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-setup-dryrun.ps1
+```
 
 راجع أيضاً: `docs\INSTALL.md` — قسم «تثبيت عبر ملف MSI».
 

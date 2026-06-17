@@ -26,6 +26,7 @@ interface OperationsReportClientProps {
   initialData: ReportResult<OperationsReportRow>;
   filterOptions: FilterOptions;
   permissions: { export: boolean; print: boolean; charts: boolean; viewCost: boolean };
+  printedBy?: string;
 }
 
 const DOC_TYPE_OPTIONS = [
@@ -52,6 +53,7 @@ export function OperationsReportClient({
   initialData,
   filterOptions,
   permissions,
+  printedBy,
 }: OperationsReportClientProps) {
   const [data, setData] = useState(initialData);
   const [viewMode, setViewMode] = useState<ReportViewMode>('grid');
@@ -150,6 +152,7 @@ export function OperationsReportClient({
       loading={pending}
       canExport={permissions.export}
       canPrint={permissions.print}
+      printedBy={printedBy}
       canChart={permissions.charts}
       exportFilename="operations-report"
       exportColumns={EXPORT_COLUMNS}

@@ -1,0 +1,33 @@
+---
+description: "مزامنة سكربتات الإعداد عند تغيير التبعيات أو البيئة أو قاعدة البيانات"
+globs:
+  - setup.bat
+  - scripts/setup-windows.ps1
+  - scripts/install-autostart.ps1
+  - scripts/restart-system.bat
+  - installer/**
+  - package.json
+  - .env.example
+  - prisma/schema.prisma
+  - prisma/seed.ts
+alwaysApply: false
+---
+
+## قاعدة مزامنة الإعداد
+
+عند تعديل **التبعيات** (`package.json`)، **متغيرات البيئة** (`.env.example`)، **مخطط Prisma** (`schema.prisma`)، أو **بيانات seed** (`prisma/seed.ts`) — حدّث سكربتات الإعداد في نفس التغيير:
+
+1. `scripts/setup-windows.ps1` — **المصدر الوحيد** للإعداد
+2. `setup.bat` — يستدعي `setup-windows.ps1` فقط (لا تكرار منطق)
+3. `installer/post-install.ps1` — غلاف `-InstallerMode` فقط
+4. `.env.example` — كل متغير مطلوب للتشغيل
+
+### إعداد كامل يجب أن يغطي
+
+- `npm install` (كل الحزم بما فيها xlsx، jspdf، docx)
+- `.env` من `.env.example` مع `NEXTAUTH_SECRET` و `NEXTAUTH_URL`
+- `npx prisma generate` → `db:push` → `db:seed` → `npm run build`
+- اختصار سطح المكتب؛ PM2 اختياري عبر `install-autostart.ps1`
+- تحقق post-setup في `setup-windows.ps1` (`Test-SetupArtifacts`)
+
+راجع `scripts/sync-setup-checklist.md` و `installer/README.md`.

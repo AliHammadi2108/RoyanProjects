@@ -29,6 +29,7 @@ export default async function QuantityCostReportPage() {
           initialData={JSON.parse(JSON.stringify(data))}
           filterOptions={filterOptions}
           permissions={{ export: canExport, print: canPrint, charts: canCharts, viewCost }}
+          printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>
     </>

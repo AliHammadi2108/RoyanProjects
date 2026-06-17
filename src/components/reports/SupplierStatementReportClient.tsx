@@ -33,6 +33,7 @@ interface SupplierStatementReportClientProps {
   suppliers: SupplierOption[];
   currencies: { id: string; code: string; nameAr: string }[];
   permissions: { export: boolean; print: boolean; viewBalance: boolean };
+  printedBy?: string;
 }
 
 const EXPORT_COLUMNS = [
@@ -61,6 +62,7 @@ export function SupplierStatementReportClient({
   suppliers: initialSuppliers,
   currencies,
   permissions,
+  printedBy,
 }: SupplierStatementReportClientProps) {
   const router = useRouter();
   const [suppliers, setSuppliers] = useState(initialSuppliers);
@@ -220,6 +222,7 @@ export function SupplierStatementReportClient({
           loading={pending}
           canExport={permissions.export}
           canPrint={permissions.print}
+          printedBy={printedBy}
           canChart={false}
           exportFilename="supplier-statement"
           exportColumns={EXPORT_COLUMNS}

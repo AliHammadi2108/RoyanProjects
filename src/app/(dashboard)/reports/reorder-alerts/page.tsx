@@ -8,12 +8,14 @@ import {
   canCreatePrFromReorderAlert,
   fetchReorderAlertFilterOptions,
 } from '@/actions/reorder-alerts';
+import { getCurrentUser } from '@/lib/permissions';
 
 export default async function ReorderAlertsReportPage({
   searchParams,
 }: {
   searchParams: { itemId?: string; warehouseId?: string };
 }) {
+  const user = await getCurrentUser();
   const [data, canExport, canPrint, canCreatePr, filterOptions] = await Promise.all([
     fetchReorderAlertsReport({
       alertStatus: 'open',
@@ -34,6 +36,7 @@ export default async function ReorderAlertsReportPage({
           initialData={JSON.parse(JSON.stringify(data))}
           permissions={{ export: canExport, print: canPrint, createPr: canCreatePr }}
           filterOptions={JSON.parse(JSON.stringify(filterOptions))}
+          printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>
     </>

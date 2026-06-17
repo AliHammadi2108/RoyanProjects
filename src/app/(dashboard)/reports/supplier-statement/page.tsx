@@ -8,8 +8,10 @@ import {
   canViewSupplierStatementBalance,
 } from '@/actions/reports';
 import { prisma } from '@/lib/db';
+import { getCurrentUser } from '@/lib/permissions';
 
 export default async function SupplierStatementReportPage() {
+  const user = await getCurrentUser();
   const [suppliers, canExport, canPrint, viewBalance] = await Promise.all([
     fetchSuppliersForStatement(),
     canExportReports(),
@@ -35,6 +37,7 @@ export default async function SupplierStatementReportPage() {
             print: canPrint,
             viewBalance,
           }}
+          printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>
     </>

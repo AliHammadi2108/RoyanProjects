@@ -3,15 +3,32 @@
 .SYNOPSIS
   Installs Purchase Web System to start automatically on Windows (PM2 + startup).
 .DESCRIPTION
-  Run PowerShell as Administrator from project root:
+  Run setup first: setup.bat or scripts\setup-windows.ps1
+  Then run PowerShell as Administrator:
   .\scripts\install-autostart.ps1
 #>
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path; $ProjectRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 Set-Location $ProjectRoot
+
+if (-not (Test-Path (Join-Path $ProjectRoot ".env"))) {
+  throw "ملف .env غير موجود. شغّل setup.bat أولاً."
+}
+if (-not (Test-Path (Join-Path $ProjectRoot ".next\BUILD_ID"))) {
+  throw "لا يوجد build (.next). شغّل setup.bat أولاً."
+}
 
 $logDir = Join-Path $ProjectRoot "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+$ecoPath = Join-Path $ProjectRoot "ecosystem.config.cjs"
+if (-not (Test-Path $ecoPath)) {
+  $ecoPath = Join-Path $ProjectRoot "scripts\ecosystem.config.cjs"
+}
+if (-not (Test-Path $ecoPath)) {
+  throw "ecosystem.config.cjs غير موجود"
+}
 
 function Free-Port3000 {
   $conns = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
@@ -44,7 +61,7 @@ if (-not (Test-Path (Join-Path $ProjectRoot ".next"))) {
 Free-Port3000
 Write-Host "Configuring PM2..."
 pm2 delete purchase-web-system 2>$null
-pm2 start (Join-Path $ProjectRoot "ecosystem.config.cjs")
+pm2 start $ecoPath
 pm2 save
 
 $startupCmd = Get-Command pm2-startup -ErrorAction SilentlyContinue

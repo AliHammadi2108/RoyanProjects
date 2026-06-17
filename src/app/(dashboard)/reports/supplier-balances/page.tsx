@@ -29,6 +29,7 @@ export default async function SupplierBalancesReportPage() {
           initialData={JSON.parse(JSON.stringify(data))}
           suppliers={filterOptions.suppliers}
           permissions={{ export: canExport, print: canPrint, charts: canCharts, viewBalance }}
+          printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>
     </>

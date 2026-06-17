@@ -7,8 +7,10 @@ import {
   canPrintReports,
   canViewReportCharts,
 } from '@/actions/reports';
+import { getCurrentUser } from '@/lib/permissions';
 
 export default async function ApprovalsReportPage() {
+  const user = await getCurrentUser();
   const [data, canExport, canPrint, canCharts] = await Promise.all([
     fetchApprovalsReport({}),
     canExportReports(),
@@ -23,6 +25,7 @@ export default async function ApprovalsReportPage() {
         <ApprovalsReportClient
           initialData={JSON.parse(JSON.stringify(data))}
           permissions={{ export: canExport, print: canPrint, charts: canCharts }}
+          printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>
     </>

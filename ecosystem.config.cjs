@@ -1,6 +1,6 @@
 const path = require("path");
 
-const projectRoot = "E:\\Purchase_Web_System";
+const projectRoot = path.resolve(__dirname);
 
 module.exports = {
   apps: [

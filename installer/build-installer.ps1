@@ -34,7 +34,7 @@ function Invoke-StageProject {
 
   if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
-  # Ensure installer helpers exist in staged copy
+  # Ensure installer helpers exist in staged copy (setup core lives in scripts/setup-windows.ps1 via robocopy)
   $helperFiles = @('post-install.ps1', 'start-installed.bat', 'PurchaseSystem.iss', 'PurchaseSystem.wxs', 'build-installer.ps1', 'README.md')
   foreach ($f in $helperFiles) {
     $src = Join-Path $InstallerRoot $f

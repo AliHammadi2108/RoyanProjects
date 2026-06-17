@@ -15,7 +15,9 @@ echo ========================================
 echo.
 
 if not exist "%ROOT%\.env" (
-  echo [خطأ] ملف .env غير موجود. شغّل installer\post-install.ps1
+  echo [خطأ] ملف .env غير موجود.
+  echo شغّل: powershell -ExecutionPolicy Bypass -File installer\post-install.ps1
+  echo أو: powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1 -InstallerMode
   pause
   exit /b 1
 )

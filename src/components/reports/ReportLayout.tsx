@@ -3,7 +3,8 @@
 import { ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { ReportViewToggle, type ReportViewMode } from './ReportViewToggle';
-import { ReportExport } from './ReportExport';
+import { ReportExportMenu } from './ReportExportMenu';
+import { PrintFooter } from '@/components/ui/PrintFooter';
 
 export interface ReportSummaryItem {
   label: string;
@@ -25,6 +26,7 @@ interface ReportLayoutProps {
   exportRows: Record<string, unknown>[];
   summary?: ReportSummaryItem[];
   filters?: ReactNode;
+  printedBy?: string;
   children: ReactNode;
 }
 
@@ -43,6 +45,7 @@ export function ReportLayout({
   exportRows,
   summary,
   filters,
+  printedBy,
   children,
 }: ReportLayoutProps) {
   return (
@@ -58,10 +61,13 @@ export function ReportLayout({
             onChange={onViewModeChange}
             canChart={canChart}
           />
-          <ReportExport
+          <ReportExportMenu
             filename={exportFilename}
+            title={title}
+            subtitle={subtitle}
             columns={exportColumns}
             rows={exportRows}
+            summary={summary}
             canExport={canExport}
             canPrint={canPrint}
           />
@@ -91,6 +97,8 @@ export function ReportLayout({
       ) : null}
 
       <div className={loading ? 'opacity-60 pointer-events-none' : ''}>{children}</div>
+
+      {printedBy ? <PrintFooter printedBy={printedBy} /> : null}
     </div>
   );
 }

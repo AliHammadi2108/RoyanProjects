@@ -39,9 +39,11 @@ import {
   Palette,
   type LucideIcon,
 } from 'lucide-react';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { CurrentUserDisplay } from '@/components/layout/CurrentUserDisplay';
+import { useNotificationUnread } from '@/contexts/NotificationContext';
+import { clearLoginNotificationSession } from '@/lib/notification-session';
 
 type NavItem = {
   href: string;
@@ -125,12 +127,13 @@ function groupHasActiveItem(group: NavGroup, pathname: string) {
 }
 
 interface SidebarProps {
-  unreadCount?: number;
   allowedHrefs: string[];
 }
 
-export function Sidebar({ unreadCount = 0, allowedHrefs }: SidebarProps) {
+export function Sidebar({ allowedHrefs }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const unreadCount = useNotificationUnread();
   const allowedSet = new Set(allowedHrefs);
   const visibleGroups = navGroups
     .map((group) => ({
@@ -244,7 +247,10 @@ export function Sidebar({ unreadCount = 0, allowedHrefs }: SidebarProps) {
       <div className="p-3 border-t border-gray-200 space-y-2">
         <CurrentUserDisplay />
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={() => {
+            clearLoginNotificationSession(session?.user?.id);
+            signOut({ callbackUrl: '/login' });
+          }}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
         >
           <LogOut className="w-4 h-4" />

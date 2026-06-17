@@ -6,11 +6,10 @@ import { CurrentUserDisplay } from '@/components/layout/CurrentUserDisplay';
 interface HeaderProps {
   title: string;
   subtitle?: string;
-  unreadCount?: number;
   actions?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, unreadCount = 0, actions }: HeaderProps) {
+export function Header({ title, subtitle, actions }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between print:hidden">
       <div>
@@ -20,7 +19,7 @@ export function Header({ title, subtitle, unreadCount = 0, actions }: HeaderProp
       <div className="flex items-center gap-4">
         {actions}
         <CurrentUserDisplay compact showDateTime />
-        <NotificationCenter initialUnread={unreadCount} />
+        <NotificationCenter />
       </div>
     </header>
   );

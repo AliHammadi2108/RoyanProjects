@@ -3,15 +3,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Bell, X, AlertTriangle } from 'lucide-react';
 import {
   fetchDropdownNotifications,
   fetchUnreadCount,
   dismissHeaderNotification,
 } from '@/actions/common';
+import { useNotificationActions, useNotificationUnread } from '@/contexts/NotificationContext';
+import {
+  ensureLoginNotificationSession,
+  getLoginModalSeenIds,
+  rememberLoginModalSeenIds,
+} from '@/lib/notification-session';
 import { formatDateTime } from '@/lib/utils';
-
-const LOGIN_MODAL_SEEN_KEY = 'notification-login-modal-seen-ids';
 
 interface NotificationRow {
   id: string;
@@ -23,10 +28,6 @@ interface NotificationRow {
   createdAt: string;
   actionUrl?: string | null;
   route?: string | null;
-}
-
-interface NotificationCenterProps {
-  initialUnread?: number;
 }
 
 function normalizeNotifications(
@@ -45,100 +46,110 @@ function normalizeNotifications(
   }));
 }
 
-function getLoginModalSeenIds(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const raw = sessionStorage.getItem(LOGIN_MODAL_SEEN_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as string[];
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function rememberLoginModalSeenIds(ids: string[]) {
-  if (typeof window === 'undefined' || ids.length === 0) return;
-  const seen = getLoginModalSeenIds();
-  ids.forEach((id) => seen.add(id));
-  sessionStorage.setItem(LOGIN_MODAL_SEEN_KEY, JSON.stringify(Array.from(seen)));
-}
-
-export function NotificationCenter({ initialUnread = 0 }: NotificationCenterProps) {
+export function NotificationCenter() {
   const router = useRouter();
-  const [unread, setUnread] = useState(initialUnread);
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id;
+  const unread = useNotificationUnread();
+  const { setUnread, bumpUnread } = useNotificationActions();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginItems, setLoginItems] = useState<NotificationRow[]>([]);
+  const [loginModalChecked, setLoginModalChecked] = useState(false);
 
   const loadUnread = useCallback(async () => {
     try {
       const count = await fetchUnreadCount();
       setUnread(count);
+      return count;
     } catch {
-      // ignore polling errors
+      return null;
     }
-  }, []);
+  }, [setUnread]);
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const { notifications } = await fetchDropdownNotifications();
-      setItems(normalizeNotifications(notifications));
+      const normalized = normalizeNotifications(notifications);
+      setItems(normalized);
+      return normalized;
+    } catch {
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadUnread();
-    const interval = setInterval(loadUnread, 30000);
-    return () => clearInterval(interval);
-  }, [loadUnread]);
+  const evaluateLoginModal = useCallback(
+    (notifications: NotificationRow[]) => {
+      if (!userId) return;
+      ensureLoginNotificationSession(userId);
+      const seenIds = getLoginModalSeenIds(userId);
+      const freshForModal = notifications.filter((n) => !seenIds.has(n.id));
+      if (freshForModal.length > 0) {
+        setLoginItems(freshForModal);
+        setShowLoginModal(true);
+      }
+    },
+    [userId]
+  );
 
   useEffect(() => {
+    if (status !== 'authenticated' || !userId) return;
+
     let cancelled = false;
-    (async () => {
-      try {
-        const { notifications } = await fetchDropdownNotifications();
-        const unreadList = normalizeNotifications(notifications);
-        const seenIds = getLoginModalSeenIds();
-        const freshForModal = unreadList.filter((n) => !seenIds.has(n.id));
-        if (!cancelled && freshForModal.length > 0) {
-          setLoginItems(freshForModal);
-          setShowLoginModal(true);
+
+    const refresh = async () => {
+      const count = await loadUnread();
+      if (cancelled) return;
+
+      if (!loginModalChecked) {
+        try {
+          const { notifications } = await fetchDropdownNotifications();
+          if (cancelled) return;
+          const unreadList = normalizeNotifications(notifications);
+          if (count === 0 && unreadList.length > 0) {
+            setUnread(unreadList.length);
+          }
+          evaluateLoginModal(unreadList);
+        } finally {
+          if (!cancelled) setLoginModalChecked(true);
         }
-      } catch {
-        // ignore
       }
-    })();
+    };
+
+    refresh();
+    const interval = setInterval(loadUnread, 30000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
-  }, []);
+  }, [status, userId, loadUnread, loginModalChecked, evaluateLoginModal, setUnread]);
 
   useEffect(() => {
-    if (open) loadNotifications();
-  }, [open, loadNotifications]);
+    if (open && status === 'authenticated') {
+      loadNotifications();
+    }
+  }, [open, status, loadNotifications]);
 
   const dismissLocally = (id: string) => {
     setItems((prev) => prev.filter((n) => n.id !== id));
     setLoginItems((prev) => prev.filter((n) => n.id !== id));
-    setUnread((c) => Math.max(0, c - 1));
+    bumpUnread(-1);
   };
 
   const navigate = async (n: NotificationRow) => {
     dismissLocally(n.id);
-    rememberLoginModalSeenIds([n.id]);
+    if (userId) rememberLoginModalSeenIds(userId, [n.id]);
     setOpen(false);
     setShowLoginModal(false);
 
     try {
       await dismissHeaderNotification(n.id);
     } catch {
-      // restore on failure
       await loadNotifications();
       await loadUnread();
     }
@@ -149,11 +160,24 @@ export function NotificationCenter({ initialUnread = 0 }: NotificationCenterProp
   };
 
   const handleDismissLoginModal = () => {
-    rememberLoginModalSeenIds(loginItems.map((n) => n.id));
+    if (userId) rememberLoginModalSeenIds(userId, loginItems.map((n) => n.id));
     setShowLoginModal(false);
   };
 
   const highPriorityLogin = loginItems.filter((n) => n.priority === 'High');
+
+  if (status === 'loading') {
+    return (
+      <button
+        type="button"
+        className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        aria-label="التنبيهات"
+        disabled
+      >
+        <Bell className="w-5 h-5 text-gray-400" />
+      </button>
+    );
+  }
 
   return (
     <>
@@ -254,7 +278,7 @@ export function NotificationCenter({ initialUnread = 0 }: NotificationCenterProp
                 href="/notifications"
                 className="btn-primary flex-1 text-center"
                 onClick={() => {
-                  rememberLoginModalSeenIds(loginItems.map((n) => n.id));
+                  if (userId) rememberLoginModalSeenIds(userId, loginItems.map((n) => n.id));
                   setShowLoginModal(false);
                   setOpen(false);
                 }}

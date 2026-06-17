@@ -8,6 +8,7 @@ import {
 } from '@/lib/screen-access';
 import { Providers } from '@/components/Providers';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { fetchUnreadCount } from '@/actions/common';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -47,12 +48,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <Providers>
-      <div id="dashboard-app-shell" className="min-h-screen print:min-h-0 print:bg-white" style={{ backgroundColor: 'rgb(var(--surface-body))' }}>
-        <Sidebar unreadCount={unreadCount} allowedHrefs={allowedHrefs} />
-        <main className="mr-64 min-h-screen print:mr-0 print:min-h-0 print:w-full print:max-w-none">
-          {children}
-        </main>
-      </div>
+      <NotificationProvider initialUnread={unreadCount}>
+        <div id="dashboard-app-shell" className="min-h-screen print:min-h-0 print:bg-white" style={{ backgroundColor: 'rgb(var(--surface-body))' }}>
+          <Sidebar allowedHrefs={allowedHrefs} />
+          <main className="mr-64 min-h-screen print:mr-0 print:min-h-0 print:w-full print:max-w-none">
+            {children}
+          </main>
+        </div>
+      </NotificationProvider>
     </Providers>
   );
 }

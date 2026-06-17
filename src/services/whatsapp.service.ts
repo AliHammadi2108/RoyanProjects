@@ -105,7 +105,15 @@ export async function queueNotificationWhatsApp(input: QueueNotificationWhatsApp
     link: input.link,
   });
 
-  void sendWhatsAppText({ toPhone: user.phone, message: body }).catch((err) => {
-    console.error('[whatsapp] auto notification failed:', err);
-  });
+  void sendWhatsAppText({ toPhone: user.phone, message: body })
+    .then((result) => {
+      if (result.success) {
+        console.info('[whatsapp] auto notification sent:', result.messageId);
+      } else {
+        console.error('[whatsapp] auto notification failed:', result.error);
+      }
+    })
+    .catch((err) => {
+      console.error('[whatsapp] auto notification error:', err);
+    });
 }

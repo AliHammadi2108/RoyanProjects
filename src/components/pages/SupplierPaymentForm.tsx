@@ -252,7 +252,10 @@ export function SupplierPaymentForm({
     whatsappMeta: {
       supplierPhone: supplierPhoneFromMaster(masterData.suppliers, form.supplierId),
       partyName: masterData.suppliers.find((s) => s.id === form.supplierId)?.nameAr,
-      total: formatCurrency(form.totalAmount),
+      totalAmount: form.totalAmount,
+      currency:
+        masterData.currencies.find((c) => c.id === form.currencyId) ??
+        (existing?.currency as { symbol?: string; code?: string }),
     },
   });
 

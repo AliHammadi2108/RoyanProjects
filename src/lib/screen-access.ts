@@ -30,6 +30,7 @@ export const SCREEN_NAV_ITEMS = [
   { href: '/settings/user-permissions', permission: 'access.users.view', group: 'administration' },
   { href: '/settings/change-password', permission: 'profile.change_own_password', group: 'administration' },
   { href: '/settings/appearance', permission: 'profile.theme.view', group: 'administration' },
+  { href: '/settings/whatsapp', permission: 'whatsapp.configure', group: 'administration' },
   { href: '/settings/supplier-permissions', permission: 'access.supplier_permissions.view', group: 'administration' },
   { href: '/settings/approval-rules', permission: 'access.approval_rules.view', group: 'administration' },
   { href: '/settings/approval-requests', permission: 'access.approval_requests.view', group: 'administration' },

@@ -93,6 +93,8 @@ const MASTER_PERMISSIONS = [
   { name: 'operations.view_reports', nameAr: 'عرض التقارير', module: 'operations', screenCode: 'reports', action: 'view' },
   { name: 'operations.print', nameAr: 'طباعة العمليات', module: 'operations', screenCode: 'print', action: 'print' },
   { name: 'whatsapp.send', nameAr: 'إرسال واتساب', module: 'operations', screenCode: 'whatsapp', action: 'send' },
+  { name: 'whatsapp.configure', nameAr: 'إعداد واتساب', module: 'operations', screenCode: 'whatsapp', action: 'configure' },
+  { name: 'whatsapp.auto', nameAr: 'الإرسال التلقائي لواتساب', module: 'operations', screenCode: 'whatsapp', action: 'auto' },
 ];
 
 const REPORT_PERMISSIONS = [

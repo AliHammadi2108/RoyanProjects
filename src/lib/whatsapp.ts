@@ -1,5 +1,11 @@
 import { DOCUMENT_LABELS_AR, DOCUMENT_ROUTES } from '@/lib/constants';
 import { OPERATION_CONFIG, type OperationType } from '@/lib/operation-toolbar';
+import { getStatusLabel } from '@/lib/status-labels';
+import {
+  formatDocumentCurrency,
+  resolveDocumentCurrency,
+  type CurrencyLike,
+} from '@/lib/utils';
 
 /** Strip non-digits; keep leading + if present for display. */
 export function stripPhoneDigits(phone: string): string {
@@ -9,24 +15,38 @@ export function stripPhoneDigits(phone: string): string {
   return hasPlus ? `+${digits}` : digits;
 }
 
+/** Default country code for local numbers — Yemen (+967) unless overridden in .env */
+export function getDefaultCountryCode(): string {
+  const raw = process.env.WHATSAPP_DEFAULT_COUNTRY_CODE?.trim().replace(/\D/g, '');
+  return raw || '967';
+}
+
 /**
  * Normalize to E.164-ish digits for wa.me (no + prefix in URL path).
- * Defaults Saudi (+966) when local number starts with 0 or 9-digit mobile.
+ * Prepends WHATSAPP_DEFAULT_COUNTRY_CODE (default 967) for local numbers.
  */
-export function normalizePhoneToE164(phone: string, defaultCountryCode = '966'): string | null {
+export function normalizePhoneToE164(
+  phone: string,
+  defaultCountryCode = getDefaultCountryCode()
+): string | null {
   const raw = stripPhoneDigits(phone);
   if (!raw) return null;
 
   let digits = raw.replace(/^\+/, '');
   if (digits.startsWith('00')) digits = digits.slice(2);
 
-  if (digits.startsWith(defaultCountryCode) && digits.length >= 11) {
+  const minIntlLen = defaultCountryCode.length + 8;
+  if (digits.startsWith(defaultCountryCode) && digits.length >= minIntlLen) {
+    return digits;
+  }
+
+  if (digits.length >= 11 && !digits.startsWith('0')) {
     return digits;
   }
 
   if (digits.startsWith('0')) {
     digits = defaultCountryCode + digits.slice(1);
-  } else if (digits.length === 9 && /^5/.test(digits)) {
+  } else if (digits.length === 9) {
     digits = defaultCountryCode + digits;
   }
 
@@ -109,6 +129,38 @@ export interface DocumentWhatsAppInput {
   documentUrl?: string;
   printUrl?: string;
   extraLines?: string[];
+}
+
+export interface WhatsAppDocumentAmountInput {
+  totalAmount?: number;
+  currency?: CurrencyLike;
+}
+
+/** Format document total for WhatsApp using stored document currency (not default SAR). */
+export function formatWhatsAppDocumentTotal(
+  existing: Record<string, unknown> | undefined,
+  meta?: WhatsAppDocumentAmountInput
+): string | undefined {
+  const currency = meta?.currency ?? resolveDocumentCurrency(
+    existing as { currency?: CurrencyLike; purchaseOrder?: { currency?: CurrencyLike } }
+  );
+
+  const amount =
+    meta?.totalAmount ??
+    (existing?.netTotal != null
+      ? Number(existing.netTotal)
+      : existing?.totalAmount != null
+        ? Number(existing.totalAmount)
+        : existing?.total != null
+          ? Number(existing.total)
+          : undefined);
+
+  if (amount == null || Number.isNaN(amount)) return undefined;
+  return formatDocumentCurrency(amount, currency);
+}
+
+export function formatWhatsAppDocumentStatus(status?: string | null): string | undefined {
+  return getStatusLabel(status);
 }
 
 export function formatDocumentMessage(input: DocumentWhatsAppInput): string {
@@ -226,6 +278,11 @@ export function isWhatsAppCloudApiConfigured(): boolean {
     process.env.WHATSAPP_CLOUD_API_TOKEN?.trim() &&
       process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()
   );
+}
+
+/** Alias used by server actions / settings UI */
+export function isWhatsAppApiConfigured(): boolean {
+  return isWhatsAppCloudApiConfigured();
 }
 
 export function isWhatsAppAutoNotifyEnabled(): boolean {

@@ -7,7 +7,9 @@ import { DocumentWhatsAppButton } from '@/components/ui/DocumentWhatsAppButton';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { useOperationToolbar } from '@/hooks/useOperationToolbar';
 import type { OperationType, ToolbarButtonId } from '@/lib/operation-toolbar';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate, type CurrencyLike } from '@/lib/utils';
+import { formatWhatsAppDocumentTotal } from '@/lib/whatsapp';
+import { getStatusLabel } from '@/lib/status-labels';
 
 interface ApprovalLike {
   id: string;
@@ -15,7 +17,8 @@ interface ApprovalLike {
 }
 
 export interface WhatsAppFormMeta {
-  total?: string;
+  totalAmount?: number;
+  currency?: CurrencyLike;
   supplierPhone?: string | null;
   partyName?: string;
   documentDate?: string;
@@ -149,22 +152,19 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
         : formatDate(String(rawDate))
       : undefined;
 
-    const rawTotal =
-      options.whatsappMeta?.total ??
-      (existing?.netTotal != null
-        ? formatCurrency(Number(existing.netTotal))
-        : existing?.totalAmount != null
-          ? formatCurrency(Number(existing.totalAmount))
-          : existing?.total != null
-            ? formatCurrency(Number(existing.total))
-            : undefined);
+    const rawTotal = formatWhatsAppDocumentTotal(existing, {
+      totalAmount: options.whatsappMeta?.totalAmount,
+      currency: options.whatsappMeta?.currency,
+    });
+
+    const statusLabel = getStatusLabel(status);
 
     return createElement(DocumentWhatsAppButton, {
       operationType,
       documentId,
       documentNo: docNo,
       documentDate,
-      status,
+      status: statusLabel,
       total: rawTotal,
       partyName: options.whatsappMeta?.partyName,
       supplierPhone: options.whatsappMeta?.supplierPhone,

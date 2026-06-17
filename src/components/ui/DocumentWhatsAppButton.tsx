@@ -1,11 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { WhatsAppShareButton } from '@/components/ui/WhatsAppShareButton';
+import { getWhatsAppDefaultPhone } from '@/actions/whatsapp';
 import {
   buildAbsoluteUrl,
   formatDocumentMessage,
+  formatWhatsAppDocumentStatus,
   getDocumentPrintPath,
   getDocumentTypeLabelAr,
   getDocumentViewPath,
@@ -43,9 +45,17 @@ export function DocumentWhatsAppButton({
   const canSend = canWhatsApp(permissions);
   const noPermission = 'ليس لديك صلاحية إرسال واتساب';
   const userPhone = (session?.user as { phone?: string } | undefined)?.phone;
+  const [serverPhone, setServerPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    getWhatsAppDefaultPhone(supplierPhone).then(setServerPhone);
+  }, [supplierPhone]);
+
   const defaultPhone = useMemo(
-    () => resolveDefaultWhatsAppPhone(supplierPhone, userPhone),
-    [supplierPhone, userPhone]
+    () =>
+      resolveDefaultWhatsAppPhone(supplierPhone, userPhone) ??
+      serverPhone,
+    [supplierPhone, userPhone, serverPhone]
   );
 
   const message = useMemo(() => {
@@ -55,7 +65,7 @@ export function DocumentWhatsAppButton({
       docTypeLabel: getDocumentTypeLabelAr(operationType),
       documentNo,
       documentDate,
-      status,
+      status: formatWhatsAppDocumentStatus(status),
       total,
       partyName,
       documentUrl: buildAbsoluteUrl(viewPath),

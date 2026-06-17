@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Loader2, MessageCircle, X } from 'lucide-react';
+import { ChevronDown, Loader2, MessageCircle, X } from 'lucide-react';
 import { sendWhatsAppMessageAction, getWhatsAppApiStatus } from '@/actions/whatsapp';
 import { buildWhatsAppUrl, normalizePhoneToE164, openWhatsAppUrl } from '@/lib/whatsapp';
+import { cn } from '@/lib/utils';
 
 interface WhatsAppSendModalProps {
   message: string;
@@ -18,9 +19,14 @@ export function WhatsAppSendModal({
 }: WhatsAppSendModalProps) {
   const [phone, setPhone] = useState(defaultPhone || '');
   const [apiConfigured, setApiConfigured] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setPhone(defaultPhone || '');
+  }, [defaultPhone]);
 
   useEffect(() => {
     getWhatsAppApiStatus().then((s) => setApiConfigured(s.configured));
@@ -68,21 +74,26 @@ export function WhatsAppSendModal({
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto flex-1">
+          <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
+            <strong>الإرسال اليدوي</strong> يفتح تطبيق واتساب ويعمل <strong>بدون أي إعداد</strong> أو
+            مفاتيح API.
+          </div>
+
           <div>
             <label className="form-label" htmlFor="wa-phone">
-              رقم المستلم (E.164)
+              رقم المستلم
             </label>
             <input
               id="wa-phone"
               type="tel"
               dir="ltr"
               className="form-input text-left"
-              placeholder="+966501234567"
+              placeholder="+967773084555"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
             <p className="text-xs text-gray-500 mt-1">
-              أدخل الرقم مع رمز الدولة. مثال: 966501234567 أو 0501234567
+              أدخل الرقم مع رمز الدولة. مثال: +967773084555 أو 0773084555
             </p>
           </div>
 
@@ -103,6 +114,31 @@ export function WhatsAppSendModal({
               {success}
             </div>
           ) : null}
+
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+            >
+              <span>إعداد متقدم — إرسال تلقائي (اختياري)</span>
+              <ChevronDown className={cn('w-4 h-4 shrink-0 transition-transform', showAdvanced && 'rotate-180')} />
+            </button>
+            {showAdvanced ? (
+              <div className="px-3 pb-3 pt-1 text-sm text-gray-600 space-y-2 border-t border-gray-100">
+                <p>
+                  الإرسال التلقائي يرسل الرسالة من الخادم مباشرة دون فتح واتساب، ويتطلب إعداد
+                  WhatsApp Cloud API في ملف <code dir="ltr">.env</code> على الخادم.
+                </p>
+                {!apiConfigured ? (
+                  <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+                    الإرسال التلقائي غير مفعّل حالياً. يمكنك استخدام زر «فتح واتساب» أعلاه دون أي
+                    إعداد.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 p-4 border-t">
@@ -110,28 +146,27 @@ export function WhatsAppSendModal({
             type="button"
             onClick={handleManual}
             disabled={!phoneValid}
-            className="btn-secondary flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5"
+            className="btn-primary flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700"
           >
             فتح واتساب
           </button>
-          {apiConfigured ? (
+          {showAdvanced && apiConfigured ? (
             <button
               type="button"
               onClick={handleAutoSend}
               disabled={!phoneValid || isPending}
-              className="btn-primary flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700"
+              className="btn-secondary flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5"
             >
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               إرسال تلقائي
             </button>
-          ) : (
-            <p className="text-xs text-gray-500 w-full">
-              الإرسال التلقائي غير مفعّل — أضف مفاتيح WhatsApp Cloud API في ملف .env
-            </p>
-          )}
+          ) : null}
           <button type="button" onClick={onClose} className="btn-secondary w-full sm:w-auto">
             إلغاء
           </button>
+          <p className="text-xs text-gray-500 w-full">
+            الإرسال اليدوي يعمل بدون إعداد. للإرسال التلقائي فقط: راجع إعدادات الخادم (.env).
+          </p>
         </div>
       </div>
     </div>

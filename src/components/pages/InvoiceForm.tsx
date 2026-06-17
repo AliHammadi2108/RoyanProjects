@@ -174,7 +174,10 @@ export function InvoiceForm({
       partyName: masterData.suppliers.find(
         (s) => s.id === ((existing?.supplierId as string) || form.supplierId)
       )?.nameAr,
-      total: formatCurrency(netTotal),
+      totalAmount: netTotal,
+      currency:
+        (existing?.currency as { symbol?: string; code?: string }) ??
+        masterData.currencies.find((c) => c.id === (existing?.currencyId as string)),
     },
   });
 

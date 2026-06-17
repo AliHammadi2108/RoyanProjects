@@ -4,6 +4,8 @@ import {
   formatDocumentMessage,
   formatNotificationMessage,
   formatReportMessage,
+  formatWhatsAppDocumentTotal,
+  formatWhatsAppDocumentStatus,
   normalizePhoneToE164,
   resolveDefaultWhatsAppPhone,
   stripPhoneDigits,
@@ -12,8 +14,13 @@ import {
 describe('whatsapp', () => {
   describe('normalizePhoneToE164', () => {
     it('normalizes Saudi local numbers', () => {
-      expect(normalizePhoneToE164('0501234567')).toBe('966501234567');
-      expect(normalizePhoneToE164('+966 50 123 4567')).toBe('966501234567');
+      expect(normalizePhoneToE164('0501234567', '966')).toBe('966501234567');
+      expect(normalizePhoneToE164('+966 50 123 4567', '966')).toBe('966501234567');
+    });
+
+    it('normalizes Yemen local numbers', () => {
+      expect(normalizePhoneToE164('0773084555')).toBe('967773084555');
+      expect(normalizePhoneToE164('773084555')).toBe('967773084555');
     });
 
     it('keeps international numbers', () => {
@@ -47,8 +54,13 @@ describe('whatsapp', () => {
   });
 
   describe('buildWhatsAppUrl', () => {
+    it('builds url with Yemen default country code', () => {
+      const url = buildWhatsAppUrl('مرحباً', '0773084555');
+      expect(url).toMatch(/^https:\/\/wa\.me\/967773084555\?text=/);
+    });
+
     it('encodes Arabic text in query string', () => {
-      const url = buildWhatsAppUrl('مرحباً — تقرير وثيقة', '0501234567');
+      const url = buildWhatsAppUrl('مرحباً — تقرير وثيقة', '966501234567');
       expect(url).toMatch(/^https:\/\/wa\.me\/966501234567\?text=/);
       expect(decodeURIComponent(url.split('text=')[1])).toBe('مرحباً — تقرير وثيقة');
     });
@@ -74,6 +86,45 @@ describe('whatsapp', () => {
       expect(msg).toContain('معتمدة');
       expect(msg).toContain('1,500.00 ر.س');
       expect(msg).toContain('http://localhost:3000/purchases/invoices/abc');
+    });
+
+    it('uses YER symbol from document currency not default SAR', () => {
+      const total = formatWhatsAppDocumentTotal(
+        { totalAmount: 30000, currency: { symbol: 'ر.ي', code: 'YER' } },
+        undefined
+      );
+      expect(total).toContain('ر.ي');
+      expect(total).not.toContain('ر.س');
+      expect(total).toContain('30,000.00');
+
+      const msg = formatDocumentMessage({
+        docTypeLabel: 'طلب شراء',
+        documentNo: 'PR-001',
+        status: formatWhatsAppDocumentStatus('Pending Approval'),
+        total,
+      });
+      expect(msg).toContain('30,000.00 ر.ي');
+      expect(msg).toContain('بانتظار الاعتماد');
+      expect(msg).not.toContain('Pending Approval');
+      expect(msg).not.toContain('ر.س');
+    });
+  });
+
+  describe('formatWhatsAppDocumentTotal', () => {
+    it('reads amount and currency from existing document', () => {
+      const formatted = formatWhatsAppDocumentTotal({
+        totalAmount: 1500,
+        currency: { symbol: 'ر.ي', code: 'YER' },
+      });
+      expect(formatted).toBe('1,500.00 ر.ي');
+    });
+
+    it('prefers meta totalAmount over existing when editing', () => {
+      const formatted = formatWhatsAppDocumentTotal(
+        { totalAmount: 1000, currency: { symbol: 'ر.س', code: 'SAR' } },
+        { totalAmount: 2500, currency: { symbol: 'ر.ي', code: 'YER' } }
+      );
+      expect(formatted).toBe('2,500.00 ر.ي');
     });
   });
 

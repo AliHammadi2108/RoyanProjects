@@ -37,6 +37,7 @@ import {
   AlertTriangle,
   KeyRound,
   Palette,
+  MessageCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
@@ -113,6 +114,7 @@ const navGroups: NavGroup[] = [
       { href: '/settings/users', label: 'إدارة المستخدمين', icon: Users },
       { href: '/settings/change-password', label: 'الملف الشخصي', icon: KeyRound },
       { href: '/settings/appearance', label: 'إعدادات المظهر', icon: Palette },
+      { href: '/settings/whatsapp', label: 'إعدادات واتساب', icon: MessageCircle },
       { href: '/settings/user-permissions', label: 'صلاحيات المستخدمين', icon: Users },
       { href: '/settings/supplier-permissions', label: 'صلاحيات الموردين', icon: FileKey },
       { href: '/settings/approval-rules', label: 'قواعد الاعتماد', icon: ClipboardList },

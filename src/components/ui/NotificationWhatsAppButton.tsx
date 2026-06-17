@@ -1,9 +1,10 @@
 'use client';
 
 import type { MouseEvent } from 'react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { WhatsAppShareButton } from '@/components/ui/WhatsAppShareButton';
+import { getWhatsAppDefaultPhone } from '@/actions/whatsapp';
 import { buildAbsoluteUrl, formatNotificationMessage, resolveDefaultWhatsAppPhone } from '@/lib/whatsapp';
 import { formatDateTime } from '@/lib/utils';
 
@@ -30,9 +31,15 @@ export function NotificationWhatsAppButton({
 }: NotificationWhatsAppButtonProps) {
   const { data: session } = useSession();
   const userPhone = (session?.user as { phone?: string } | undefined)?.phone;
+  const [serverPhone, setServerPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    getWhatsAppDefaultPhone().then(setServerPhone);
+  }, []);
+
   const defaultPhone = useMemo(
-    () => resolveDefaultWhatsAppPhone(null, userPhone),
-    [userPhone]
+    () => resolveDefaultWhatsAppPhone(null, userPhone) ?? serverPhone,
+    [userPhone, serverPhone]
   );
 
   const text = useMemo(() => {

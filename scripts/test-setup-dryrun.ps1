@@ -61,7 +61,7 @@ foreach ($script in @("db:push", "db:seed", "build", "db:generate")) {
 }
 
 $envEx = Get-Content (Join-Path $ProjectRoot ".env.example") -Raw
-foreach ($key in @("DATABASE_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL")) {
+foreach ($key in @("DATABASE_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL", "WHATSAPP_CLOUD_API_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_AUTO_NOTIFY")) {
   if ($envEx -notmatch $key) {
     $failures += ".env.example missing $key"
     Write-Host "  FAIL .env.example: $key" -ForegroundColor Red

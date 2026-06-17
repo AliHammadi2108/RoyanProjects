@@ -19,6 +19,7 @@ import {
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
+import { supplierPhoneFromMaster } from '@/lib/whatsapp';
 
 interface PurchaseRequestFormProps {
   masterData: MasterData;
@@ -202,6 +203,11 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     router.refresh();
   }, [existing?.id, router]);
 
+  const requestTotalAmount = form.items.reduce(
+    (sum, item) => sum + (item.total ?? item.quantity * item.unitPrice),
+    0
+  );
+
   const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
     operationType: 'purchase_request',
     isNew,
@@ -211,6 +217,19 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     loading,
     onSave: handleSave,
     onAfterWorkflowAction: refreshApproval,
+    whatsappMeta: {
+      supplierPhone: supplierPhoneFromMaster(
+        masterData.suppliers,
+        (existing?.supplierId as string) || form.supplierId
+      ),
+      partyName: masterData.suppliers.find(
+        (s) => s.id === ((existing?.supplierId as string) || form.supplierId)
+      )?.nameAr,
+      totalAmount: requestTotalAmount,
+      currency:
+        masterData.currencies.find((c) => c.id === form.currencyId) ??
+        (existing?.currency as { symbol?: string; code?: string }),
+    },
   });
 
   return (

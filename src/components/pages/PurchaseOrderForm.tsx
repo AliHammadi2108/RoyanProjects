@@ -267,7 +267,10 @@ export function PurchaseOrderForm({
       partyName: masterData.suppliers.find(
         (s) => s.id === ((existing?.supplierId as string) || form.supplierId)
       )?.nameAr,
-      total: formatCurrency(total),
+      totalAmount: total,
+      currency:
+        masterData.currencies.find((c) => c.id === form.currencyId) ??
+        (existing?.currency as { symbol?: string; code?: string }),
     },
   });
 

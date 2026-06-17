@@ -3,9 +3,12 @@
 import { useSession } from 'next-auth/react';
 import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LiveDateTime } from '@/components/layout/LiveDateTime';
 
 interface CurrentUserDisplayProps {
   compact?: boolean;
+  /** Show live date/time beside user number (header only) */
+  showDateTime?: boolean;
   className?: string;
 }
 
@@ -17,7 +20,11 @@ function resolveDisplayName(user: {
   return user.nameAr || user.name || user.username || 'مستخدم';
 }
 
-export function CurrentUserDisplay({ compact = false, className }: CurrentUserDisplayProps) {
+export function CurrentUserDisplay({
+  compact = false,
+  showDateTime = false,
+  className,
+}: CurrentUserDisplayProps) {
   const { data: session, status } = useSession();
   const user = session?.user;
 
@@ -36,7 +43,17 @@ export function CurrentUserDisplay({ compact = false, className }: CurrentUserDi
         </div>
         <div className="text-right min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-          {userNo && <p className="text-xs text-gray-500">رقم {userNo}</p>}
+          {(userNo || showDateTime) && (
+            <div className="flex items-center gap-1.5 justify-end flex-wrap">
+              {userNo && <p className="text-xs text-gray-500 shrink-0">رقم {userNo}</p>}
+              {showDateTime && userNo && (
+                <span className="text-gray-300 text-xs select-none" aria-hidden>
+                  |
+                </span>
+              )}
+              {showDateTime && <LiveDateTime className="shrink-0" />}
+            </div>
+          )}
         </div>
       </div>
     );

@@ -19,7 +19,7 @@ export function Header({ title, subtitle, unreadCount = 0, actions }: HeaderProp
       </div>
       <div className="flex items-center gap-4">
         {actions}
-        <CurrentUserDisplay compact />
+        <CurrentUserDisplay compact showDateTime />
         <NotificationCenter initialUnread={unreadCount} />
       </div>
     </header>

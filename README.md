@@ -13,6 +13,12 @@
 
 ## التثبيت على جهاز جديد
 
+> **متطلب أساسي:** يجب تثبيت **Node.js 20 LTS أو أحدث** على الجهاز *قبل* تشغيل `setup.bat`.
+> التحميل: [nodejs.org](https://nodejs.org/) أو `winget install OpenJS.NodeJS.LTS` أو `scripts\install-node.ps1`
+>
+> **تنبيه:** ملف `PurchaseSystem-Setup.exe` (مثبّت Inno Setup القديم) **لم يعد مدعوماً** ويشير إلى مسارات محذوفة.
+> على الجهاز الجديد: استنسخ المشروع من Git ثم شغّل `setup.bat` فقط.
+
 **تثبيت تلقائي (Windows):** نقر مزدوج على `setup.bat` في جذر المشروع.
 
 **دليل التركيب الكامل (Windows):** [docs/INSTALL.md](docs/INSTALL.md)

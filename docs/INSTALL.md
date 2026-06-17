@@ -14,6 +14,8 @@
 | **Git** | أحدث إصدار | [git-scm.com](https://git-scm.com/download/win) |
 | **DB Browser for SQLite** | اختياري | لفتح `prisma/dev.db` ومراجعة البيانات يدوياً |
 
+> **إلزامي:** ثبّت Node.js 20 LTS **قبل** `setup.bat` أو أي أوامر `npm`. تحقق: `node -v` (يجب أن يكون v20 أو أحدث).
+
 > **ملاحظة:** لا حاجة لتثبيت SQLite منفصلاً — Prisma يتعامل مع قاعدة SQLite محلياً.
 
 ---
@@ -35,6 +37,34 @@ cd RoyanProjects
 
 إذا كان المستودع خاصاً، استخدم حساب GitHub أو Personal Access Token عند الطلب.
 
+
+---
+
+## 2.1 التثبيت التلقائي بـ `setup.bat` (موصى به)
+
+**قبل التشغيل:** ثبّت **Node.js 20 LTS** على الجهاز (انظر القسم 1). بدون Node لن يعمل الإعداد.
+
+من **جذر المشروع** بعد `git clone`:
+
+```text
+نقر مزدوج على setup.bat
+```
+
+أو من PowerShell:
+
+```powershell
+.\setup.bat
+```
+
+يقوم `setup.bat` باستدعاء `scripts\setup-windows.ps1` لتثبيت الحزم، إنشاء `.env`، `prisma generate`، `db:push`، `db:seed`، و`npm run build`.
+
+إذا لم يكن Node مثبتاً:
+
+1. ثبّت من [Node.js 20 LTS](https://nodejs.org/) **أو** `winget install OpenJS.NodeJS.LTS` **أو** `powershell -ExecutionPolicy Bypass -File scripts\install-node.ps1`
+2. أغلق نافذة الأوامر وافتحها من جديد
+3. شغّل `setup.bat` مرة أخرى من جذر المشروع
+
+> **مهم:** لا تستخدم `PurchaseSystem-Setup.exe` (مثبّت Inno Setup القديم). تم إزالة مجلد `installer\` ومسار `post-install.ps1` من المستودع. المثبّت القديم يعرض رسالة خاطئة — استخدم `setup.bat` فقط بعد الاستنساخ من Git.
 ---
 
 ## 3. تثبيت الحزم

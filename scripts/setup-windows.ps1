@@ -54,19 +54,112 @@ function Write-Ar {
   Write-Host $Message -ForegroundColor $Color
 }
 
+function Update-ShellPathFromRegistry {
+  $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+  $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+  if ($machinePath -or $userPath) {
+    $env:Path = ($machinePath, $userPath) -join ";"
+  }
+}
+
+function Get-NodeMajorVersion {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) { return $null }
+  try {
+    return [int](& node -p "process.versions.node.split('.')[0]")
+  } catch {
+    return $null
+  }
+}
+
+function Write-NodeMissingInstructions {
+  Write-Ar ""
+  Write-Ar "============================================================" Red
+  Write-Ar "  مطلوب Node.js 20 LTS أو أحدث" Red
+  Write-Ar "============================================================" Red
+  Write-Ar ""
+  Write-Ar "الخيار 1 - التحميل من الموقع:" Yellow
+  Write-Ar "  https://nodejs.org/  (اختر 20.x LTS)" White
+  Write-Ar ""
+  Write-Ar "الخيار 2 - عبر winget:" Yellow
+  Write-Ar "  winget install OpenJS.NodeJS.LTS" White
+  Write-Ar "  أو: powershell -ExecutionPolicy Bypass -File scripts\install-node.ps1" White
+  Write-Ar ""
+  Write-Ar "بعد التثبيت:" Cyan
+  Write-Ar "  - أغلق نافذة الأوامر وافتحها من جديد لتحديث PATH" White
+  Write-Ar "  - من جذر المشروع شغّل مرة أخرى: setup.bat" White
+  Write-Ar ""
+  Write-Ar "ملاحظة: PurchaseSystem-Setup.exe (Inno Setup) القديم لم يعد مدعوماً." Gray
+  Write-Ar "        استخدم setup.bat بعد استنساخ المشروع من Git." Gray
+  Write-Ar ""
+}
+
 function Test-NodeJs {
+  param([switch] $QuietOnSuccess)
+
+  Update-ShellPathFromRegistry
+
   if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Write-Ar "لم يتم العثور على Node.js." Red
-    Write-Ar "ثبّت Node.js 20 LTS من: https://nodejs.org/" Yellow
+    if (-not $QuietOnSuccess) {
+      Write-Ar "لم يتم العثور على Node.js في PATH." Red
+      Write-NodeMissingInstructions
+    }
     return $false
   }
-  $major = [int](& node -p "process.versions.node.split('.')[0]")
-  if ($major -lt 20) {
-    Write-Ar "يتطلب Node.js 20 أو أحدث (الحالي: $(node --version))." Red
+  $major = Get-NodeMajorVersion
+  if ($null -eq $major -or $major -lt 20) {
+    $ver = try { node --version } catch { "غير معروف" }
+    Write-Ar ("يتطلب Node.js 20 أو أحدث (الحالي: " + $ver + ").") Red
+    if (-not $QuietOnSuccess) { Write-NodeMissingInstructions }
     return $false
   }
-  Write-Ar "Node.js: $(node --version) | npm: $(npm --version)" Green
+  if (-not $QuietOnSuccess) {
+    Write-Ar ("Node.js: " + (node --version) + " | npm: " + (npm --version)) Green
+  }
   return $true
+}
+
+function Offer-InstallNodeViaWinget {
+  if (Test-NodeJs -QuietOnSuccess) { return $true }
+
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    return $false
+  }
+
+  Write-Ar ""
+  Write-Ar "تم العثور على winget. هل تريد تثبيت Node.js LTS الآن؟ (Y/N)" Yellow
+  $answer = Read-Host
+  if ($answer -notmatch "^(y|yes|Y)$") {
+    return $false
+  }
+
+  $installScript = Join-Path $ScriptDir "install-node.ps1"
+  if (Test-Path $installScript) {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $installScript -AcceptAgreements
+  } else {
+    Write-Ar "جاري التثبيت عبر winget..." Cyan
+    & winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements
+  }
+
+  if ($LASTEXITCODE -ne 0) {
+    Write-Ar "فشل تثبيت Node.js تلقائياً." Red
+    return $false
+  }
+
+  Update-ShellPathFromRegistry
+  Start-Sleep -Seconds 2
+
+  if (-not (Test-NodeJs)) {
+    Write-Ar "تم التثبيت لكن node غير ظاهر في PATH بعد." Yellow
+    Write-Ar "أغلق النافذة وافتح جديدة ثم شغّل setup.bat من جذر المشروع." Yellow
+    return $false
+  }
+  return $true
+}
+
+function Ensure-NodeJs {
+  if (Test-NodeJs) { return $true }
+  if ($DryRun) { return $false }
+  return (Offer-InstallNodeViaWinget)
 }
 
 function Invoke-ProjectNpm {
@@ -270,7 +363,7 @@ Write-Ar "========================================" Cyan
 
 Write-Ar ""
 Write-Ar "[1/9] التحقق من Node.js..." Yellow
-if (-not (Test-NodeJs)) { exit 1 }
+if (-not (Ensure-NodeJs)) { exit 1 }
 
 Write-Ar ""
 Write-Ar "[2/9] إعداد ملف البيئة .env..." Yellow

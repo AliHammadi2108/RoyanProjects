@@ -9,10 +9,8 @@ import {
   createSupplierPaymentVoucher,
   updateSupplierPaymentVoucher,
   deleteSupplierPaymentVoucher,
-  submitSupplierPaymentForApproval,
   postSupplierPaymentVoucher,
   cancelSupplierPaymentVoucher,
-  approveSupplierPaymentVoucher,
   type SupplierPaymentInput,
 } from '@/services/supplier-payment.service';
 import { getSuppliersWithInvoices } from '@/services/reports/supplier-statement.service';
@@ -61,6 +59,8 @@ export async function saveSupplierPayment(data: unknown, id?: string) {
     : await createSupplierPaymentVoucher(user.id, parsed);
 
   revalidatePath('/purchases/supplier-payments');
+  revalidatePath('/reports/supplier-statement');
+  revalidatePath('/reports/supplier-balances');
   if (id) revalidatePath(`/purchases/supplier-payments/${id}`);
   return result;
 }
@@ -72,15 +72,7 @@ export async function removeSupplierPayment(id: string) {
   return result;
 }
 
-export async function submitSupplierPayment(id: string, recipientUserIds?: string[]) {
-  const user = await requirePermission('supplier_payment.approve');
-  const result = await submitSupplierPaymentForApproval(user.id, id, recipientUserIds);
-  revalidatePath('/purchases/supplier-payments');
-  revalidatePath(`/purchases/supplier-payments/${id}`);
-  revalidatePath('/approvals/inbox');
-  return result;
-}
-
+/** @deprecated Legacy unposted vouchers only */
 export async function postSupplierPayment(id: string) {
   const user = await requirePermission('supplier_payment.post');
   const result = await postSupplierPaymentVoucher(user.id, id);
@@ -94,14 +86,6 @@ export async function postSupplierPayment(id: string) {
 export async function cancelSupplierPayment(id: string) {
   const user = await requirePermission('supplier_payment.cancel');
   const result = await cancelSupplierPaymentVoucher(user.id, id);
-  revalidatePath('/purchases/supplier-payments');
-  revalidatePath(`/purchases/supplier-payments/${id}`);
-  return result;
-}
-
-export async function approveSupplierPayment(id: string) {
-  const user = await requirePermission('supplier_payment.approve');
-  const result = await approveSupplierPaymentVoucher(user.id, id);
   revalidatePath('/purchases/supplier-payments');
   revalidatePath(`/purchases/supplier-payments/${id}`);
   return result;

@@ -49,4 +49,38 @@ describe('operation-toolbar', () => {
     expect(printBtn?.visible).toBe(true);
     expect(printBtn?.disabled).toBe(true);
   });
+
+  it('hides submit and workflow approval for supplier payment', () => {
+    const buttons = computeToolbarButtons({
+      operationType: 'supplier_payment',
+      mode: 'edit',
+      permissions: [
+        'supplier_payment.create',
+        'supplier_payment.update',
+        'supplier_payment.submit',
+        'operations.approve',
+      ],
+      isNew: false,
+      status: 'Draft',
+      documentEditable: true,
+      approvalStatus: 'Pending',
+      canApprove: true,
+    });
+    expect(buttons.some((b) => b.id === 'submit' && b.visible)).toBe(false);
+    expect(buttons.some((b) => b.id === 'approve' && b.visible)).toBe(false);
+    expect(buttons.some((b) => b.id === 'reject' && b.visible)).toBe(false);
+  });
+
+  it('hides submit and workflow approval for invoice', () => {
+    const buttons = computeToolbarButtons({
+      operationType: 'invoice',
+      mode: 'edit',
+      permissions: ['invoices.create', 'invoices.update', 'invoices.submit'],
+      isNew: false,
+      status: 'Draft',
+      documentEditable: true,
+    });
+    expect(buttons.some((b) => b.id === 'submit' && b.visible)).toBe(false);
+    expect(buttons.some((b) => b.id === 'approve' && b.visible)).toBe(false);
+  });
 });

@@ -25,9 +25,9 @@ export const DOCUMENT_STATUS = {
 
 /** Purchase invoices eligible for supplier payment allocation */
 export const PAYABLE_INVOICE_STATUSES = [
-  DOCUMENT_STATUS.DRAFT,
-  DOCUMENT_STATUS.APPROVED,
   DOCUMENT_STATUS.POSTED,
+  DOCUMENT_STATUS.APPROVED,
+  DOCUMENT_STATUS.DRAFT,
 ] as const;
 
 export const OPERATION_TO_DOCUMENT_TYPE: Record<string, string> = {

@@ -1,13 +1,12 @@
 ﻿import { prisma } from '@/lib/db';
-import { DOCUMENT_STATUS, DOCUMENT_TYPES, PAYABLE_INVOICE_STATUSES } from '@/lib/constants';
+import type { Prisma } from '@prisma/client';
+import { DOCUMENT_STATUS, PAYABLE_INVOICE_STATUSES } from '@/lib/constants';
 import { computeInvoiceRemaining } from '@/lib/invoice-payment';
 import { getNextDocumentNo } from '@/services/document-sequence.service';
 import { assertSupplierAccess } from '@/services/supplier-access.service';
 import { assertSupplierCurrencyAllowed } from '@/services/supplier-currency.service';
 import { createAuditLog } from '@/services/audit.service';
-import { submitForApproval } from '@/services/approval.service';
 
-const LOCKED_STATUSES = [DOCUMENT_STATUS.APPROVED, DOCUMENT_STATUS.POSTED, DOCUMENT_STATUS.CANCELLED];
 const NON_EDITABLE = [
   DOCUMENT_STATUS.PENDING_APPROVAL,
   DOCUMENT_STATUS.APPROVED,
@@ -53,18 +52,18 @@ export async function assertPaymentVoucherMutable(
   action: 'edit' | 'delete' | 'cancel' = 'edit'
 ) {
   const voucher = await prisma.supplierPaymentVoucher.findUnique({ where: { id: voucherId } });
-  if (!voucher) throw new Error('ط³ظ†ط¯ ط§ظ„طµط±ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯');
+  if (!voucher) throw new Error('سند الصرف غير موجود');
 
   if (action === 'delete' && voucher.status !== DOCUMENT_STATUS.DRAFT) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† ط­ط°ظپ ط§ظ„ط³ظ†ط¯ ط¥ظ„ط§ ظˆظ‡ظˆ ظپظٹ ط­ط§ظ„ط© ظ…ط³ظˆط¯ط©');
+    throw new Error('لا يمكن حذف السند إلا وهو في حالة مسودة');
   }
 
   if (action === 'edit' && (NON_EDITABLE as readonly string[]).includes(voucher.status)) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† طھط¹ط¯ظٹظ„ ط§ظ„ط³ظ†ط¯ ظپظٹ ط­ط§ظ„طھظ‡ ط§ظ„ط­ط§ظ„ظٹط©');
+    throw new Error('لا يمكن تعديل السند في حالته الحالية');
   }
 
   if (action === 'cancel' && voucher.status === DOCUMENT_STATUS.POSTED) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† ط¥ظ„ط؛ط§ط، ط³ظ†ط¯ ظ…ط±ط­ظ‘ظ„');
+    throw new Error('لا يمكن إلغاء سند مرحّل');
   }
 
   return voucher;
@@ -77,12 +76,12 @@ async function validateAllocations(
   excludeVoucherId?: string
 ) {
   if (allocations.length === 0) {
-    throw new Error('ظٹط¬ط¨ طھط®طµظٹطµ ظ…ط¨ظ„ط؛ ط§ظ„ط¯ظپط¹ ط¹ظ„ظ‰ ظپط§طھظˆط±ط© ظˆط§ط­ط¯ط© ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„');
+    throw new Error('يجب تخصيص مبلغ الدفع على فاتورة واحدة على الأقل');
   }
 
   const allocatedSum = allocations.reduce((s, a) => s + a.allocatedAmount, 0);
   if (allocatedSum > totalAmount + 0.001) {
-    throw new Error('ظ…ط¬ظ…ظˆط¹ ط§ظ„طھط®طµظٹطµط§طھ ظٹطھط¬ط§ظˆط² ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ†ط¯');
+    throw new Error('مجموع التخصيصات يتجاوز مبلغ السند');
   }
 
   const invoiceIds = allocations.map((a) => a.invoiceId);
@@ -95,12 +94,12 @@ async function validateAllocations(
   });
 
   if (invoices.length !== invoiceIds.length) {
-    throw new Error('ط¨ط¹ط¶ ط§ظ„ظپظˆط§طھظٹط± ط؛ظٹط± طµط§ظ„ط­ط© ط£ظˆ ظ„ط§ طھط®طµ ط§ظ„ظ…ظˆط±ط¯ ط§ظ„ظ…ط­ط¯ط¯');
+    throw new Error('بعض الفواتير غير صالحة أو لا تخص المورد المحدد');
   }
 
   for (const alloc of allocations) {
     if (alloc.allocatedAmount <= 0) {
-      throw new Error('ظ…ط¨ظ„ط؛ ط§ظ„طھط®طµظٹطµ ظٹط¬ط¨ ط£ظ† ظٹظƒظˆظ† ط£ظƒط¨ط± ظ…ظ† طµظپط±');
+      throw new Error('مبلغ التخصيص يجب أن يكون أكبر من صفر');
     }
     const invoice = invoices.find((i) => i.id === alloc.invoiceId)!;
     let available = computeInvoiceRemaining(
@@ -117,8 +116,43 @@ async function validateAllocations(
     }
 
     if (alloc.allocatedAmount > available + 0.001) {
-      throw new Error(`ظ…ط¨ظ„ط؛ ط§ظ„طھط®طµظٹطµ ظ„ظ„ظپط§طھظˆط±ط© ${invoice.documentNo} ظٹطھط¬ط§ظˆط² ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ظ…طھط¨ظ‚ظٹ`);
+      throw new Error(`مبلغ التخصيص للفاتورة ${invoice.documentNo} يتجاوز المبلغ المتبقي`);
     }
+  }
+}
+
+async function applyAllocationsToInvoices(
+  tx: Prisma.TransactionClient,
+  allocations: Array<{ invoiceId: string; allocatedAmount: number }>
+) {
+  for (const alloc of allocations) {
+    const invoice = await tx.purchaseInvoice.findUnique({ where: { id: alloc.invoiceId } });
+    if (!invoice) throw new Error('فاتورة غير موجودة');
+
+    const currentRemaining = computeInvoiceRemaining(
+      invoice.netTotal,
+      invoice.paidAmount,
+      invoice.remainingAmount
+    );
+    if (alloc.allocatedAmount > currentRemaining + 0.001) {
+      throw new Error(`المبلغ المتبقي للفاتورة ${invoice.documentNo} غير كافٍ`);
+    }
+
+    const newPaid = (invoice.paidAmount ?? 0) + alloc.allocatedAmount;
+    const newRemaining = Math.max(0, invoice.netTotal - newPaid);
+
+    await tx.purchaseInvoice.update({
+      where: { id: invoice.id },
+      data: {
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
+        paymentStatus: computeInvoicePaymentStatus(
+          invoice.netTotal,
+          newPaid,
+          invoice.dueDate || invoice.paymentDueDate
+        ),
+      },
+    });
   }
 }
 
@@ -211,30 +245,38 @@ export async function createSupplierPaymentVoucher(userId: string, data: Supplie
   const documentNo = await getNextDocumentNo('SUPPLIER_PAYMENT', data.branchId);
   const allocatedAmount = data.allocations.reduce((s, a) => s + a.allocatedAmount, 0);
 
-  const result = await prisma.supplierPaymentVoucher.create({
-    data: {
-      documentNo,
-      branchId: data.branchId,
-      supplierId: data.supplierId,
-      currencyId: data.currencyId || null,
-      exchangeRate: data.exchangeRate ?? 1,
-      paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
-      paymentMethod: data.paymentMethod,
-      bankReference: data.bankReference,
-      notes: data.notes,
-      totalAmount: data.totalAmount,
-      allocatedAmount,
-      status: DOCUMENT_STATUS.DRAFT,
-      createdBy: userId,
-      allocations: {
-        create: data.allocations.map((a, idx) => ({
-          invoiceId: a.invoiceId,
-          allocatedAmount: a.allocatedAmount,
-          sortOrder: idx,
-        })),
+  const result = await prisma.$transaction(async (tx) => {
+    const voucher = await tx.supplierPaymentVoucher.create({
+      data: {
+        documentNo,
+        branchId: data.branchId,
+        supplierId: data.supplierId,
+        currencyId: data.currencyId || null,
+        exchangeRate: data.exchangeRate ?? 1,
+        paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
+        paymentMethod: data.paymentMethod,
+        bankReference: data.bankReference,
+        notes: data.notes,
+        totalAmount: data.totalAmount,
+        allocatedAmount,
+        status: DOCUMENT_STATUS.POSTED,
+        approvalStatus: 'None',
+        postedBy: userId,
+        postedAt: new Date(),
+        createdBy: userId,
+        allocations: {
+          create: data.allocations.map((a, idx) => ({
+            invoiceId: a.invoiceId,
+            allocatedAmount: a.allocatedAmount,
+            sortOrder: idx,
+          })),
+        },
       },
-    },
-    include: { allocations: true },
+      include: { allocations: true },
+    });
+
+    await applyAllocationsToInvoices(tx, voucher.allocations);
+    return voucher;
   });
 
   await createAuditLog({
@@ -261,7 +303,7 @@ export async function updateSupplierPaymentVoucher(
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.supplierPaymentAllocation.deleteMany({ where: { voucherId: id } });
-    return tx.supplierPaymentVoucher.update({
+    const voucher = await tx.supplierPaymentVoucher.update({
       where: { id },
       data: {
         branchId: data.branchId,
@@ -274,6 +316,10 @@ export async function updateSupplierPaymentVoucher(
         notes: data.notes,
         totalAmount: data.totalAmount,
         allocatedAmount,
+        status: DOCUMENT_STATUS.POSTED,
+        approvalStatus: 'None',
+        postedBy: userId,
+        postedAt: new Date(),
         allocations: {
           create: data.allocations.map((a, idx) => ({
             invoiceId: a.invoiceId,
@@ -284,6 +330,9 @@ export async function updateSupplierPaymentVoucher(
       },
       include: { allocations: true },
     });
+
+    await applyAllocationsToInvoices(tx, voucher.allocations);
+    return voucher;
   });
 
   await createAuditLog({
@@ -308,86 +357,26 @@ export async function deleteSupplierPaymentVoucher(userId: string, id: string) {
   return { success: true };
 }
 
-export async function submitSupplierPaymentForApproval(
-  userId: string,
-  id: string,
-  recipientUserIds?: string[]
-) {
-  const voucher = await assertPaymentVoucherMutable(id, 'edit');
-
-  await prisma.supplierPaymentVoucher.update({
-    where: { id },
-    data: {
-      status: DOCUMENT_STATUS.PENDING_APPROVAL,
-      approvalStatus: 'Pending',
-    },
-  });
-
-  await submitForApproval({
-    documentType: DOCUMENT_TYPES.SUPPLIER_PAYMENT,
-    documentId: id,
-    documentNo: voucher.documentNo,
-    requestedBy: userId,
-    totalAmount: voucher.totalAmount,
-    branchId: voucher.branchId,
-    recipientUserIds,
-  });
-
-  return { success: true };
-}
-
+/** @deprecated Legacy vouchers only — new saves post immediately */
 export async function postSupplierPaymentVoucher(userId: string, id: string) {
   const voucher = await prisma.supplierPaymentVoucher.findUnique({
     where: { id },
     include: { allocations: true },
   });
-  if (!voucher) throw new Error('ط³ظ†ط¯ ط§ظ„طµط±ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯');
+  if (!voucher) throw new Error('سند الصرف غير موجود');
   if (voucher.status === DOCUMENT_STATUS.POSTED) {
-    throw new Error('ط§ظ„ط³ظ†ط¯ ظ…ط±ط­ظ‘ظ„ ظ…ط³ط¨ظ‚ط§ظ‹');
+    throw new Error('السند مرحّل مسبقاً');
   }
-  if (voucher.status !== DOCUMENT_STATUS.APPROVED && voucher.status !== DOCUMENT_STATUS.DRAFT) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† طھط±ط­ظٹظ„ ط§ظ„ط³ظ†ط¯ ظپظٹ ط­ط§ظ„طھظ‡ ط§ظ„ط­ط§ظ„ظٹط©');
+  if (
+    voucher.status !== DOCUMENT_STATUS.APPROVED &&
+    voucher.status !== DOCUMENT_STATUS.DRAFT &&
+    voucher.status !== DOCUMENT_STATUS.PENDING_APPROVAL
+  ) {
+    throw new Error('لا يمكن ترحيل السند في حالته الحالية');
   }
 
   await prisma.$transaction(async (tx) => {
-    const fresh = await tx.supplierPaymentVoucher.findUnique({
-      where: { id },
-      include: { allocations: true },
-    });
-    if (!fresh || fresh.status === DOCUMENT_STATUS.POSTED) {
-      throw new Error('ط§ظ„ط³ظ†ط¯ ط؛ظٹط± ظ…طھط§ط­ ظ„ظ„طھط±ط­ظٹظ„');
-    }
-
-    for (const alloc of fresh.allocations) {
-      const invoice = await tx.purchaseInvoice.findUnique({ where: { id: alloc.invoiceId } });
-      if (!invoice) throw new Error('ظپط§طھظˆط±ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط©');
-
-      const currentRemaining = computeInvoiceRemaining(
-        invoice.netTotal,
-        invoice.paidAmount,
-        invoice.remainingAmount
-      );
-      if (alloc.allocatedAmount > currentRemaining + 0.001) {
-        throw new Error(`ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ظ…طھط¨ظ‚ظٹ ظ„ظ„ظپط§طھظˆط±ط© ${invoice.documentNo} ط؛ظٹط± ظƒط§ظپظچ`);
-      }
-
-      const newPaid = (invoice.paidAmount ?? 0) + alloc.allocatedAmount;
-      const newRemaining = Math.max(0, invoice.netTotal - newPaid);
-
-      await tx.purchaseInvoice.update({
-        where: { id: invoice.id },
-        data: {
-          paidAmount: newPaid,
-          remainingAmount: newRemaining,
-          paymentStatus: computeInvoicePaymentStatus(
-            invoice.netTotal,
-            newPaid,
-            invoice.dueDate || invoice.paymentDueDate
-          ),
-        },
-      });
-    }
-
+    await applyAllocationsToInvoices(tx, voucher.allocations);
     await tx.supplierPaymentVoucher.update({
       where: { id },
       data: {
@@ -423,31 +412,5 @@ export async function cancelSupplierPaymentVoucher(userId: string, id: string) {
     entityType: 'SUPPLIER_PAYMENT',
     entityId: id,
   });
-  return { success: true };
-}
-
-export async function approveSupplierPaymentVoucher(userId: string, id: string) {
-  const voucher = await prisma.supplierPaymentVoucher.findUnique({ where: { id } });
-  if (!voucher) throw new Error('ط³ظ†ط¯ ط§ظ„طµط±ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯');
-  if (voucher.status !== DOCUMENT_STATUS.PENDING_APPROVAL) {
-    throw new Error('ط§ظ„ط³ظ†ط¯ ظ„ظٹط³ ط¨ط§ظ†طھط¸ط§ط± ط§ظ„ط§ط¹طھظ…ط§ط¯');
-  }
-
-  await prisma.supplierPaymentVoucher.update({
-    where: { id },
-    data: {
-      status: DOCUMENT_STATUS.APPROVED,
-      approvalStatus: 'Approved',
-      approvedBy: userId,
-    },
-  });
-
-  await createAuditLog({
-    userId,
-    action: 'APPROVE',
-    entityType: 'SUPPLIER_PAYMENT',
-    entityId: id,
-  });
-
   return { success: true };
 }

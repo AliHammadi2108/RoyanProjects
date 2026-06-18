@@ -13,8 +13,6 @@ import {
   saveSupplierPayment,
   fetchOpenInvoicesForSupplier,
   removeSupplierPayment,
-  submitSupplierPayment,
-  postSupplierPayment,
   cancelSupplierPayment,
 } from '@/actions/supplier-payments';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -191,7 +189,7 @@ export function SupplierPaymentForm({
       .map((i) => ({ invoiceId: i.invoiceId, allocatedAmount: i.allocatedAmount })),
   });
 
-  const handleSave = async (submit = false, recipientUserIds?: string[]) => {
+  const handleSave = async () => {
     setLoading(true);
     setError('');
     try {
@@ -200,9 +198,6 @@ export function SupplierPaymentForm({
         throw new Error('يجب تخصيص مبلغ على فاتورة واحدة على الأقل');
       }
       const result = await saveSupplierPayment(payload, existing?.id as string | undefined);
-      if (submit && result.id) {
-        await submitSupplierPayment(result.id, recipientUserIds);
-      }
       router.push(`/purchases/supplier-payments/${result.id}`);
       router.refresh();
     } catch (err) {
@@ -225,20 +220,6 @@ export function SupplierPaymentForm({
     }
   };
 
-  const handlePost = async () => {
-    if (!existing?.id) return;
-    if (!confirm('ترحيل السند وتحديث أرصدة الفواتير؟')) return;
-    setLoading(true);
-    try {
-      await postSupplierPayment(existing.id as string);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل الترحيل');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCancel = async () => {
     if (!existing?.id) return;
     if (!confirm('إلغاء سند الصرف؟')) return;
@@ -253,19 +234,17 @@ export function SupplierPaymentForm({
     }
   };
 
-  const { toolbarProps, recipientModal } = useOperationFormToolbar({
+  const { toolbarProps } = useOperationFormToolbar({
     operationType: 'supplier_payment',
     isNew,
     existing,
     loading,
     userPermissions,
     status,
-    approvalContext: {
-      branchId: form.branchId,
-      totalAmount: form.totalAmount || selectedTotal,
+    saveLabel: 'حفظ وترحيل',
+    onSave: async () => {
+      await handleSave();
     },
-    onSave: handleSave,
-    onSubmitOnly: (recipientUserIds) => handleSave(true, recipientUserIds),
     whatsappMeta: {
       supplierPhone: supplierPhoneFromMaster(masterData.suppliers, form.supplierId),
       partyName: masterData.suppliers.find((s) => s.id === form.supplierId)?.nameAr,
@@ -287,7 +266,6 @@ export function SupplierPaymentForm({
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
-        {recipientModal}
 
         {error ? (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
@@ -501,15 +479,7 @@ export function SupplierPaymentForm({
           )}
         </div>
 
-        {!isNew && status === 'Approved' && userPermissions.includes('supplier_payment.post') ? (
-          <div className="mt-4 flex gap-2">
-            <button type="button" className="btn-primary" disabled={loading} onClick={handlePost}>
-              ترحيل السند
-            </button>
-          </div>
-        ) : null}
-
-        {!isNew && (status === 'Draft' || status === 'Pending Approval') && userPermissions.includes('supplier_payment.cancel') ? (
+        {!isNew && status === 'Draft' && userPermissions.includes('supplier_payment.cancel') ? (
           <div className="mt-2">
             <button type="button" className="btn-secondary text-sm" disabled={loading} onClick={handleCancel}>
               إلغاء السند

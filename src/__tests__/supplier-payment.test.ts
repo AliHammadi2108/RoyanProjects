@@ -10,6 +10,12 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+describe('supplier payment without approval', () => {
+  it('includes posted invoices as payable', () => {
+    expect(PAYABLE_INVOICE_STATUSES).toContain(DOCUMENT_STATUS.POSTED);
+  });
+});
+
 describe('supplier payment open invoices', () => {
   it('includes draft invoices as payable', () => {
     expect(PAYABLE_INVOICE_STATUSES).toContain(DOCUMENT_STATUS.DRAFT);

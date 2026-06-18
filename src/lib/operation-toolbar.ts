@@ -114,8 +114,8 @@ export const OPERATION_CONFIG: Record<OperationType, OperationConfig> = {
     listLabel: 'قائمة سندات الصرف',
     newHref: '/purchases/supplier-payments/new',
     printDocType: 'supplier_payment',
-    supportsSubmit: true,
-    supportsWorkflowApproval: true,
+    supportsSubmit: false,
+    supportsWorkflowApproval: false,
   },
 };
 

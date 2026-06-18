@@ -540,8 +540,12 @@ async function main() {
     'TECHNICAL_COMPARISON',
     'SUPPLIER_NOMINATION',
     'PURCHASE_ORDER',
-    'SUPPLIER_PAYMENT',
   ];
+
+  await prisma.approvalMatrix.updateMany({
+    where: { documentType: 'SUPPLIER_PAYMENT' },
+    data: { isActive: false },
+  });
 
   for (const docType of docTypes) {
     const existing = await prisma.approvalMatrix.findFirst({

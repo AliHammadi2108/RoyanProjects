@@ -53,9 +53,6 @@ async function updateDocumentStatus(
     case DOCUMENT_TYPES.PURCHASE_ORDER:
       await prisma.purchaseOrder.update({ where: { id: documentId }, data });
       break;
-    case DOCUMENT_TYPES.SUPPLIER_PAYMENT:
-      await prisma.supplierPaymentVoucher.update({ where: { id: documentId }, data });
-      break;
   }
 }
 async function getApproversForLevel(

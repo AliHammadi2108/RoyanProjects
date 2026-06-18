@@ -585,7 +585,7 @@ export async function createInvoice(data: unknown) {
       paidAmount: 0,
       remainingAmount: netTotal,
       paymentStatus: 'Unpaid',
-      status: DOCUMENT_STATUS.DRAFT,
+      status: DOCUMENT_STATUS.POSTED,
       createdBy: user.id,
       items: {
         create: parsed.items.map((item, idx) => ({

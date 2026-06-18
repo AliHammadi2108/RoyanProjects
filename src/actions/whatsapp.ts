@@ -4,8 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 import { updateEnvFileVariable } from '@/lib/env-file';
-import { sendWhatsAppText, type SendWhatsAppTextResult } from '@/services/whatsapp.service';
 import {
+  sendWhatsAppText,
+  verifyWhatsAppCloudApiCredentials,
+  type SendWhatsAppTextResult,
+} from '@/services/whatsapp.service';
+import {
+  getWhatsAppConfigIssues,
   getWhatsAppEnvDefaultRecipient,
   isWhatsAppApiConfigured,
   isWhatsAppAutoNotifyEnabled,
@@ -20,6 +25,9 @@ export interface WhatsAppSettingsStatus {
   phoneNumberIdMasked: string | null;
   tokenConfigured: boolean;
   restartRequired: boolean;
+  configIssues: string[];
+  apiVerifyError: string | null;
+  apiDisplayPhone: string | null;
 }
 
 async function requireConfigurePermission(userId: string): Promise<boolean> {
@@ -39,6 +47,14 @@ export async function getWhatsAppSettingsStatus(): Promise<WhatsAppSettingsStatu
   const configured = isWhatsAppApiConfigured();
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
   const tokenConfigured = Boolean(process.env.WHATSAPP_CLOUD_API_TOKEN?.trim());
+  const configIssues = getWhatsAppConfigIssues();
+  let apiVerifyError = null;
+  let apiDisplayPhone = null;
+  if (tokenConfigured && configIssues.length === 0) {
+    const verify = await verifyWhatsAppCloudApiCredentials();
+    if (!verify.ok) apiVerifyError = verify.error || "verify failed";
+    else apiDisplayPhone = verify.displayPhoneNumber || null;
+  }
 
   return {
     configured,
@@ -51,6 +67,9 @@ export async function getWhatsAppSettingsStatus(): Promise<WhatsAppSettingsStatu
       : null,
     tokenConfigured,
     restartRequired: false,
+    configIssues,
+    apiVerifyError,
+    apiDisplayPhone,
   };
 }
 
@@ -118,6 +137,25 @@ export async function setWhatsAppAutoNotifyAction(
       error: err instanceof Error ? err.message : 'فشل تحديث الإعداد',
     };
   }
+}
+
+
+export async function verifyWhatsAppApiAction(): Promise<{
+  ok: boolean;
+  error?: string;
+  displayPhoneNumber?: string;
+}> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { ok: false, error: "غير مسجل" };
+  if (!(await requireConfigurePermission(session.user.id))) {
+    return { ok: false, error: "لا توجد صلاحية إعداد WhatsApp" };
+  }
+  const result = await verifyWhatsAppCloudApiCredentials();
+  return {
+    ok: result.ok,
+    error: result.error,
+    displayPhoneNumber: result.displayPhoneNumber,
+  };
 }
 
 export async function testWhatsAppConnectionAction(): Promise<SendWhatsAppTextResult> {

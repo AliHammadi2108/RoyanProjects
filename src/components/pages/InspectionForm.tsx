@@ -113,7 +113,6 @@ export function InspectionForm({
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };

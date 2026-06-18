@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   fetchSupplierStatementReport,
@@ -18,6 +18,7 @@ import { ListSearchAutocomplete } from '@/components/ui/ListSearchAutocomplete';
 import { AutocompleteSelect } from '@/components/ui/AutocompleteSelect';
 import type { AutocompleteOption } from '@/lib/autocomplete';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { filterCurrenciesForSupplier } from '@/lib/supplier-currency';
 import type { ReportResult, SupplierStatementRow } from '@/services/reports/types';
 
 interface SupplierOption {
@@ -27,6 +28,8 @@ interface SupplierOption {
   phone?: string | null;
   taxNo?: string | null;
   invoiceCount: number;
+  defaultCurrencyId?: string | null;
+  currencyIds?: string[];
 }
 
 interface SupplierStatementReportClientProps {
@@ -78,6 +81,39 @@ export function SupplierStatementReportClient({
   const [sortBy, setSortBy] = useState('movementDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
+
+  const selectedSupplier = useMemo(
+    () => suppliers.find((s) => s.id === supplierId),
+    [suppliers, supplierId]
+  );
+  const supplierCurrencyOptions = useMemo(() => {
+    if (!selectedSupplier) return currencies;
+    return filterCurrenciesForSupplier(currencies, {
+      id: selectedSupplier.id,
+      defaultCurrencyId: selectedSupplier.defaultCurrencyId,
+      currencies: (selectedSupplier.currencyIds || []).map((currencyId) => ({
+        currencyId,
+        isDefault: currencyId === selectedSupplier.defaultCurrencyId,
+      })),
+    });
+  }, [currencies, selectedSupplier]);
+
+  const handleSupplierSelect = (id: string) => {
+    setSupplierId(id);
+    const supplier = suppliers.find((s) => s.id === id);
+    if (!supplier) {
+      setCurrencyId('');
+      return;
+    }
+    const allowed = supplier.currencyIds?.length
+      ? supplier.currencyIds
+      : supplier.defaultCurrencyId
+        ? [supplier.defaultCurrencyId]
+        : [];
+    if (currencyId && !allowed.includes(currencyId)) {
+      setCurrencyId(supplier.defaultCurrencyId || allowed[0] || '');
+    }
+  };
 
   const searchSuppliers = useCallback((q: string) => {
     startTransition(async () => {
@@ -199,7 +235,7 @@ export function SupplierStatementReportClient({
           <ReportFilterField label="المورد">
             <AutocompleteSelect
               value={supplierId}
-              onChange={setSupplierId}
+              onChange={handleSupplierSelect}
               options={supplierOptions}
               placeholder="اختر مورداً..."
               emptyLabel="اختر مورداً..."
@@ -259,7 +295,7 @@ export function SupplierStatementReportClient({
               <ReportFilterField label="العملة">
                 <select className={reportSelectClass()} value={currencyId} onChange={(e) => setCurrencyId(e.target.value)}>
                   <option value="">الكل</option>
-                  {currencies.map((c) => (
+                  {supplierCurrencyOptions.map((c) => (
                     <option key={c.id} value={c.id}>{c.nameAr} ({c.code})</option>
                   ))}
                 </select>

@@ -23,6 +23,10 @@ import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 import { supplierPhoneFromMaster } from '@/lib/whatsapp';
+import {
+  filterCurrenciesForSupplier,
+  resolveCurrencyOnSupplierChange,
+} from '@/lib/supplier-currency';
 
 interface AllocationRow {
   invoiceId: string;
@@ -72,6 +76,15 @@ export function SupplierPaymentForm({
     notes: (existing?.notes as string) || '',
     totalAmount: (existing?.totalAmount as number) || 0,
   });
+
+  const selectedSupplier = useMemo(
+    () => masterData.suppliers.find((s) => s.id === form.supplierId),
+    [masterData.suppliers, form.supplierId]
+  );
+  const supplierCurrencyOptions = useMemo(
+    () => filterCurrenciesForSupplier(masterData.currencies, selectedSupplier),
+    [masterData.currencies, selectedSupplier]
+  );
 
   useEffect(() => {
     if (!form.supplierId || !isEditable) return;
@@ -178,7 +191,7 @@ export function SupplierPaymentForm({
       .map((i) => ({ invoiceId: i.invoiceId, allocatedAmount: i.allocatedAmount })),
   });
 
-  const handleSave = async (submit = false) => {
+  const handleSave = async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
     setError('');
     try {
@@ -188,7 +201,7 @@ export function SupplierPaymentForm({
       }
       const result = await saveSupplierPayment(payload, existing?.id as string | undefined);
       if (submit && result.id) {
-        await submitSupplierPayment(result.id);
+        await submitSupplierPayment(result.id, recipientUserIds);
       }
       router.push(`/purchases/supplier-payments/${result.id}`);
       router.refresh();
@@ -240,15 +253,19 @@ export function SupplierPaymentForm({
     }
   };
 
-  const { toolbarProps } = useOperationFormToolbar({
+  const { toolbarProps, recipientModal } = useOperationFormToolbar({
     operationType: 'supplier_payment',
     isNew,
     existing,
     loading,
     userPermissions,
     status,
+    approvalContext: {
+      branchId: form.branchId,
+      totalAmount: form.totalAmount || selectedTotal,
+    },
     onSave: handleSave,
-    onSubmitOnly: () => handleSave(true),
+    onSubmitOnly: (recipientUserIds) => handleSave(true, recipientUserIds),
     whatsappMeta: {
       supplierPhone: supplierPhoneFromMaster(masterData.suppliers, form.supplierId),
       partyName: masterData.suppliers.find((s) => s.id === form.supplierId)?.nameAr,
@@ -270,6 +287,7 @@ export function SupplierPaymentForm({
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
+        {recipientModal}
 
         {error ? (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
@@ -293,7 +311,17 @@ export function SupplierPaymentForm({
               <MasterDataSelect
                 kind="supplier"
                 value={form.supplierId}
-                onChange={(supplierId) => setForm({ ...form, supplierId, currencyId: '' })}
+                onChange={(supplierId) => {
+                  const supplier = masterData.suppliers.find((s) => s.id === supplierId);
+                  const currencyId = resolveCurrencyOnSupplierChange(supplier, '');
+                  const cur = masterData.currencies.find((c) => c.id === currencyId);
+                  setForm({
+                    ...form,
+                    supplierId,
+                    currencyId,
+                    exchangeRate: cur?.rateToBase || cur?.rate || 1,
+                  });
+                }}
                 options={masterData.suppliers}
                 disabled={!isEditable || !isNew}
               />
@@ -318,10 +346,10 @@ export function SupplierPaymentForm({
                   setForm({
                     ...form,
                     currencyId,
-                    exchangeRate: cur?.rateToBase || 1,
+                    exchangeRate: cur?.rateToBase || cur?.rate || 1,
                   });
                 }}
-                options={masterData.currencies}
+                options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
                 disabled={!isEditable}
                 emptyLabel="افتراضي المورد"
               />

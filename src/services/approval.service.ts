@@ -7,7 +7,7 @@ import {
 } from '@/lib/constants';
 import { createAuditLog } from './audit.service';
 import { createNotification, notifyApprovers, notifyDocumentOwner } from './notification.service';
-import { hasPermission, isAdmin, getAdminUserIds } from '@/lib/permissions';
+import { hasPermission, isAdmin } from '@/lib/permissions';
 
 type ApprovalAction = 'approve' | 'reject' | 'return' | 'cancel';
 
@@ -19,6 +19,7 @@ interface SubmitForApprovalInput {
   totalAmount: number;
   branchId?: string;
   departmentId?: string;
+  recipientUserIds?: string[];
 }
 
 interface ApprovalActionInput {
@@ -99,6 +100,31 @@ async function getApproversForLevel(
   return Array.from(userIds);
 }
 
+export async function getApproverCandidates(input: {
+  documentType: string;
+  branchId?: string | null;
+  departmentId?: string | null;
+  totalAmount?: number;
+  level?: number;
+}) {
+  const level = input.level ?? 1;
+  const userIds = await getApproversForLevel(
+    input.documentType,
+    level,
+    input.branchId,
+    input.departmentId,
+    input.totalAmount
+  );
+
+  if (userIds.length === 0) return [];
+
+  return prisma.user.findMany({
+    where: { id: { in: userIds }, isActive: true },
+    select: { id: true, nameAr: true, username: true, userNo: true },
+    orderBy: { nameAr: 'asc' },
+  });
+}
+
 export async function submitForApproval(input: SubmitForApprovalInput) {
   const existing = await prisma.approval.findFirst({
     where: {
@@ -138,6 +164,16 @@ export async function submitForApproval(input: SubmitForApprovalInput) {
     throw new Error('لم يتم العثور على معتمدين للمستوى الأول');
   }
 
+  const selectedRecipients = input.recipientUserIds?.length
+    ? input.recipientUserIds.filter((id) => firstLevelApprovers.includes(id))
+    : firstLevelApprovers;
+
+  if (input.recipientUserIds?.length && selectedRecipients.length === 0) {
+    throw new Error('المعتمدون المحددون غير مسموح بهم لهذا المستند');
+  }
+
+  const primaryApproverId = selectedRecipients[0] || firstLevelApprovers[0];
+
   const approval = await prisma.$transaction(async (tx) => {
     const newApproval = await tx.approval.create({
       data: {
@@ -165,7 +201,10 @@ export async function submitForApproval(input: SubmitForApprovalInput) {
 
               return {
                 level,
-                approverUserId: matrix?.userId || approvers[0] || null,
+                approverUserId:
+                  level === 1
+                    ? primaryApproverId
+                    : matrix?.userId || approvers[0] || null,
                 approverRoleId: matrix?.roleId || null,
                 status: level === 1 ? 'Pending' : 'Skipped',
               };
@@ -206,19 +245,17 @@ export async function submitForApproval(input: SubmitForApprovalInput) {
     newValues: { approvalId: approval.id },
   });
 
-  const adminIds = await getAdminUserIds();
-  const notifyTargets = Array.from(new Set([...firstLevelApprovers, ...adminIds]));
+  const notifyTargets = selectedRecipients.filter((id) => id !== input.requestedBy);
 
-  await notifyApprovers(
-    approval.id,
-    input.documentType,
-    input.documentId,
-    input.documentNo,
-    notifyTargets.filter((id) => id !== input.requestedBy)
-  );
-
-  const requesterExcluded = notifyTargets.filter((id) => id !== input.requestedBy);
-  if (requesterExcluded.length === 0 && notifyTargets.includes(input.requestedBy)) {
+  if (notifyTargets.length > 0) {
+    await notifyApprovers(
+      approval.id,
+      input.documentType,
+      input.documentId,
+      input.documentNo,
+      notifyTargets
+    );
+  } else if (selectedRecipients.includes(input.requestedBy)) {
     const canApproveOwn =
       (await isAdmin(input.requestedBy)) ||
       (await hasPermission(input.requestedBy, 'APPROVE_OWN_DOCUMENT'));

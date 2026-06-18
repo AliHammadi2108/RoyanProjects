@@ -202,6 +202,7 @@ model Supplier {
   updatedAt         DateTime @default(now()) @updatedAt
 
   defaultCurrency      Currency?              @relation(fields: [defaultCurrencyId], references: [id])
+  currencies           SupplierCurrency[]
   purchaseRequests     PurchaseRequest[]
   quotations           Quotation[]
   nominations          SupplierNomination[]
@@ -215,6 +216,20 @@ model Supplier {
 
   @@index([defaultCurrencyId])
   @@index([isActive])
+}
+
+model SupplierCurrency {
+  id         String  @id @default(cuid())
+  supplierId String
+  currencyId String
+  isDefault  Boolean @default(false)
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  currency Currency @relation(fields: [currencyId], references: [id])
+
+  @@unique([supplierId, currencyId])
+  @@index([supplierId])
+  @@index([currencyId])
 }
 
 model Unit {
@@ -243,7 +258,8 @@ model Currency {
   isBase     Boolean @default(false)
   isActive   Boolean @default(true)
 
-  suppliers        Supplier[]
+  suppliers          Supplier[]
+  supplierCurrencies SupplierCurrency[]
   purchaseRequests PurchaseRequest[]
   purchaseCycles   PurchaseCycle[]
   quotations       Quotation[]

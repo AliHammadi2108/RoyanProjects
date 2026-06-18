@@ -1,8 +1,13 @@
 import { getNominations } from '@/actions/comparisons';
 import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
+import { parseListFilter } from '@/lib/purchase-open-filter';
 
-export default async function SupplierSelectionPage() {
+export default async function SupplierSelectionPage({
+  searchParams,
+}: {
+  searchParams: { filter?: string };
+}) {
   const nominations = await getNominations();
   const usageMap = await fetchDocumentUsageMap(
     'SUPPLIER_NOMINATION',
@@ -13,6 +18,7 @@ export default async function SupplierSelectionPage() {
       variant="nomination"
       data={JSON.parse(JSON.stringify(nominations))}
       usageMap={usageMap}
+      initialFilter={parseListFilter(searchParams.filter)}
     />
   );
 }

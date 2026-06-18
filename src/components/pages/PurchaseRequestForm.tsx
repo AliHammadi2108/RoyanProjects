@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -20,6 +20,10 @@ import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 import { supplierPhoneFromMaster } from '@/lib/whatsapp';
+import {
+  filterCurrenciesForSupplier,
+  resolveCurrencyOnSupplierChange,
+} from '@/lib/supplier-currency';
 
 interface PurchaseRequestFormProps {
   masterData: MasterData;
@@ -117,7 +121,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     setForm((prev) => {
       const supplierId = prefill.supplierId || prev.supplierId;
       const supplier = masterData.suppliers.find((s) => s.id === supplierId);
-      const currencyId = supplier?.defaultCurrencyId || supplier?.defaultCurrency?.id || prev.currencyId;
+      const currencyId = resolveCurrencyOnSupplierChange(supplier, prev.currencyId);
       const currency = masterData.currencies.find((c) => c.id === currencyId);
       const exchangeRate = currency?.rateToBase ?? currency?.rate ?? prev.exchangeRate;
       return {
@@ -131,9 +135,18 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNew, prefill, masterData.items]);
 
+  const selectedSupplier = useMemo(
+    () => masterData.suppliers.find((s) => s.id === form.supplierId),
+    [masterData.suppliers, form.supplierId]
+  );
+  const supplierCurrencyOptions = useMemo(
+    () => filterCurrenciesForSupplier(masterData.currencies, selectedSupplier),
+    [masterData.currencies, selectedSupplier]
+  );
+
   const handleSupplierChange = (supplierId: string) => {
     const supplier = masterData.suppliers.find((s) => s.id === supplierId);
-    const currencyId = supplier?.defaultCurrencyId || supplier?.defaultCurrency?.id || form.currencyId;
+    const currencyId = resolveCurrencyOnSupplierChange(supplier, form.currencyId);
     const currency = masterData.currencies.find((c) => c.id === currencyId);
     const exchangeRate = currency?.rateToBase ?? currency?.rate ?? 1;
     setForm({ ...form, supplierId, currencyId: currencyId || form.currencyId, exchangeRate });
@@ -145,7 +158,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     setForm({ ...form, currencyId, exchangeRate });
   };
 
-  const handleSave = useCallback(async (submit = false) => {
+  const handleSave = useCallback(async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
     setError('');
 
@@ -170,14 +183,13 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
       }
 
       if (submit && result) {
-        await submitPurchaseRequest(result.id);
+        await submitPurchaseRequest(result.id, recipientUserIds);
       }
 
       router.push(`/purchases/requests/${result?.id || existing?.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   }, [form, isNew, existing, router]);
@@ -208,13 +220,18 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     0
   );
 
-  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+  const { toolbarProps, effectiveEditable, recipientModal } = useOperationFormToolbar({
     operationType: 'purchase_request',
     isNew,
     existing,
     usage,
     approval,
     loading,
+    approvalContext: {
+      branchId: form.branchId,
+      departmentId: form.departmentId || undefined,
+      totalAmount: requestTotalAmount,
+    },
     onSave: handleSave,
     onAfterWorkflowAction: refreshApproval,
     whatsappMeta: {
@@ -240,6 +257,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
+        {recipientModal}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -309,7 +327,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
                     kind="currency"
                     value={form.currencyId}
                     onChange={handleCurrencyChange}
-                    options={masterData.currencies}
+                    options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
                     disabled={!effectiveEditable}
                     allowEmpty={false}
                   />

@@ -20,6 +20,7 @@ import { buildLineItemUnitFields } from '@/services/item-unit.service';
 import { applyStockIn } from '@/services/stock.service';
 import { flushPendingReorderNotifications } from '@/services/reorder-alert.service';
 import { assertSupplierAccess } from '@/services/supplier-access.service';
+import { assertSupplierCurrencyAllowed } from '@/services/supplier-currency.service';
 
 // Purchase Orders
 export async function getPurchaseOrders() {
@@ -58,6 +59,8 @@ export async function getPurchaseOrder(id: string) {
 export async function createPurchaseOrder(data: unknown) {
   const user = await requirePermission('purchase_orders.create');
   const parsed = purchaseOrderSchema.parse(data);
+
+  await assertSupplierCurrencyAllowed(parsed.supplierId, parsed.currencyId);
 
   if (parsed.supplierNominationId) {
     const nomination = await prisma.supplierNomination.findUnique({
@@ -132,7 +135,7 @@ export async function createPurchaseOrder(data: unknown) {
   return result;
 }
 
-export async function submitPurchaseOrder(id: string) {
+export async function submitPurchaseOrder(id: string, recipientUserIds?: string[]) {
   const user = await requirePermission('purchase_orders.submit');
   const order = await prisma.purchaseOrder.findUnique({ where: { id } });
   if (!order) throw new Error('أمر الشراء غير موجود');
@@ -144,6 +147,7 @@ export async function submitPurchaseOrder(id: string) {
     requestedBy: user.id,
     totalAmount: order.total,
     branchId: order.branchId,
+    recipientUserIds,
   });
 
   revalidatePath('/purchases/orders');
@@ -158,6 +162,8 @@ export async function updatePurchaseOrder(id: string, data: unknown) {
   if (!['Draft', 'Returned For Edit'].includes(existing.status)) {
     throw new Error('لا يمكن تعديل أمر الشراء في حالته الحالية');
   }
+
+  await assertSupplierCurrencyAllowed(parsed.supplierId, parsed.currencyId);
 
   const subtotal = parsed.items.reduce(
     (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),

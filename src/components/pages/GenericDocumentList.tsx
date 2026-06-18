@@ -15,6 +15,13 @@ import { EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { deleteQuotation } from '@/actions/quotations';
 import { deleteComparison, deleteNomination } from '@/actions/comparisons';
 import { deletePurchaseOrder, deleteInspection, deleteReceiving, deleteInvoice } from '@/actions/purchase-orders';
+import {
+  isOpenInspection,
+  isOpenReceiving,
+  isOpenStandardDocument,
+  OPEN_FILTER_PARAM,
+  type PurchaseListFilter,
+} from '@/lib/purchase-open-filter';
 
 function formatRowAmount(row: Record<string, unknown>, amountKey: string): string {
   return formatDocumentCurrency(
@@ -344,8 +351,9 @@ const VARIANT_CONFIG: Record<
 
 interface GenericDocumentListProps {
   variant: DocumentListVariant;
-  data: Record<string, unknown>[];
+  data: Record<string, unknown>[];
   usageMap?: Record<string, UsedDocumentInfo>;
+  initialFilter?: PurchaseListFilter;
 }
 
 const SEARCH_EXTRA: Partial<Record<DocumentListVariant, string[]>> = {
@@ -353,9 +361,15 @@ const SEARCH_EXTRA: Partial<Record<DocumentListVariant, string[]>> = {
   order: ['operationNo'],
 };
 
-export function GenericDocumentList({ variant, data, usageMap = {} }: GenericDocumentListProps) {
+export function GenericDocumentList({
+  variant,
+  data,
+  usageMap = {},
+  initialFilter = '',
+}: GenericDocumentListProps) {
   const config = VARIANT_CONFIG[variant];
   const router = useRouter();
+  const openOnly = initialFilter === OPEN_FILTER_PARAM;
   const [statusFilter, setStatusFilter] = useState('');
   const [usedFilter, setUsedFilter] = useState<'' | 'used' | 'unused'>('');
   const [search, setSearch] = useState('');
@@ -371,14 +385,26 @@ export function GenericDocumentList({ variant, data, usageMap = {} }: GenericDoc
     }
     return rows.filter((row) => {
       const status = row[config.statusField] as string;
-      if (statusFilter && status !== statusFilter) return false;
       const id = row.id as string;
-      const used = usageMap[id]?.isUsed;
+      const usage = usageMap[id];
+
+      if (openOnly) {
+        const isOpen =
+          variant === 'inspection'
+            ? isOpenInspection(status, usage)
+            : variant === 'receiving'
+              ? isOpenReceiving(status, usage)
+              : isOpenStandardDocument(status, usage);
+        if (!isOpen) return false;
+      }
+
+      if (statusFilter && status !== statusFilter) return false;
+      const used = usage?.isUsed;
       if (usedFilter === 'used' && !used) return false;
       if (usedFilter === 'unused' && used) return false;
       return true;
     });
-  }, [data, statusFilter, usedFilter, search, config, usageMap]);
+  }, [data, openOnly, statusFilter, usedFilter, search, config, usageMap, variant]);
 
   const isRowEditable = (row: Record<string, unknown>) =>
     config.canEdit(row) && !usageMap[row.id as string]?.isUsed;
@@ -424,6 +450,15 @@ export function GenericDocumentList({ variant, data, usageMap = {} }: GenericDoc
           </div>
         )}
 
+        {openOnly && (
+          <div className="mb-4 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2 text-sm text-primary-800">
+            عرض العمليات المفتوحة فقط —{' '}
+            <Link href={config.basePath} className="underline hover:text-primary-900">
+              إزالة الفلتر
+            </Link>
+          </div>
+        )}
+
         <div className="card mb-4">
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -431,7 +466,7 @@ export function GenericDocumentList({ variant, data, usageMap = {} }: GenericDoc
               <span>
                 إجمالي العمليات: <strong>{data.length}</strong>
               </span>
-              {(statusFilter || search) && (
+              {(statusFilter || search || openOnly) && (
                 <span className="text-primary-600">
                   | المعروض: <strong>{filtered.length}</strong>
                 </span>

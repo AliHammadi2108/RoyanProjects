@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/db';
 import {
   formatNotificationMessage,
+  getWhatsAppConfigIssues,
   isWhatsAppAutoNotifyEnabled,
+  looksLikePhoneNumberInsteadOfMetaPhoneNumberId,
   isWhatsAppCloudApiConfigured,
   normalizePhoneToE164,
 } from '@/lib/whatsapp';
@@ -18,6 +20,90 @@ export interface SendWhatsAppTextResult {
   success: boolean;
   messageId?: string;
   error?: string;
+}
+
+
+function formatMetaGraphApiError(error?: {
+  message?: string;
+  type?: string;
+  code?: number;
+  error_subcode?: number;
+  fbtrace_id?: string;
+}): string {
+  if (!error) return "";
+  const parts: string[] = [];
+  if (error.message) parts.push(error.message);
+  if (error.code != null) parts.push(`code=${error.code}`);
+  if (error.error_subcode != null) parts.push(`subcode=${error.error_subcode}`);
+  if (error.type) parts.push(`type=${error.type}`);
+  if (error.fbtrace_id) parts.push(`trace=${error.fbtrace_id}`);
+  return parts.join(" | ");
+}
+
+export async function verifyWhatsAppCloudApiCredentials(): Promise<{
+  ok: boolean;
+  error?: string;
+  displayPhoneNumber?: string;
+  verifiedName?: string;
+}> {
+  const configIssues = getWhatsAppConfigIssues();
+  if (configIssues.length) {
+    return { ok: false, error: configIssues.join(" ") };
+  }
+
+  const token = process.env.WHATSAPP_CLOUD_API_TOKEN!.trim();
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!.trim();
+
+  if (looksLikePhoneNumberInsteadOfMetaPhoneNumberId(phoneNumberId)) {
+    return {
+      ok: false,
+      error:
+        "معرّف WHATSAPP_PHONE_NUMBER_ID غير صحيح: استخدم Phone number ID من Meta وليس رقم الواتساب.",
+    };
+  }
+
+  const url = `https://graph.facebook.com/v21.0/${phoneNumberId}?fields=display_phone_number,verified_name`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = (await response.json()) as {
+      display_phone_number?: string;
+      verified_name?: string;
+      error?: {
+        message?: string;
+        type?: string;
+        code?: number;
+        error_subcode?: number;
+        fbtrace_id?: string;
+      };
+    };
+
+    if (response.ok && payload.display_phone_number) {
+      return {
+        ok: true,
+        displayPhoneNumber: payload.display_phone_number,
+        verifiedName: payload.verified_name,
+      };
+    }
+
+    const formatted = formatMetaGraphApiError(payload.error);
+    if (response.status === 401 || payload.error?.code === 190) {
+      return {
+        ok: false,
+        error:
+          formatted ||
+          "توكن WhatsApp غير صالح أو منتهي — أنشئ System User Token دائمًا من Meta.",
+      };
+    }
+    return { ok: false, error: formatted || `HTTP ${response.status}` };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "تعذر الاتصال بـ graph.facebook.com",
+    };
+  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -61,14 +147,14 @@ export async function sendWhatsAppText(
 
       const payload = (await response.json()) as {
         messages?: Array<{ id: string }>;
-        error?: { message?: string };
+        error?: { message?: string; type?: string; code?: number; error_subcode?: number; fbtrace_id?: string };
       };
 
       if (response.ok && payload.messages?.[0]?.id) {
         return { success: true, messageId: payload.messages[0].id };
       }
 
-      lastError = payload.error?.message || `HTTP ${response.status}`;
+      lastError = formatMetaGraphApiError(payload.error) || `HTTP ${response.status}`;
     } catch (err) {
       lastError = err instanceof Error ? err.message : 'فشل الإرسال';
     }

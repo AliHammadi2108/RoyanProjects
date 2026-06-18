@@ -430,11 +430,39 @@ async function main() {
   ];
 
   for (const sup of suppliers) {
-    await prisma.supplier.upsert({
+    const created = await prisma.supplier.upsert({
       where: { code: sup.code },
       update: { defaultCurrencyId: sar.id },
       create: { ...sup, defaultCurrencyId: sar.id },
     });
+
+    const currencyIds = sup.code === 'SUP002' ? [sar.id, usd.id] : [sar.id];
+    await prisma.supplierCurrency.deleteMany({ where: { supplierId: created.id } });
+    await prisma.supplierCurrency.createMany({
+      data: currencyIds.map((currencyId) => ({
+        supplierId: created.id,
+        currencyId,
+        isDefault: currencyId === sar.id,
+      })),
+    });
+  }
+
+  // مزامنة أي موردين قدامى بدون سجلات ربط
+  const legacySuppliers = await prisma.supplier.findMany({
+    where: { defaultCurrencyId: { not: null } },
+    select: { id: true, defaultCurrencyId: true },
+  });
+  for (const legacy of legacySuppliers) {
+    const count = await prisma.supplierCurrency.count({ where: { supplierId: legacy.id } });
+    if (count === 0 && legacy.defaultCurrencyId) {
+      await prisma.supplierCurrency.create({
+        data: {
+          supplierId: legacy.id,
+          currencyId: legacy.defaultCurrencyId,
+          isDefault: true,
+        },
+      });
+    }
   }
 
   // Users

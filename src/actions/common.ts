@@ -9,6 +9,7 @@ import {
   getApprovalInbox,
   getApprovalForDocument,
   canUserApproveApproval,
+  getApproverCandidates,
 } from '@/services/approval.service';
 import {
   getUserNotifications,
@@ -61,6 +62,22 @@ export async function processApproval(data: unknown) {
 export async function getDocumentApproval(documentType: string, documentId: string) {
   await requirePermission('approvals.view');
   return getApprovalForDocument(documentType, documentId);
+}
+
+export async function fetchApprovalRecipients(input: {
+  documentType: string;
+  branchId?: string;
+  departmentId?: string;
+  totalAmount?: number;
+}) {
+  await requireAuth();
+  return getApproverCandidates({
+    documentType: input.documentType,
+    branchId: input.branchId,
+    departmentId: input.departmentId,
+    totalAmount: input.totalAmount,
+    level: 1,
+  });
 }
 
 export async function fetchNotifications(filters?: { status?: string; type?: string }) {
@@ -199,7 +216,10 @@ export async function getMasterData() {
       prisma.warehouse.findMany({ where: { isActive: true } }),
       prisma.supplier.findMany({
         where: supplierWhereForUser(allowedSupplierIds, { isActive: true }),
-        include: { defaultCurrency: true },
+        include: {
+          defaultCurrency: true,
+          currencies: { include: { currency: true }, orderBy: { isDefault: 'desc' } },
+        },
       }),
       prisma.item.findMany({
         where: { isActive: true },

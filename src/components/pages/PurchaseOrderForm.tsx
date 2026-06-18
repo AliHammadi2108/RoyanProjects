@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -23,6 +23,10 @@ import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 import { supplierPhoneFromMaster } from '@/lib/whatsapp';
+import {
+  filterCurrenciesForSupplier,
+  resolveCurrencyOnSupplierChange,
+} from '@/lib/supplier-currency';
 
 interface ApprovedNomination {
   id: string;
@@ -139,6 +143,15 @@ export function PurchaseOrderForm({
 
   const isEditable = isNew || EDITABLE_DOC_STATUSES.includes(existing?.status as string);
 
+  const selectedSupplier = useMemo(
+    () => masterData.suppliers.find((s) => s.id === form.supplierId),
+    [masterData.suppliers, form.supplierId]
+  );
+  const supplierCurrencyOptions = useMemo(
+    () => filterCurrenciesForSupplier(masterData.currencies, selectedSupplier),
+    [masterData.currencies, selectedSupplier]
+  );
+
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('PURCHASE_ORDER', existing.id as string).then(setApproval);
@@ -156,6 +169,10 @@ export function PurchaseOrderForm({
       purchaseCycleId: nomination.purchaseCycleId,
       branchId: nomination.branchId,
       supplierId: nomination.supplierId || '',
+      currencyId: resolveCurrencyOnSupplierChange(
+        masterData.suppliers.find((s) => s.id === (nomination.supplierId || '')),
+        form.currencyId
+      ),
       items: nomination.items.map((i) => ({
         itemId: i.itemId,
         itemNameSnapshot: i.itemNameSnapshot,
@@ -180,12 +197,15 @@ export function PurchaseOrderForm({
       purchaseCycleId: comparison.purchaseCycleId,
       branchId: comparison.branchId,
       supplierId: resolveComparisonSupplierId(comparison.items),
-      currencyId: comparison.currencyId || form.currencyId,
+      currencyId: comparison.currencyId || resolveCurrencyOnSupplierChange(
+        masterData.suppliers.find((s) => s.id === resolveComparisonSupplierId(comparison.items)),
+        form.currencyId
+      ),
       items: buildPurchaseOrderItemsFromComparison(comparison.items),
     });
   };
 
-  const handleSave = async (submit = false) => {
+  const handleSave = async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
     setError('');
     if (!form.items.length) {
@@ -201,13 +221,12 @@ export function PurchaseOrderForm({
         result = await updatePurchaseOrder(existing!.id as string, form);
       }
       if (submit && result) {
-        await submitPurchaseOrder(result.id);
+        await submitPurchaseOrder(result.id, recipientUserIds);
       }
       router.push(`/purchases/orders/${result?.id || existing?.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -226,16 +245,15 @@ export function PurchaseOrderForm({
     }
   };
 
-  const handleSubmitOnly = async () => {
+  const handleSubmitOnly = async (recipientUserIds?: string[]) => {
     if (!existing?.id) return;
     setLoading(true);
     try {
-      await submitPurchaseOrder(existing.id as string);
+      await submitPurchaseOrder(existing.id as string, recipientUserIds);
       getDocumentApproval('PURCHASE_ORDER', existing.id as string).then(setApproval);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -249,13 +267,17 @@ export function PurchaseOrderForm({
     router.refresh();
   };
 
-  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+  const { toolbarProps, effectiveEditable, recipientModal } = useOperationFormToolbar({
     operationType: 'purchase_order',
     isNew,
     existing,
     usage,
     approval,
     loading,
+    approvalContext: {
+      branchId: form.branchId,
+      totalAmount: total,
+    },
     onSave: handleSave,
     onSubmitOnly: handleSubmitOnly,
     onAfterWorkflowAction: refreshApproval,
@@ -282,6 +304,7 @@ export function PurchaseOrderForm({
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
+        {recipientModal}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -339,8 +362,23 @@ export function PurchaseOrderForm({
                   <MasterDataSelect
                     kind="supplier"
                     value={form.supplierId}
-                    onChange={(supplierId) => setForm({ ...form, supplierId })}
+                    onChange={(supplierId) => {
+                      const supplier = masterData.suppliers.find((s) => s.id === supplierId);
+                      const currencyId = resolveCurrencyOnSupplierChange(supplier, form.currencyId);
+                      setForm({ ...form, supplierId, currencyId });
+                    }}
                     options={masterData.suppliers}
+                    disabled={!effectiveEditable}
+                    allowEmpty={false}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">العملة</label>
+                  <MasterDataSelect
+                    kind="currency"
+                    value={form.currencyId}
+                    onChange={(currencyId) => setForm({ ...form, currencyId })}
+                    options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
                     disabled={!effectiveEditable}
                     allowEmpty={false}
                   />

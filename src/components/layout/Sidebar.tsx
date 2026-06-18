@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  LayoutGrid,
   FileText,
   Receipt,
   GitCompare,
@@ -66,6 +67,7 @@ const navGroups: NavGroup[] = [
     label: 'عمليات',
     icon: Workflow,
     items: [
+      { href: '/purchases/dashboard', label: 'لوحة متابعة المشتريات', icon: LayoutGrid },
       { href: '/purchases/tracking', label: 'متابعة العمليات', icon: Activity },
       { href: '/purchases/requests', label: 'طلبات الشراء', icon: FileText },
       { href: '/purchases/quotations', label: 'عروض الأسعار', icon: Receipt },

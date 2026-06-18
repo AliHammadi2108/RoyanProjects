@@ -129,7 +129,8 @@ describe('Master Data & Permissions', () => {
     if (!currency) return;
     const count =
       (await prisma.purchaseRequest.count({ where: { currencyId: currency.id } })) +
-      (await prisma.supplier.count({ where: { defaultCurrencyId: currency.id } }));
+      (await prisma.supplier.count({ where: { defaultCurrencyId: currency.id } })) +
+      (await prisma.supplierCurrency.count({ where: { currencyId: currency.id } }));
     expect(count).toBeGreaterThanOrEqual(0);
   });
 

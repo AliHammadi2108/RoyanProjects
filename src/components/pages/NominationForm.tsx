@@ -110,7 +110,7 @@ export function NominationForm({
     });
   };
 
-  const handleSave = async (submit = false) => {
+  const handleSave = async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
     setError('');
     if (!form.items.length) {
@@ -126,13 +126,12 @@ export function NominationForm({
         result = await updateNomination(existing!.id as string, form);
       }
       if (submit && result) {
-        await submitNomination(result.id);
+        await submitNomination(result.id, recipientUserIds);
       }
       router.push(`/purchases/supplier-selection/${result?.id || existing?.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -151,16 +150,15 @@ export function NominationForm({
     }
   };
 
-  const handleSubmitOnly = async () => {
+  const handleSubmitOnly = async (recipientUserIds?: string[]) => {
     if (!existing?.id) return;
     setLoading(true);
     try {
-      await submitNomination(existing.id as string);
+      await submitNomination(existing.id as string, recipientUserIds);
       getDocumentApproval('SUPPLIER_NOMINATION', existing.id as string).then(setApproval);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -173,13 +171,17 @@ export function NominationForm({
     router.refresh();
   };
 
-  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+  const { toolbarProps, effectiveEditable, recipientModal } = useOperationFormToolbar({
     operationType: 'nomination',
     isNew,
     existing,
     usage,
     approval,
     loading,
+    approvalContext: {
+      branchId: form.branchId,
+      totalAmount: total,
+    },
     onSave: handleSave,
     onSubmitOnly: handleSubmitOnly,
     onAfterWorkflowAction: refreshApproval,
@@ -193,6 +195,7 @@ export function NominationForm({
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
+        {recipientModal}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -20,6 +20,10 @@ import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 import { supplierPhoneFromMaster } from '@/lib/whatsapp';
+import {
+  filterCurrenciesForSupplier,
+  resolveCurrencyOnSupplierChange,
+} from '@/lib/supplier-currency';
 
 interface ApprovedRequest {
   id: string;
@@ -102,6 +106,15 @@ export function QuotationForm({
 
   const isEditable = isNew || EDITABLE_DOC_STATUSES.includes(existing?.status as string);
 
+  const selectedSupplier = useMemo(
+    () => masterData.suppliers.find((s) => s.id === form.supplierId),
+    [masterData.suppliers, form.supplierId]
+  );
+  const supplierCurrencyOptions = useMemo(
+    () => filterCurrenciesForSupplier(masterData.currencies, selectedSupplier),
+    [masterData.currencies, selectedSupplier]
+  );
+
   useEffect(() => {
     if (existing?.id) {
       getDocumentApproval('QUOTATION', existing.id as string).then(setApproval);
@@ -138,7 +151,7 @@ export function QuotationForm({
     });
   };
 
-  const handleSave = async (submit = false) => {
+  const handleSave = async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
     setError('');
     if (!form.supplierId) {
@@ -159,13 +172,12 @@ export function QuotationForm({
         result = await updateQuotation(existing!.id as string, form);
       }
       if (submit && result) {
-        await submitQuotation(result.id);
+        await submitQuotation(result.id, recipientUserIds);
       }
       router.push(`/purchases/quotations/${result?.id || existing?.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -184,17 +196,16 @@ export function QuotationForm({
     }
   };
 
-  const handleSubmitOnly = async () => {
+  const handleSubmitOnly = async (recipientUserIds?: string[]) => {
     if (!existing?.id) return;
     setLoading(true);
     setError('');
     try {
-      await submitQuotation(existing.id as string);
+      await submitQuotation(existing.id as string, recipientUserIds);
       getDocumentApproval('QUOTATION', existing.id as string).then(setApproval);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -208,13 +219,17 @@ export function QuotationForm({
     router.refresh();
   };
 
-  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+  const { toolbarProps, effectiveEditable, recipientModal } = useOperationFormToolbar({
     operationType: 'quotation',
     isNew,
     existing,
     usage,
     approval,
     loading,
+    approvalContext: {
+      branchId: form.branchId,
+      totalAmount: total,
+    },
     onSave: handleSave,
     onSubmitOnly: handleSubmitOnly,
     onAfterWorkflowAction: refreshApproval,
@@ -241,6 +256,7 @@ export function QuotationForm({
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
+        {recipientModal}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}
@@ -288,7 +304,11 @@ export function QuotationForm({
                   <MasterDataSelect
                     kind="supplier"
                     value={form.supplierId}
-                    onChange={(supplierId) => setForm({ ...form, supplierId })}
+                    onChange={(supplierId) => {
+                      const supplier = masterData.suppliers.find((s) => s.id === supplierId);
+                      const currencyId = resolveCurrencyOnSupplierChange(supplier, form.currencyId);
+                      setForm({ ...form, supplierId, currencyId });
+                    }}
                     options={masterData.suppliers}
                     disabled={!effectiveEditable}
                   />
@@ -299,7 +319,7 @@ export function QuotationForm({
                     kind="currency"
                     value={form.currencyId}
                     onChange={(currencyId) => setForm({ ...form, currencyId })}
-                    options={masterData.currencies}
+                    options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
                     disabled={!effectiveEditable}
                     allowEmpty={false}
                   />

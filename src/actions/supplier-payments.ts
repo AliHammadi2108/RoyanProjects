@@ -72,9 +72,9 @@ export async function removeSupplierPayment(id: string) {
   return result;
 }
 
-export async function submitSupplierPayment(id: string) {
+export async function submitSupplierPayment(id: string, recipientUserIds?: string[]) {
   const user = await requirePermission('supplier_payment.approve');
-  const result = await submitSupplierPaymentForApproval(user.id, id);
+  const result = await submitSupplierPaymentForApproval(user.id, id, recipientUserIds);
   revalidatePath('/purchases/supplier-payments');
   revalidatePath(`/purchases/supplier-payments/${id}`);
   revalidatePath('/approvals/inbox');

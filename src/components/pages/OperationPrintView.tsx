@@ -118,7 +118,6 @@ export function OperationPrintView({
                     <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-20">الكمية</th>
                     {showPricing && (
                       <>
-                        <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-20">أساسية</th>
                         <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-24">السعر</th>
                         <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-20">خصم</th>
                         <th className="px-2 py-2 text-right border-b font-semibold text-gray-700 w-20">ضريبة</th>
@@ -143,9 +142,6 @@ export function OperationPrintView({
                       <td className="px-2 py-2">{formatNumber(line.quantity)}</td>
                       {showPricing && (
                         <>
-                          <td className="px-2 py-2 text-gray-600">
-                            {line.baseQty != null ? line.baseQty.toFixed(2) : '-'}
-                          </td>
                           <td className="px-2 py-2">{(line.unitPrice ?? 0).toFixed(2)}</td>
                           <td className="px-2 py-2">{(line.discount ?? 0).toFixed(2)}</td>
                           <td className="px-2 py-2">{(line.tax ?? 0).toFixed(2)}</td>

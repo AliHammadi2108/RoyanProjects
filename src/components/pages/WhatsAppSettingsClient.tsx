@@ -75,6 +75,33 @@ export function WhatsAppSettingsClient({ initial }: WhatsAppSettingsClientProps)
               {error}
             </div>
           )}
+          {status.configIssues.length > 0 && (
+            <div className="bg-amber-50 text-amber-900 p-3 rounded-lg border border-amber-200 text-sm space-y-1">
+              <p className="font-semibold">����� �� ������� (.env):</p>
+              <ul className="list-disc list-inside">
+                {status.configIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {status.apiVerifyError && (
+            <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-200 text-sm">
+              <p className="font-semibold">��� �� Meta Graph API:</p>
+              <p className="font-mono text-xs mt-1 break-all" dir="ltr">
+                {status.apiVerifyError}
+              </p>
+            </div>
+          )}
+          {status.apiDisplayPhone && !status.apiVerifyError && (
+            <div className="bg-green-50 text-green-800 p-3 rounded-lg border border-green-200 text-sm">
+              �� ������ �� ����� ������� ���� API:{" "}
+              <span className="font-mono" dir="ltr">
+                {status.apiDisplayPhone}
+              </span>
+            </div>
+          )}
+
           {success && (
             <div className="bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 text-sm">
               {success}

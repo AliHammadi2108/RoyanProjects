@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, createElement } from 'react';
-import { checkCanApprove, processApproval } from '@/actions/common';
+import { checkCanApprove, fetchApprovalRecipients, processApproval } from '@/actions/common';
+import { ApprovalRecipientsModal } from '@/components/ui/ApprovalRecipientsModal';
 import { confirmToolbarAction, type OperationToolbarProps } from '@/components/ui/OperationToolbar';
 import { DocumentWhatsAppButton } from '@/components/ui/DocumentWhatsAppButton';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { useOperationToolbar } from '@/hooks/useOperationToolbar';
+import { OPERATION_TO_DOCUMENT_TYPE } from '@/lib/constants';
 import type { OperationType, ToolbarButtonId } from '@/lib/operation-toolbar';
 import { formatDate, type CurrencyLike } from '@/lib/utils';
 import { formatWhatsAppDocumentTotal } from '@/lib/whatsapp';
@@ -24,6 +26,12 @@ export interface WhatsAppFormMeta {
   documentDate?: string;
 }
 
+export interface ApprovalSubmitContext {
+  branchId?: string;
+  departmentId?: string;
+  totalAmount?: number;
+}
+
 export interface UseOperationFormToolbarOptions {
   operationType: OperationType;
   isNew?: boolean;
@@ -37,8 +45,9 @@ export interface UseOperationFormToolbarOptions {
   status?: string;
   editableOverride?: boolean;
   whatsappMeta?: WhatsAppFormMeta;
-  onSave: (submit: boolean) => Promise<void>;
-  onSubmitOnly?: () => Promise<void>;
+  approvalContext?: ApprovalSubmitContext;
+  onSave: (submit: boolean, recipientUserIds?: string[]) => Promise<void>;
+  onSubmitOnly?: (recipientUserIds?: string[]) => Promise<void>;
   onAfterWorkflowAction?: () => void;
 }
 
@@ -56,14 +65,22 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     onSave,
     onSubmitOnly,
     onAfterWorkflowAction,
+    approvalContext,
   } = options;
 
   const [loadingAction, setLoadingAction] = useState<ToolbarButtonId | null>(null);
   const [canApprove, setCanApprove] = useState(false);
+  const [recipientModalOpen, setRecipientModalOpen] = useState(false);
+  const [recipientCandidates, setRecipientCandidates] = useState<
+    Array<{ id: string; nameAr: string; username: string; userNo?: string | null }>
+  >([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [pendingSubmitMode, setPendingSubmitMode] = useState<'saveAndSubmit' | 'submitOnly'>('submitOnly');
 
   const status =
     options.status ?? (existing?.status as string | undefined);
   const documentId = existing?.id as string | undefined;
+  const documentType = OPERATION_TO_DOCUMENT_TYPE[operationType];
 
   useEffect(() => {
     if (approval?.id && approval.status === 'Pending') {
@@ -82,13 +99,78 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     usage,
     approvalStatus: approval?.status,
     canApprove,
-    loading: loading || loadingAction !== null,
+    loading: loading || loadingAction !== null || loadingRecipients,
     loadingAction,
     userPermissions,
     saveLabel,
     submitLabel,
     editableOverride: options.editableOverride,
   });
+
+  const resolveApprovalContext = useCallback((): ApprovalSubmitContext => {
+    if (approvalContext) return approvalContext;
+    return {
+      branchId: (existing?.branchId as string) || undefined,
+      departmentId: (existing?.departmentId as string) || undefined,
+      totalAmount:
+        (existing?.totalAmount as number) ||
+        (existing?.total as number) ||
+        (existing?.netTotal as number) ||
+        undefined,
+    };
+  }, [approvalContext, existing]);
+
+  const runSubmit = useCallback(
+    async (recipientUserIds: string[]) => {
+      setLoadingAction('submit');
+      try {
+        if (pendingSubmitMode === 'submitOnly' && onSubmitOnly) {
+          await onSubmitOnly(recipientUserIds);
+        } else {
+          await onSave(true, recipientUserIds);
+        }
+      } catch {
+        setLoadingAction(null);
+      }
+    },
+    [onSave, onSubmitOnly, pendingSubmitMode]
+  );
+
+  const openRecipientModal = useCallback(
+    async (mode: 'saveAndSubmit' | 'submitOnly') => {
+      if (!documentType) {
+        await runSubmit([]);
+        return;
+      }
+
+      setPendingSubmitMode(mode);
+      setLoadingRecipients(true);
+      try {
+        const ctx = resolveApprovalContext();
+        const candidates = await fetchApprovalRecipients({
+          documentType,
+          branchId: ctx.branchId,
+          departmentId: ctx.departmentId,
+          totalAmount: ctx.totalAmount,
+        });
+        if (candidates.length === 0) {
+          throw new Error('لم يتم العثور على معتمدين في مصفوفة الاعتماد');
+        }
+        if (candidates.length === 1) {
+          await runSubmit([candidates[0].id]);
+          return;
+        }
+        setRecipientCandidates(candidates);
+        setRecipientModalOpen(true);
+      } catch {
+        setLoadingRecipients(false);
+        throw new Error('تعذر تحميل قائمة المعتمدين');
+      } finally {
+        setLoadingRecipients(false);
+      }
+    },
+    [documentType, resolveApprovalContext, runSubmit]
+  );
 
   const handleToolbarAction = useCallback(
     async (id: ToolbarButtonId) => {
@@ -102,23 +184,30 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
             return;
           case 'save':
             setLoadingAction('save');
-            await onSave(false);
+            try {
+              await onSave(false);
+            } catch {
+              setLoadingAction(null);
+            }
             return;
           case 'submit':
             if (!(await confirmToolbarAction('submit'))) return;
-            setLoadingAction('submit');
             if (!isNew && onSubmitOnly) {
-              await onSubmitOnly();
+              await openRecipientModal('submitOnly');
             } else {
-              await onSave(true);
+              await openRecipientModal('saveAndSubmit');
             }
             return;
           case 'approve':
             if (!approval?.id) return;
             if (!(await confirmToolbarAction('approve'))) return;
             setLoadingAction('approve');
-            await processApproval({ approvalId: approval.id, action: 'approve', notes: '' });
-            onAfterWorkflowAction?.();
+            try {
+              await processApproval({ approvalId: approval.id, action: 'approve', notes: '' });
+              onAfterWorkflowAction?.();
+            } catch {
+              setLoadingAction(null);
+            }
             return;
           case 'reject': {
             if (!approval?.id) return;
@@ -126,19 +215,45 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
             if (!notes?.trim()) return;
             if (!(await confirmToolbarAction('reject'))) return;
             setLoadingAction('reject');
-            await processApproval({ approvalId: approval.id, action: 'reject', notes: notes.trim() });
-            onAfterWorkflowAction?.();
+            try {
+              await processApproval({ approvalId: approval.id, action: 'reject', notes: notes.trim() });
+              onAfterWorkflowAction?.();
+            } catch {
+              setLoadingAction(null);
+            }
             return;
           }
           default:
             return;
         }
-      } finally {
+      } catch {
         setLoadingAction(null);
       }
     },
-    [approval?.id, isNew, onAfterWorkflowAction, onSave, onSubmitOnly, toolbar]
+    [approval?.id, isNew, onAfterWorkflowAction, onSave, onSubmitOnly, openRecipientModal, toolbar]
   );
+
+  const recipientModal = recipientModalOpen ? (
+    <ApprovalRecipientsModal
+      candidates={recipientCandidates}
+      loading={loadingAction === 'submit'}
+      onClose={() => {
+        if (loadingAction !== 'submit') {
+          setRecipientModalOpen(false);
+          setRecipientCandidates([]);
+        }
+      }}
+      onConfirm={async (recipientUserIds) => {
+        try {
+          await runSubmit(recipientUserIds);
+          setRecipientModalOpen(false);
+          setRecipientCandidates([]);
+        } catch {
+          // keep modal open; loading reset in runSubmit
+        }
+      }}
+    />
+  ) : null;
 
   const whatsappExtra = useMemo(() => {
     if (isNew || !documentId) return undefined;
@@ -169,7 +284,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
       partyName: options.whatsappMeta?.partyName,
       supplierPhone: options.whatsappMeta?.supplierPhone,
       permissions: toolbar.permissions,
-      disabled: loading || loadingAction !== null,
+      disabled: loading || loadingAction !== null || loadingRecipients,
     });
   }, [
     isNew,
@@ -181,6 +296,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     toolbar.permissions,
     loading,
     loadingAction,
+    loadingRecipients,
   ]);
 
   const toolbarProps: OperationToolbarProps = {
@@ -196,5 +312,6 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     toolbarProps,
     effectiveEditable: toolbar.effectiveEditable,
     mode: toolbar.mode,
+    recipientModal,
   };
 }

@@ -23,6 +23,22 @@ export const DOCUMENT_STATUS = {
   POSTED: 'Posted',
 } as const;
 
+/** Purchase invoices eligible for supplier payment allocation */
+export const PAYABLE_INVOICE_STATUSES = [
+  DOCUMENT_STATUS.DRAFT,
+  DOCUMENT_STATUS.APPROVED,
+  DOCUMENT_STATUS.POSTED,
+] as const;
+
+export const OPERATION_TO_DOCUMENT_TYPE: Record<string, string> = {
+  purchase_request: DOCUMENT_TYPES.PURCHASE_REQUEST,
+  quotation: DOCUMENT_TYPES.QUOTATION,
+  comparison: DOCUMENT_TYPES.TECHNICAL_COMPARISON,
+  nomination: DOCUMENT_TYPES.SUPPLIER_NOMINATION,
+  purchase_order: DOCUMENT_TYPES.PURCHASE_ORDER,
+  supplier_payment: DOCUMENT_TYPES.SUPPLIER_PAYMENT,
+};
+
 export const APPROVAL_STATUS = {
   NONE: 'None',
   PENDING: 'Pending',

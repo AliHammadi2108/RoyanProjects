@@ -56,10 +56,10 @@ export function IntegerStepperInput({
   };
 
   const buttonClass =
-    'inline-flex shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 p-1.5 text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex h-full shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 px-1.5 text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
-    <div className={cn('flex w-full items-center gap-1', className)} dir="ltr">
+    <div className={cn('flex w-full items-stretch gap-1', className)} dir="ltr">
       <button
         type="button"
         className={buttonClass}

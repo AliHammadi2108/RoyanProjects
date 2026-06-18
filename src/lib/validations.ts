@@ -42,19 +42,28 @@ export const currencySchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const supplierSchema = z.object({
-  code: z.string().min(1, 'كود المورد مطلوب'),
-  nameAr: z.string().min(1, 'اسم المورد مطلوب'),
-  nameEn: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email('بريد إلكتروني غير صالح').optional().or(z.literal('')),
-  address: z.string().optional(),
-  taxNo: z.string().optional(),
-  defaultCurrencyId: z.string().min(1, 'العملة الافتراضية مطلوبة'),
-  openingBalance: z.number().default(0),
-  notes: z.string().optional(),
-  isActive: z.boolean().default(true),
-});
+export const supplierSchema = z
+  .object({
+    code: z.string().min(1, 'كود المورد مطلوب'),
+    nameAr: z.string().min(1, 'اسم المورد مطلوب'),
+    nameEn: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email('بريد إلكتروني غير صالح').optional().or(z.literal('')),
+    address: z.string().optional(),
+    taxNo: z.string().optional(),
+    defaultCurrencyId: z.string().min(1, 'العملة الافتراضية مطلوبة'),
+    currencyIds: z.array(z.string().min(1)).min(1, 'يجب اختيار عملة واحدة على الأقل').optional(),
+    openingBalance: z.number().default(0),
+    notes: z.string().optional(),
+    isActive: z.boolean().default(true),
+  })
+  .refine(
+    (data) => {
+      const ids = data.currencyIds?.length ? data.currencyIds : [data.defaultCurrencyId];
+      return ids.includes(data.defaultCurrencyId);
+    },
+    { message: 'العملة الافتراضية يجب أن تكون من العملات المختارة', path: ['defaultCurrencyId'] }
+  );
 
 export const unitSchema = z.object({
   code: z.string().min(1, 'كود الوحدة مطلوب'),

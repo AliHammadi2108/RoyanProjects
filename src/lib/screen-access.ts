@@ -3,6 +3,7 @@ import { hasPermission, isAdmin } from '@/lib/permissions';
 /** Every navigable screen and the permission required to view it. */
 export const SCREEN_NAV_ITEMS = [
   { href: '/purchases/tracking', permission: 'tracking.view', group: 'operations' },
+  { href: '/purchases/dashboard', permission: 'tracking.view', group: 'operations' },
   { href: '/purchases/requests', permission: 'purchase_requests.view', group: 'operations' },
   { href: '/purchases/quotations', permission: 'quotations.view', group: 'operations' },
   { href: '/purchases/comparisons', permission: 'comparisons.view', group: 'operations' },

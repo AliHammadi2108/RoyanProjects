@@ -12,6 +12,11 @@ import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/co
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDate, formatDocumentCurrency } from '@/lib/utils';
 import { deletePurchaseRequest } from '@/actions/purchase-requests';
+import {
+  isOpenStandardDocument,
+  OPEN_FILTER_PARAM,
+  type PurchaseListFilter,
+} from '@/lib/purchase-open-filter';
 
 const STATUS_FILTERS = [
   { value: '', label: 'الكل' },
@@ -31,11 +36,14 @@ type RequestRow = Record<string, unknown> & {
 export function PurchaseRequestsClient({
   initialData,
   usageMap = {},
+  initialFilter = '',
 }: {
   initialData: RequestRow[];
   usageMap?: Record<string, UsedDocumentInfo>;
+  initialFilter?: PurchaseListFilter;
 }) {
   const router = useRouter();
+  const openOnly = initialFilter === OPEN_FILTER_PARAM;
   const [statusFilter, setStatusFilter] = useState('');
   const [usedFilter, setUsedFilter] = useState<'' | 'used' | 'unused'>('');
   const [search, setSearch] = useState('');
@@ -47,13 +55,14 @@ export function PurchaseRequestsClient({
       (r) => SEARCH_MAPPINGS.purchaseRequest(r).join(' '),
     ]);
     return rows.filter((row) => {
+      if (openOnly && !isOpenStandardDocument(row.status, usageMap[row.id])) return false;
       if (statusFilter && row.status !== statusFilter) return false;
       const used = usageMap[row.id]?.isUsed;
       if (usedFilter === 'used' && !used) return false;
       if (usedFilter === 'unused' && used) return false;
       return true;
     });
-  }, [initialData, statusFilter, usedFilter, search, usageMap]);
+  }, [initialData, openOnly, statusFilter, usedFilter, search, usageMap]);
 
   const canEdit = (row: RequestRow) =>
     ['Draft', 'Returned For Edit'].includes(row.status) && !usageMap[row.id]?.isUsed;
@@ -92,12 +101,21 @@ export function PurchaseRequestsClient({
           </div>
         )}
 
+        {openOnly && (
+          <div className="mb-4 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2 text-sm text-primary-800">
+            عرض العمليات المفتوحة فقط —{' '}
+            <Link href="/purchases/requests" className="underline hover:text-primary-900">
+              إزالة الفلتر
+            </Link>
+          </div>
+        )}
+
         <div className="card mb-4">
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <List className="w-4 h-4" />
               <span>إجمالي الطلبات: <strong>{initialData.length}</strong></span>
-              {statusFilter && (
+              {(statusFilter || openOnly) && (
                 <span className="text-primary-600">| المعروض: <strong>{filtered.length}</strong></span>
               )}
             </div>

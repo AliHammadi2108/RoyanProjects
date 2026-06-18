@@ -186,7 +186,7 @@ export function ComparisonForm({
     setSelectedQuotationIds([]);
   };
 
-  const handleSave = async (submit = false) => {
+  const handleSave = async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
     setError('');
     if (!selectedQuotationIds.length) {
@@ -216,13 +216,12 @@ export function ComparisonForm({
         result = await updateComparison(existing!.id as string, payload);
       }
       if (submit && result) {
-        await submitComparison(result.id);
+        await submitComparison(result.id, recipientUserIds);
       }
       router.push(`/purchases/comparisons/${result?.id || existing?.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -241,16 +240,15 @@ export function ComparisonForm({
     }
   };
 
-  const handleSubmitOnly = async () => {
+  const handleSubmitOnly = async (recipientUserIds?: string[]) => {
     if (!existing?.id) return;
     setLoading(true);
     try {
-      await submitComparison(existing.id as string);
+      await submitComparison(existing.id as string, recipientUserIds);
       getDocumentApproval('TECHNICAL_COMPARISON', existing.id as string).then(setApproval);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
-    } finally {
       setLoading(false);
     }
   };
@@ -261,13 +259,19 @@ export function ComparisonForm({
     router.refresh();
   };
 
-  const { toolbarProps, effectiveEditable } = useOperationFormToolbar({
+  const comparisonTotal = form.items.reduce((s, i) => s + (i.netAmount ?? 0), 0);
+
+  const { toolbarProps, effectiveEditable, recipientModal } = useOperationFormToolbar({
     operationType: 'comparison',
     isNew,
     existing,
     usage,
     approval,
     loading,
+    approvalContext: {
+      branchId: form.branchId,
+      totalAmount: comparisonTotal,
+    },
     onSave: handleSave,
     onSubmitOnly: handleSubmitOnly,
     onAfterWorkflowAction: refreshApproval,
@@ -281,6 +285,7 @@ export function ComparisonForm({
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />
+        {recipientModal}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{error}</div>
         )}

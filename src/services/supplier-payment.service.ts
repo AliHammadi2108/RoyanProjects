@@ -1,7 +1,9 @@
 ﻿import { prisma } from '@/lib/db';
-import { DOCUMENT_STATUS, DOCUMENT_TYPES } from '@/lib/constants';
+import { DOCUMENT_STATUS, DOCUMENT_TYPES, PAYABLE_INVOICE_STATUSES } from '@/lib/constants';
+import { computeInvoiceRemaining } from '@/lib/invoice-payment';
 import { getNextDocumentNo } from '@/services/document-sequence.service';
 import { assertSupplierAccess } from '@/services/supplier-access.service';
+import { assertSupplierCurrencyAllowed } from '@/services/supplier-currency.service';
 import { createAuditLog } from '@/services/audit.service';
 import { submitForApproval } from '@/services/approval.service';
 
@@ -88,7 +90,7 @@ async function validateAllocations(
     where: {
       id: { in: invoiceIds },
       supplierId,
-      status: { in: ['Approved', 'Posted'] },
+      status: { in: [...PAYABLE_INVOICE_STATUSES] },
     },
   });
 
@@ -101,7 +103,11 @@ async function validateAllocations(
       throw new Error('ظ…ط¨ظ„ط؛ ط§ظ„طھط®طµظٹطµ ظٹط¬ط¨ ط£ظ† ظٹظƒظˆظ† ط£ظƒط¨ط± ظ…ظ† طµظپط±');
     }
     const invoice = invoices.find((i) => i.id === alloc.invoiceId)!;
-    let available = invoice.remainingAmount ?? Math.max(0, invoice.netTotal - (invoice.paidAmount ?? 0));
+    let available = computeInvoiceRemaining(
+      invoice.netTotal,
+      invoice.paidAmount,
+      invoice.remainingAmount
+    );
 
     if (excludeVoucherId) {
       const existingAlloc = await prisma.supplierPaymentAllocation.findUnique({
@@ -171,7 +177,7 @@ export async function getOpenInvoicesForSupplier(userId: string, supplierId: str
   const invoices = await prisma.purchaseInvoice.findMany({
     where: {
       supplierId,
-      status: { in: ['Approved', 'Posted'] },
+      status: { in: [...PAYABLE_INVOICE_STATUSES] },
     },
     include: { currency: true },
     orderBy: { createdAt: 'asc' },
@@ -180,7 +186,7 @@ export async function getOpenInvoicesForSupplier(userId: string, supplierId: str
   return invoices
     .map((inv) => {
       const paid = inv.paidAmount ?? 0;
-      const remaining = inv.remainingAmount ?? Math.max(0, inv.netTotal - paid);
+      const remaining = computeInvoiceRemaining(inv.netTotal, paid, inv.remainingAmount);
       return {
         id: inv.id,
         documentNo: inv.documentNo,
@@ -191,6 +197,7 @@ export async function getOpenInvoicesForSupplier(userId: string, supplierId: str
         dueDate: inv.dueDate,
         exchangeRate: inv.exchangeRate,
         currencyCode: inv.currency?.code,
+        currencyId: inv.currencyId,
       };
     })
     .filter((inv) => inv.remainingAmount > 0.001);
@@ -198,6 +205,7 @@ export async function getOpenInvoicesForSupplier(userId: string, supplierId: str
 
 export async function createSupplierPaymentVoucher(userId: string, data: SupplierPaymentInput) {
   await assertSupplierAccess(userId, data.supplierId, 'use_in_purchase');
+  await assertSupplierCurrencyAllowed(data.supplierId, data.currencyId);
   await validateAllocations(data.supplierId, data.totalAmount, data.allocations);
 
   const documentNo = await getNextDocumentNo('SUPPLIER_PAYMENT', data.branchId);
@@ -246,6 +254,7 @@ export async function updateSupplierPaymentVoucher(
 ) {
   await assertPaymentVoucherMutable(id, 'edit');
   await assertSupplierAccess(userId, data.supplierId, 'use_in_purchase');
+  await assertSupplierCurrencyAllowed(data.supplierId, data.currencyId);
   await validateAllocations(data.supplierId, data.totalAmount, data.allocations, id);
 
   const allocatedAmount = data.allocations.reduce((s, a) => s + a.allocatedAmount, 0);
@@ -299,7 +308,11 @@ export async function deleteSupplierPaymentVoucher(userId: string, id: string) {
   return { success: true };
 }
 
-export async function submitSupplierPaymentForApproval(userId: string, id: string) {
+export async function submitSupplierPaymentForApproval(
+  userId: string,
+  id: string,
+  recipientUserIds?: string[]
+) {
   const voucher = await assertPaymentVoucherMutable(id, 'edit');
 
   await prisma.supplierPaymentVoucher.update({
@@ -317,6 +330,7 @@ export async function submitSupplierPaymentForApproval(userId: string, id: strin
     requestedBy: userId,
     totalAmount: voucher.totalAmount,
     branchId: voucher.branchId,
+    recipientUserIds,
   });
 
   return { success: true };
@@ -348,8 +362,11 @@ export async function postSupplierPaymentVoucher(userId: string, id: string) {
       const invoice = await tx.purchaseInvoice.findUnique({ where: { id: alloc.invoiceId } });
       if (!invoice) throw new Error('ظپط§طھظˆط±ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط©');
 
-      const currentRemaining =
-        invoice.remainingAmount ?? Math.max(0, invoice.netTotal - (invoice.paidAmount ?? 0));
+      const currentRemaining = computeInvoiceRemaining(
+        invoice.netTotal,
+        invoice.paidAmount,
+        invoice.remainingAmount
+      );
       if (alloc.allocatedAmount > currentRemaining + 0.001) {
         throw new Error(`ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ظ…طھط¨ظ‚ظٹ ظ„ظ„ظپط§طھظˆط±ط© ${invoice.documentNo} ط؛ظٹط± ظƒط§ظپظچ`);
       }

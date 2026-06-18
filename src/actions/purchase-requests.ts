@@ -12,6 +12,7 @@ import { DOCUMENT_STATUS, PURCHASE_STAGES } from '@/lib/constants';
 import { calculateLineTotal, toOptionalId, formatActionError } from '@/lib/utils';
 import { enrichPurchaseLineItems, resolveExchangeRate } from '@/lib/purchase-line-items';
 import { assertSupplierAccess } from '@/services/supplier-access.service';
+import { assertSupplierCurrencyAllowed } from '@/services/supplier-currency.service';
 import { assertDocumentMutable } from '@/services/document-guard.service';
 import { getDocumentUsageMap } from '@/services/used-document.service';
 
@@ -112,6 +113,7 @@ export async function createPurchaseRequest(data: unknown) {
 
   if (optionalIds.supplierId) {
     await assertSupplierAccess(user.id, optionalIds.supplierId, 'use_in_purchase');
+    await assertSupplierCurrencyAllowed(optionalIds.supplierId, optionalIds.currencyId);
   }
 
   const exchangeRate = parsed.exchangeRate ?? (await resolveExchangeRate(optionalIds.currencyId));
@@ -216,6 +218,7 @@ export async function updatePurchaseRequest(id: string, data: unknown) {
 
   if (optionalIds.supplierId) {
     await assertSupplierAccess(user.id, optionalIds.supplierId, 'use_in_purchase');
+    await assertSupplierCurrencyAllowed(optionalIds.supplierId, optionalIds.currencyId);
   }
 
   const exchangeRate = parsed.exchangeRate ?? (await resolveExchangeRate(optionalIds.currencyId));
@@ -281,7 +284,7 @@ export async function updatePurchaseRequest(id: string, data: unknown) {
   return result;
 }
 
-export async function submitPurchaseRequest(id: string) {
+export async function submitPurchaseRequest(id: string, recipientUserIds?: string[]) {
   const user = await requirePermission('purchase_requests.submit');
   const request = await prisma.purchaseRequest.findUnique({ where: { id } });
   if (!request) throw new Error('طلب الشراء غير موجود');
@@ -297,6 +300,7 @@ export async function submitPurchaseRequest(id: string) {
     totalAmount: request.totalAmount,
     branchId: request.branchId,
     departmentId: request.departmentId || undefined,
+    recipientUserIds,
   });
 
   revalidatePath('/purchases/requests');

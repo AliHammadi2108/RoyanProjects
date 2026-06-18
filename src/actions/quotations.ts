@@ -11,6 +11,7 @@ import { updateCycleStage } from '@/services/workflow.service';
 import { DOCUMENT_STATUS, PURCHASE_STAGES } from '@/lib/constants';
 import { calculateLineTotal, toOptionalId, formatActionError } from '@/lib/utils';
 import { assertDocumentMutable } from '@/services/document-guard.service';
+import { assertSupplierCurrencyAllowed } from '@/services/supplier-currency.service';
 
 function buildQuotationItemRows(
   items: Array<{
@@ -82,6 +83,8 @@ export async function createQuotation(data: unknown) {
     throw new Error('لا يمكن إنشاء عرض سعر إلا من طلب شراء معتمد');
   }
 
+  await assertSupplierCurrencyAllowed(parsed.supplierId, parsed.currencyId);
+
   const documentNo = await getNextDocumentNo('QUOTATION', parsed.branchId);
   const subtotal = parsed.items.reduce(
     (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),
@@ -135,7 +138,7 @@ export async function createQuotation(data: unknown) {
   return result;
 }
 
-export async function submitQuotation(id: string) {
+export async function submitQuotation(id: string, recipientUserIds?: string[]) {
   const user = await requirePermission('quotations.submit');
   const quotation = await prisma.quotation.findUnique({ where: { id } });
   if (!quotation) throw new Error('عرض السعر غير موجود');
@@ -150,6 +153,7 @@ export async function submitQuotation(id: string) {
     requestedBy: user.id,
     totalAmount: quotation.total,
     branchId: quotation.branchId,
+    recipientUserIds,
   });
 
   revalidatePath('/purchases/quotations');
@@ -160,6 +164,8 @@ export async function updateQuotation(id: string, data: unknown) {
   const user = await requirePermission('quotations.update');
   await assertDocumentMutable('QUOTATION', id, 'edit');
   const parsed = quotationSchema.parse(data);
+
+  await assertSupplierCurrencyAllowed(parsed.supplierId, parsed.currencyId);
 
   const subtotal = parsed.items.reduce(
     (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),

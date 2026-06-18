@@ -1,5 +1,5 @@
 ﻿import { prisma } from '@/lib/db';
-import { DOCUMENT_ROUTES } from '@/lib/constants';
+import { DOCUMENT_ROUTES, PAYABLE_INVOICE_STATUSES } from '@/lib/constants';
 import { getAllowedSupplierIds, supplierWhereForUser } from '@/services/supplier-access.service';
 import {
   buildDateRange,
@@ -31,9 +31,11 @@ export interface SupplierWithInvoicesRow {
   phone?: string | null;
   taxNo?: string | null;
   invoiceCount: number;
+  defaultCurrencyId?: string | null;
+  currencyIds: string[];
 }
 
-const FINANCIAL_INVOICE_STATUSES = ['Approved', 'Posted'] as const;
+const FINANCIAL_INVOICE_STATUSES = PAYABLE_INVOICE_STATUSES;
 const POSTED_VOUCHER_STATUS = 'Posted';
 
 function normalizePaymentStatus(status: string): string {
@@ -101,12 +103,31 @@ export async function getSuppliersWithInvoices(
       id: { in: supplierIds },
       ...supplierWhereForUser(allowedSuppliers),
     },
-    select: { id: true, code: true, nameAr: true, phone: true, taxNo: true },
+    select: {
+      id: true,
+      code: true,
+      nameAr: true,
+      phone: true,
+      taxNo: true,
+      defaultCurrencyId: true,
+      currencies: { select: { currencyId: true, isDefault: true } },
+    },
     orderBy: { nameAr: 'asc' },
   });
 
   let rows = suppliers.map((s) => ({
-    ...s,
+    id: s.id,
+    code: s.code,
+    nameAr: s.nameAr,
+    phone: s.phone,
+    taxNo: s.taxNo,
+    defaultCurrencyId: s.defaultCurrencyId,
+    currencyIds:
+      s.currencies.length > 0
+        ? s.currencies.map((c) => c.currencyId)
+        : s.defaultCurrencyId
+          ? [s.defaultCurrencyId]
+          : [],
     invoiceCount: countMap.get(s.id) || 0,
   }));
 

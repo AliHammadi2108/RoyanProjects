@@ -274,15 +274,50 @@ export function resolveDefaultWhatsAppPhone(
 }
 
 export function isWhatsAppCloudApiConfigured(): boolean {
-  return Boolean(
-    process.env.WHATSAPP_CLOUD_API_TOKEN?.trim() &&
-      process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()
-  );
+  if (
+    !process.env.WHATSAPP_CLOUD_API_TOKEN?.trim() ||
+    !process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()
+  ) {
+    return false;
+  }
+  return getWhatsAppConfigIssues().length === 0;
 }
 
 /** Alias used by server actions / settings UI */
 export function isWhatsAppApiConfigured(): boolean {
   return isWhatsAppCloudApiConfigured();
+}
+
+
+
+/** Meta Phone Number IDs are long numeric IDs from API Setup — not the business phone (+967...). */
+export function looksLikePhoneNumberInsteadOfMetaPhoneNumberId(id: string): boolean {
+  const digits = id.replace(/\D/g, "");
+  if (!digits) return false;
+  if (digits.length <= 10) return true;
+  const cc = getDefaultCountryCode();
+  if (digits.length === cc.length + 9 && digits.startsWith(cc)) return true;
+  return false;
+}
+
+export function getWhatsAppConfigIssues(): string[] {
+  const issues: string[] = [];
+  const token = process.env.WHATSAPP_CLOUD_API_TOKEN?.trim();
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
+
+  if (!token) {
+    issues.push(
+      "WHATSAPP_CLOUD_API_TOKEN غير موجود في ملف .env — أضف توكن Meta من لوحة المطورين."
+    );
+  }
+  if (!phoneId) {
+    issues.push("WHATSAPP_PHONE_NUMBER_ID غير موجود في ملف .env.");
+  } else if (looksLikePhoneNumberInsteadOfMetaPhoneNumberId(phoneId)) {
+    issues.push(
+      "WHATSAPP_PHONE_NUMBER_ID يبدو رقم هاتف (مثل 773084555) وليس Phone Number ID من Meta (عادة 12–16 رقمًا من API Setup)."
+    );
+  }
+  return issues;
 }
 
 export function isWhatsAppAutoNotifyEnabled(): boolean {

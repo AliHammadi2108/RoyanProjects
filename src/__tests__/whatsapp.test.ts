@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildWhatsAppUrl,
   formatDocumentMessage,
@@ -9,9 +9,17 @@ import {
   normalizePhoneToE164,
   resolveDefaultWhatsAppPhone,
   stripPhoneDigits,
+  getWhatsAppConfigIssues,
+  looksLikePhoneNumberInsteadOfMetaPhoneNumberId,
 } from '@/lib/whatsapp';
 
 describe('whatsapp', () => {
+  const envBackup = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...envBackup };
+  });
+
   describe('normalizePhoneToE164', () => {
     it('normalizes Saudi local numbers', () => {
       expect(normalizePhoneToE164('0501234567', '966')).toBe('966501234567');
@@ -153,6 +161,21 @@ describe('whatsapp', () => {
       expect(msg).toContain('إجمالي: 10,000');
       expect(msg).toContain('25');
       expect(msg).toContain('أرفق PDF يدوياً');
+    });
+  });
+
+  describe('whatsapp config validation', () => {
+    it('detects phone number used as Meta phone number id', () => {
+      expect(looksLikePhoneNumberInsteadOfMetaPhoneNumberId('773084555')).toBe(true);
+      expect(looksLikePhoneNumberInsteadOfMetaPhoneNumberId('123456789012345')).toBe(false);
+    });
+
+    it('reports missing token and wrong phone id', () => {
+      delete process.env.WHATSAPP_CLOUD_API_TOKEN;
+      process.env.WHATSAPP_PHONE_NUMBER_ID = '773084555';
+      const issues = getWhatsAppConfigIssues();
+      expect(issues.some((i) => i.includes('WHATSAPP_CLOUD_API_TOKEN'))).toBe(true);
+      expect(issues.some((i) => i.includes('Phone Number ID'))).toBe(true);
     });
   });
 });

@@ -99,7 +99,7 @@ export async function createComparison(data: unknown) {
   return result;
 }
 
-export async function submitComparison(id: string) {
+export async function submitComparison(id: string, recipientUserIds?: string[]) {
   const user = await requirePermission('comparisons.submit');
   const comparison = await prisma.technicalComparison.findUnique({ where: { id } });
   if (!comparison) throw new Error('المقارنة غير موجودة');
@@ -111,6 +111,7 @@ export async function submitComparison(id: string) {
     requestedBy: user.id,
     totalAmount: comparison.totalAmount,
     branchId: comparison.branchId,
+    recipientUserIds,
   });
 
   revalidatePath('/purchases/comparisons');
@@ -286,7 +287,7 @@ export async function createNomination(data: unknown) {
   return result;
 }
 
-export async function submitNomination(id: string) {
+export async function submitNomination(id: string, recipientUserIds?: string[]) {
   const user = await requirePermission('comparisons.submit');
   const nomination = await prisma.supplierNomination.findUnique({ where: { id } });
   if (!nomination) throw new Error('الترشيح غير موجود');
@@ -298,6 +299,7 @@ export async function submitNomination(id: string) {
     requestedBy: user.id,
     totalAmount: nomination.totalAmount,
     branchId: nomination.branchId,
+    recipientUserIds,
   });
 
   revalidatePath('/purchases/supplier-selection');

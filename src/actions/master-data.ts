@@ -29,7 +29,8 @@ async function assertCurrencyNotUsed(id: string) {
     (await prisma.purchaseRequest.count({ where: { currencyId: id } })) +
     (await prisma.quotation.count({ where: { currencyId: id } })) +
     (await prisma.purchaseOrder.count({ where: { currencyId: id } })) +
-    (await prisma.supplier.count({ where: { defaultCurrencyId: id } }));
+    (await prisma.supplier.count({ where: { defaultCurrencyId: id } })) +
+    (await prisma.supplierCurrency.count({ where: { currencyId: id } }));
   if (used > 0) throw new Error('لا يمكن حذف العملة لأنها مستخدمة في عمليات سابقة');
 }
 
@@ -168,7 +169,10 @@ export async function getSuppliersSettings(filters?: { search?: string; activeOn
         ],
       }),
     },
-    include: { defaultCurrency: true },
+    include: {
+      defaultCurrency: true,
+      currencies: { include: { currency: true }, orderBy: { isDefault: 'desc' } },
+    },
     orderBy: { code: 'asc' },
   });
 }
@@ -177,13 +181,20 @@ export async function getSupplierSettings(id: string) {
   await requirePermission('master.suppliers.view');
   return prisma.supplier.findUnique({
     where: { id },
-    include: { defaultCurrency: true },
+    include: {
+      defaultCurrency: true,
+      currencies: { include: { currency: true }, orderBy: { isDefault: 'desc' } },
+    },
   });
 }
 
 export async function saveSupplier(data: unknown, id?: string) {
   const user = await requirePermission(id ? 'master.suppliers.edit' : 'master.suppliers.create');
   const parsed = supplierSchema.parse(data);
+
+  const currencyIds = parsed.currencyIds?.length
+    ? parsed.currencyIds
+    : [parsed.defaultCurrencyId];
 
   const payload = {
     code: parsed.code,
@@ -200,9 +211,28 @@ export async function saveSupplier(data: unknown, id?: string) {
   };
 
   try {
-    const result = id
-      ? await prisma.supplier.update({ where: { id }, data: payload })
-      : await prisma.supplier.create({ data: payload });
+    const result = await prisma.$transaction(async (tx) => {
+      const supplier = id
+        ? await tx.supplier.update({ where: { id }, data: payload })
+        : await tx.supplier.create({ data: payload });
+
+      await tx.supplierCurrency.deleteMany({ where: { supplierId: supplier.id } });
+      await tx.supplierCurrency.createMany({
+        data: currencyIds.map((currencyId) => ({
+          supplierId: supplier.id,
+          currencyId,
+          isDefault: currencyId === parsed.defaultCurrencyId,
+        })),
+      });
+
+      return tx.supplier.findUniqueOrThrow({
+        where: { id: supplier.id },
+        include: {
+          defaultCurrency: true,
+          currencies: { include: { currency: true }, orderBy: { isDefault: 'desc' } },
+        },
+      });
+    });
 
     await createAuditLog({
       userId: user.id,

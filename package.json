@@ -19,7 +19,8 @@
     "pm2:stop": "pm2 stop purchase-web-system",
     "pm2:logs": "pm2 logs purchase-web-system",
     "start:prod": "next start -p 3000",
-    "health": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/health-check.ps1"
+    "health": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/health-check.ps1",
+    "db:cleanup-test": "tsx scripts/cleanup-test-operations.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

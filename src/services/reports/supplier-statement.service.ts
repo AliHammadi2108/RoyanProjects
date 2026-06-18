@@ -1,5 +1,5 @@
 ﻿import { prisma } from '@/lib/db';
-import { DOCUMENT_ROUTES, PAYABLE_INVOICE_STATUSES } from '@/lib/constants';
+import { DOCUMENT_LABELS_AR, DOCUMENT_ROUTES, PAYABLE_INVOICE_STATUSES } from '@/lib/constants';
 import { getAllowedSupplierIds, supplierWhereForUser } from '@/services/supplier-access.service';
 import {
   buildDateRange,
@@ -37,6 +37,22 @@ export interface SupplierWithInvoicesRow {
 
 const FINANCIAL_INVOICE_STATUSES = PAYABLE_INVOICE_STATUSES;
 const POSTED_VOUCHER_STATUS = 'Posted';
+
+export function invoiceStatementLabels(supplierInvoiceNo?: string | null) {
+  return {
+    movementTypeLabel: DOCUMENT_LABELS_AR.INVOICE,
+    description: supplierInvoiceNo
+      ? `فاتورة مورد ${supplierInvoiceNo}`
+      : DOCUMENT_LABELS_AR.INVOICE,
+  };
+}
+
+export function paymentStatementLabels(bankReference?: string | null) {
+  return {
+    movementTypeLabel: 'سند صرف',
+    description: bankReference ? `دفعة - ${bankReference}` : DOCUMENT_LABELS_AR.SUPPLIER_PAYMENT,
+  };
+}
 
 function normalizePaymentStatus(status: string): string {
   const s = status.toLowerCase().replace(/\s+/g, '_');
@@ -233,13 +249,14 @@ export async function getSupplierStatementReport(
     }
 
     totalPurchases += debit;
+    const invoiceLabels = invoiceStatementLabels(inv.supplierInvoiceNo);
     movements.push({
       id: inv.id,
       movementDate: invDate.toISOString(),
       movementType: 'purchase',
-      movementTypeLabel: 'ظپط§طھظˆط±ط© ط´ط±ط§ط،',
+      movementTypeLabel: invoiceLabels.movementTypeLabel,
       documentNo: inv.documentNo,
-      description: inv.supplierInvoiceNo ? `ظپط§طھظˆط±ط© ظ…ظˆط±ط¯ ${inv.supplierInvoiceNo}` : 'ظپط§طھظˆط±ط© ط´ط±ط§ط،',
+      description: invoiceLabels.description,
       debit,
       credit: 0,
       balance: 0,
@@ -272,13 +289,14 @@ export async function getSupplierStatementReport(
     }
 
     totalPayments += credit;
+    const paymentLabels = paymentStatementLabels(pv.bankReference);
     movements.push({
       id: pv.id,
       movementDate: payDate.toISOString(),
       movementType: 'payment',
-      movementTypeLabel: 'ط³ظ†ط¯ طµط±ظپ',
+      movementTypeLabel: paymentLabels.movementTypeLabel,
       documentNo: pv.documentNo,
-      description: pv.bankReference ? `ط¯ظپط¹ط© - ${pv.bankReference}` : 'ط³ظ†ط¯ طµط±ظپ ظ…ظˆط±ط¯',
+      description: paymentLabels.description,
       debit: 0,
       credit,
       balance: 0,

@@ -10,6 +10,7 @@ import { DocumentWhatsAppButton } from '@/components/ui/DocumentWhatsAppButton';
 import { getSessionPermissions } from '@/actions/common';
 import type { PrintDocumentData } from '@/lib/print-types';
 import type { OperationType } from '@/lib/operation-toolbar';
+import { shouldHideDocumentStatusInUI } from '@/lib/operation-toolbar';
 import { formatNumber } from '@/lib/utils';
 
 interface OperationPrintViewProps {
@@ -45,6 +46,7 @@ export function OperationPrintView({
   const partyName = data.partyName ?? data.fields.find((f) => f.label === 'المورد')?.value;
 
   const showPricing = data.showLinePricing !== false;
+  const hideStatus = shouldHideDocumentStatusInUI(operationType);
 
   return (
     <>
@@ -62,7 +64,7 @@ export function OperationPrintView({
                 documentId={documentId}
                 documentNo={data.documentNo}
                 documentDate={data.documentDate}
-                status={data.status}
+                status={hideStatus ? undefined : data.status}
                 total={printTotal}
                 partyName={partyName}
                 supplierPhone={data.supplierPhone}
@@ -82,14 +84,14 @@ export function OperationPrintView({
             <p className="text-lg font-semibold text-primary-700 mt-1">{data.documentNo}</p>
             <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
               <span className="text-sm text-gray-600">التاريخ: {data.documentDate}</span>
-              <StatusBadge status={data.status} />
-              {data.approvalStatus && data.approvalStatus !== 'None' && (
+              {!hideStatus && data.status ? <StatusBadge status={data.status} /> : null}
+              {!hideStatus && data.approvalStatus && data.approvalStatus !== 'None' && (
                 <span className="text-sm text-gray-600">الاعتماد: {data.approvalStatus}</span>
               )}
             </div>
           </div>
 
-          {data.statusBanner && (
+          {!hideStatus && data.statusBanner && (
             <div className="mb-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3 text-center font-medium">
               {data.statusBanner}
             </div>
@@ -169,7 +171,7 @@ export function OperationPrintView({
             </div>
           )}
 
-          {data.approval && (
+          {!hideStatus && data.approval && (
             <div className="border-t border-gray-200 pt-4 mb-4 text-sm">
               <h3 className="font-semibold mb-2">بيانات الاعتماد</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

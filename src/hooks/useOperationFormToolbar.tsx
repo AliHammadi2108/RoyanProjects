@@ -9,6 +9,7 @@ import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { useOperationToolbar } from '@/hooks/useOperationToolbar';
 import { OPERATION_TO_DOCUMENT_TYPE } from '@/lib/constants';
 import type { OperationType, ToolbarButtonId } from '@/lib/operation-toolbar';
+import { shouldHideDocumentStatusInUI } from '@/lib/operation-toolbar';
 import { formatDate, type CurrencyLike } from '@/lib/utils';
 import { formatWhatsAppDocumentTotal } from '@/lib/whatsapp';
 import { getStatusLabel } from '@/lib/status-labels';
@@ -81,6 +82,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
 
   const status =
     options.status ?? (existing?.status as string | undefined);
+  const hideStatus = shouldHideDocumentStatusInUI(operationType);
   const documentId = existing?.id as string | undefined;
   const documentType = OPERATION_TO_DOCUMENT_TYPE[operationType];
 
@@ -284,7 +286,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
       currency: options.whatsappMeta?.currency,
     });
 
-    const statusLabel = getStatusLabel(status);
+    const statusLabel = hideStatus ? undefined : getStatusLabel(status);
 
     return createElement(DocumentWhatsAppButton, {
       operationType,
@@ -305,6 +307,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     options.whatsappMeta,
     operationType,
     status,
+    hideStatus,
     toolbar.permissions,
     loading,
     loadingAction,
@@ -314,8 +317,9 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
 
   const toolbarProps: OperationToolbarProps = {
     buttons: toolbar.buttons,
-    status,
+    status: hideStatus ? undefined : status,
     usage,
+    hideStatus,
     loadingAction,
     onAction: handleToolbarAction,
     extraActions: whatsappExtra,

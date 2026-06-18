@@ -13,6 +13,7 @@ import {
 } from '@/components/reports/ReportFilters';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
+import { shouldHideStatusInReport } from '@/lib/operation-toolbar';
 import type { OperationsReportRow, ReportResult } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
@@ -108,7 +109,12 @@ export function OperationsReportClient({
     {
       key: 'status',
       label: 'الحالة',
-      render: (row) => <StatusBadge status={row.status} />,
+      render: (row) =>
+        shouldHideStatusInReport(row.documentType) ? (
+          <span className="text-gray-400">—</span>
+        ) : (
+          <StatusBadge status={row.status} />
+        ),
     },
     { key: 'supplierName', label: 'المورد' },
     { key: 'warehouseName', label: 'المخزن' },
@@ -135,6 +141,7 @@ export function OperationsReportClient({
     documentDate: formatDate(r.documentDate),
     supplierName: r.supplierName || '-',
     warehouseName: r.warehouseName || '-',
+    status: shouldHideStatusInReport(r.documentType) ? '—' : r.status,
   }));
 
   const handleSort = (key: string) => {

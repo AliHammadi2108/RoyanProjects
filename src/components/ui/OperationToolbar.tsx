@@ -35,17 +35,23 @@ interface DocumentStateBadgesProps {
   status?: string;
   usage?: UsedDocumentInfo | null;
   showApproved?: boolean;
+  hideStatus?: boolean;
 }
 
-export function DocumentStateBadges({ status, usage, showApproved = true }: DocumentStateBadgesProps) {
+export function DocumentStateBadges({
+  status,
+  usage,
+  showApproved = true,
+  hideStatus = false,
+}: DocumentStateBadgesProps) {
   const locked = isDocumentLocked(status);
   const approved = status === 'Approved';
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {status ? <StatusBadge status={status} /> : null}
-      {showApproved && approved ? <ApprovedDocumentBadge /> : null}
-      {locked && !approved ? <LockedDocumentBadge /> : null}
+      {!hideStatus && status ? <StatusBadge status={status} /> : null}
+      {!hideStatus && showApproved && approved ? <ApprovedDocumentBadge /> : null}
+      {!hideStatus && locked && !approved ? <LockedDocumentBadge /> : null}
       <UsedDocumentBadge usage={usage} />
     </div>
   );
@@ -62,6 +68,7 @@ export interface OperationToolbarProps {
   buttons: ToolbarButtonState[];
   status?: string;
   usage?: UsedDocumentInfo | null;
+  hideStatus?: boolean;
   loadingAction?: ToolbarButtonId | null;
   onAction?: (id: ToolbarButtonId) => void;
   extraActions?: ReactNode;
@@ -72,6 +79,7 @@ export function OperationToolbar({
   buttons,
   status,
   usage,
+  hideStatus,
   loadingAction,
   onAction,
   extraActions,
@@ -124,7 +132,7 @@ export function OperationToolbar({
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <DocumentStateBadges status={status} usage={usage} />
+        <DocumentStateBadges status={status} usage={usage} hideStatus={hideStatus} />
         <div className="flex flex-wrap items-center gap-2">
           {buttons.map(renderButton)}
           {extraActions}

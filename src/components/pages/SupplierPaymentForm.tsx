@@ -7,7 +7,6 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import {
   saveSupplierPayment,
@@ -260,9 +259,6 @@ export function SupplierPaymentForm({
       <Header
         title={isNew ? 'سند صرف مورد جديد' : `سند صرف ${existing?.documentNo as string}`}
         subtitle="تخصيص المدفوعات على فواتير المورد"
-        actions={
-          !isNew && status ? <StatusBadge status={status} /> : undefined
-        }
       />
       <PageContainer>
         <OperationToolbar {...toolbarProps} />

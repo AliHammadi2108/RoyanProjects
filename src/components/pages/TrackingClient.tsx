@@ -186,7 +186,7 @@ export function TrackingClient({
                   <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <span className="font-medium">{doc.documentNo}</span>
-                      <StatusBadge status={doc.status} />
+                      {tab.key !== 'invoices' ? <StatusBadge status={doc.status} /> : null}
                       <span className="text-sm text-gray-500">
                         {formatDocumentCurrency(resolveDocumentAmount(doc), docCurrency)}
                       </span>

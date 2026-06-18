@@ -264,7 +264,6 @@ export function InvoiceForm({
             isNew={isNew}
             canDelete={existing?.status === 'Draft'}
             loading={loading}
-            status={existing?.status as string}
             hideActions
             hideReadOnlyMessage
             saveLabel="حفظ الفاتورة"

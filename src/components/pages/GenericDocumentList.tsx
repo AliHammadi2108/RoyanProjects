@@ -331,11 +331,6 @@ const VARIANT_CONFIG: Record<
         render: (row) => (row.supplier as { nameAr: string })?.nameAr || '-',
       },
       {
-        key: 'status',
-        label: 'الحالة',
-        render: (row) => <StatusBadge status={row.status as string} />,
-      },
-      {
         key: 'createdAt',
         label: 'التاريخ',
         render: (row) => formatDate(row.createdAt as string),
@@ -429,7 +424,7 @@ export function GenericDocumentList({
     }
   };
 
-  const showStatusFilter = ['quotation', 'comparison', 'nomination', 'order', 'invoice'].includes(variant);
+  const showStatusFilter = ['quotation', 'comparison', 'nomination', 'order'].includes(variant);
 
   return (
     <>

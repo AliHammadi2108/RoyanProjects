@@ -493,8 +493,7 @@ export async function getPrintDocument(
           title,
           documentNo: doc.documentNo,
           documentDate: formatDate(doc.createdAt),
-          status: doc.status,
-          statusBanner: statusBanner(doc.status),
+          status: '',
           showLinePricing: true,
           fields: fields(
             field('المورد', doc.supplier?.nameAr),
@@ -539,15 +538,12 @@ export async function getPrintDocument(
         },
       });
       if (!doc) return null;
-      const approval = await buildApprovalInfo(docType, documentId, doc.approvalStatus);
       return withPrintedBy(
         {
           title,
           documentNo: doc.documentNo,
           documentDate: formatDate(doc.paymentDate || doc.createdAt),
-          status: doc.status,
-          approvalStatus: doc.approvalStatus,
-          statusBanner: statusBanner(doc.status),
+          status: '',
           showLinePricing: true,
           fields: fields(
             field('المورد', doc.supplier?.nameAr),
@@ -566,7 +562,6 @@ export async function getPrintDocument(
           })),
           totals: [{ label: 'إجمالي المدفوع', value: formatCurrency(doc.totalAmount, doc.currency?.symbol) }],
           notes: doc.notes || undefined,
-          approval,
         },
         user,
         {

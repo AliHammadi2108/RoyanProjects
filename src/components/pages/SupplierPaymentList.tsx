@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Plus, Eye, Pencil, Trash2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox } from '@/components/ui/SearchBox';
 import { formatDocumentCurrency, formatDate } from '@/lib/utils';
 import { removeSupplierPayment } from '@/actions/supplier-payments';
@@ -31,11 +30,9 @@ interface SupplierPaymentListProps {
 export function SupplierPaymentList({ data, canCreate, canViewAmounts }: SupplierPaymentListProps) {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
 
   const filtered = useMemo(() => {
     let rows = data;
-    if (statusFilter) rows = rows.filter((r) => r.status === statusFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       rows = rows.filter(
@@ -46,7 +43,7 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
       );
     }
     return rows;
-  }, [data, search, statusFilter]);
+  }, [data, search]);
 
   const handleDelete = async (id: string, documentNo: string) => {
     if (!confirm(`حذف سند الصرف ${documentNo}؟`)) return;
@@ -74,18 +71,6 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
       <PageContainer>
         <div className="card p-4 mb-4 flex flex-wrap gap-3 items-center">
           <SearchBox value={search} onChange={setSearch} placeholder="بحث برقم السند أو المورد..." />
-          <select
-            className="form-input text-sm max-w-xs"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">كل الحالات</option>
-            <option value="Draft">مسودة</option>
-            <option value="Pending Approval">بانتظار الاعتماد</option>
-            <option value="Approved">معتمد</option>
-            <option value="Posted">مرحّل</option>
-            <option value="Cancelled">ملغى</option>
-          </select>
         </div>
 
         <div className="card overflow-x-auto">
@@ -97,14 +82,13 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
                 <th>الفرع</th>
                 <th>التاريخ</th>
                 {canViewAmounts ? <th>المبلغ</th> : null}
-                <th>الحالة</th>
                 <th>إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={canViewAmounts ? 7 : 6} className="text-center text-gray-500 py-8">
+                  <td colSpan={canViewAmounts ? 6 : 5} className="text-center text-gray-500 py-8">
                     لا توجد سندات صرف
                   </td>
                 </tr>
@@ -118,7 +102,6 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
                     {canViewAmounts ? (
                       <td>{formatDocumentCurrency(row.totalAmount, row.currency)}</td>
                     ) : null}
-                    <td><StatusBadge status={row.status} /></td>
                     <td>
                       <div className="flex items-center gap-1">
                         <Link href={`/purchases/supplier-payments/${row.id}`} className="p-1.5 rounded hover:bg-gray-100" title="عرض">

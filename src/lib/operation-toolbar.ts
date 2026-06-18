@@ -119,6 +119,19 @@ export const OPERATION_CONFIG: Record<OperationType, OperationConfig> = {
   },
 };
 
+/** Document types saved with internal status but without approval workflow — hide status in UI. */
+export const OPERATIONS_WITHOUT_UI_STATUS: OperationType[] = ['invoice', 'supplier_payment'];
+
+export const REPORT_TYPES_WITHOUT_UI_STATUS = new Set(['INVOICE', 'SUPPLIER_PAYMENT']);
+
+export function shouldHideDocumentStatusInUI(operationType: OperationType): boolean {
+  return OPERATIONS_WITHOUT_UI_STATUS.includes(operationType);
+}
+
+export function shouldHideStatusInReport(documentType: string): boolean {
+  return REPORT_TYPES_WITHOUT_UI_STATUS.has(documentType);
+}
+
 const LOCKED_STATUSES = ['Approved', 'Posted', 'Closed'];
 
 export interface DocumentToolbarState {

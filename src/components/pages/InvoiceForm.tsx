@@ -9,6 +9,7 @@ import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createInvoice, deleteInvoice } from '@/actions/purchase-orders';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useSaveLock } from '@/hooks/useSaveLock';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
@@ -61,7 +62,7 @@ export function InvoiceForm({
   defaultReceivingId,
 }: InvoiceFormProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const { loading, withSaveLock } = useSaveLock();
   const [error, setError] = useState('');
 
   const defaultReceiving = resolveSourceDocument(receivings, defaultReceivingId)
@@ -121,9 +122,8 @@ export function InvoiceForm({
   };
 
   const handleSave = async () => {
-    setLoading(true);
-    setError('');
-    try {
+    await withSaveLock(async () => {
+      setError('');
       const payload = {
         ...form,
         receivingId: form.receivingId || undefined,
@@ -131,10 +131,7 @@ export function InvoiceForm({
       const result = await createInvoice(payload);
       router.push(`/purchases/invoices/${result.id}`);
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ');
-      setLoading(false);
-    }
+    });
   };
 
   const subtotal = form.items.reduce((s, i) => s + i.total, 0);
@@ -143,14 +140,13 @@ export function InvoiceForm({
   const handleDelete = async () => {
     if (!existing?.id) return;
     if (!confirm(`حذف الفاتورة ${existing.documentNo}؟`)) return;
-    setLoading(true);
+    setError('');
     try {
       await deleteInvoice(existing.id as string);
       router.push('/purchases/invoices');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الحذف');
-      setLoading(false);
     }
   };
 

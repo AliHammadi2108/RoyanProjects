@@ -124,7 +124,7 @@ async function validateAllocations(
 
 export async function listSupplierPaymentVouchers(userId: string, supplierId?: string) {
   const allowed = await import('@/services/supplier-access.service').then((m) =>
-    m.getAllowedSupplierIds(userId, 'view_balance')
+    m.getAllowedSupplierIds(userId, 'use_in_purchase')
   );
 
   return prisma.supplierPaymentVoucher.findMany({
@@ -172,7 +172,7 @@ export async function getSupplierPaymentVoucher(id: string) {
 }
 
 export async function getOpenInvoicesForSupplier(userId: string, supplierId: string) {
-  await assertSupplierAccess(userId, supplierId, 'view_balance');
+  await assertSupplierAccess(userId, supplierId, 'use_in_purchase');
 
   const invoices = await prisma.purchaseInvoice.findMany({
     where: {

@@ -9,6 +9,7 @@ import { createReceiving, deleteReceiving } from '@/actions/purchase-orders';
 import { fetchDocumentUsage } from '@/actions/common';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useSaveLock } from '@/hooks/useSaveLock';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import {
   resolveSourceDocument,
@@ -50,7 +51,7 @@ export function ReceivingForm({
   defaultInspectionId,
 }: ReceivingFormProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const { loading, withSaveLock } = useSaveLock();
   const [error, setError] = useState('');
   const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
@@ -120,9 +121,8 @@ export function ReceivingForm({
   };
 
   const handleSave = async () => {
-    setLoading(true);
-    setError('');
-    try {
+    await withSaveLock(async () => {
+      setError('');
       const payload = {
         ...form,
         inspectionId: form.inspectionId || undefined,
@@ -130,23 +130,19 @@ export function ReceivingForm({
       const result = await createReceiving(payload);
       router.push(`/purchases/receivings/${result.id}`);
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ');
-      setLoading(false);
-    }
+    });
   };
 
   const handleDelete = async () => {
     if (!existing?.id) return;
     if (!confirm(`حذف إذن التوريد ${existing.documentNo}؟`)) return;
-    setLoading(true);
+    setError('');
     try {
       await deleteReceiving(existing.id as string);
       router.push('/purchases/receivings');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الحذف');
-      setLoading(false);
     }
   };
 

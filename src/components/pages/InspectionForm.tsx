@@ -11,6 +11,7 @@ import { INSPECTION_RESULTS } from '@/lib/constants';
 import { resolveSourceDocument } from '@/lib/document-cascade';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useSaveLock } from '@/hooks/useSaveLock';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
@@ -43,7 +44,7 @@ export function InspectionForm({
   defaultOrderId,
 }: InspectionFormProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const { loading, withSaveLock } = useSaveLock();
   const [error, setError] = useState('');
   const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
 
@@ -105,29 +106,24 @@ export function InspectionForm({
   };
 
   const handleSave = async () => {
-    setLoading(true);
-    setError('');
-    try {
+    await withSaveLock(async () => {
+      setError('');
       const result = await createInspection(form);
       router.push(`/purchases/inspections/${result.id}`);
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ');
-      setLoading(false);
-    }
+    });
   };
 
   const handleDelete = async () => {
     if (!existing?.id) return;
     if (!confirm(`حذف الفحص ${existing.documentNo}؟`)) return;
-    setLoading(true);
+    setError('');
     try {
       await deleteInspection(existing.id as string);
       router.push('/purchases/inspections');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الحذف');
-      setLoading(false);
     }
   };
 

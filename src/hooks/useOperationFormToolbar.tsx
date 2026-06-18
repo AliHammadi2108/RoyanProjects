@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, createElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, createElement } from 'react';
 import { checkCanApprove, fetchApprovalRecipients, processApproval } from '@/actions/common';
 import { ApprovalRecipientsModal } from '@/components/ui/ApprovalRecipientsModal';
 import { confirmToolbarAction, type OperationToolbarProps } from '@/components/ui/OperationToolbar';
@@ -76,6 +76,8 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
   >([]);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [pendingSubmitMode, setPendingSubmitMode] = useState<'saveAndSubmit' | 'submitOnly'>('submitOnly');
+  const saveLockRef = useRef(false);
+  const [saveLocked, setSaveLocked] = useState(false);
 
   const status =
     options.status ?? (existing?.status as string | undefined);
@@ -99,7 +101,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     usage,
     approvalStatus: approval?.status,
     canApprove,
-    loading: loading || loadingAction !== null || loadingRecipients,
+    loading: loading || loadingAction !== null || loadingRecipients || saveLocked,
     loadingAction,
     userPermissions,
     saveLabel,
@@ -122,6 +124,9 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
 
   const runSubmit = useCallback(
     async (recipientUserIds: string[]) => {
+      if (saveLockRef.current) return;
+      saveLockRef.current = true;
+      setSaveLocked(true);
       setLoadingAction('submit');
       try {
         if (pendingSubmitMode === 'submitOnly' && onSubmitOnly) {
@@ -130,6 +135,8 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
           await onSave(true, recipientUserIds);
         }
       } catch {
+        saveLockRef.current = false;
+        setSaveLocked(false);
         setLoadingAction(null);
       }
     },
@@ -183,10 +190,15 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
             toolbar.setViewMode();
             return;
           case 'save':
+            if (saveLockRef.current) return;
+            saveLockRef.current = true;
+            setSaveLocked(true);
             setLoadingAction('save');
             try {
               await onSave(false);
             } catch {
+              saveLockRef.current = false;
+              setSaveLocked(false);
               setLoadingAction(null);
             }
             return;
@@ -284,7 +296,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
       partyName: options.whatsappMeta?.partyName,
       supplierPhone: options.whatsappMeta?.supplierPhone,
       permissions: toolbar.permissions,
-      disabled: loading || loadingAction !== null || loadingRecipients,
+      disabled: loading || loadingAction !== null || loadingRecipients || saveLocked,
     });
   }, [
     isNew,
@@ -297,6 +309,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
     loading,
     loadingAction,
     loadingRecipients,
+    saveLocked,
   ]);
 
   const toolbarProps: OperationToolbarProps = {

@@ -18,7 +18,7 @@ import {
   resolveSourceDocument,
   buildInvoiceItemsFromReceiving,
   isCascadeLockActive,
-  cascadeFieldDisabled,
+  masterFieldDisabled,
 } from '@/lib/document-cascade';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import {
@@ -121,7 +121,6 @@ export function InvoiceForm({
   });
 
   const handleReceivingChange = (receivingId: string) => {
-    if (cascadeLock) return;
     const receiving = receivings.find((r) => r.id === receivingId);
     if (!receiving) return;
     setForm({
@@ -234,7 +233,7 @@ export function InvoiceForm({
                   <select
                     className="form-input"
                     value={form.receivingId}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => handleReceivingChange(e.target.value)}
                   >
                     {receivings.map((r) => (
@@ -258,7 +257,7 @@ export function InvoiceForm({
                     setForm({ ...form, supplierId, currencyId });
                   }}
                   options={masterData.suppliers}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   allowEmpty={false}
                 />
               </div>
@@ -273,7 +272,7 @@ export function InvoiceForm({
                       ? supplierCurrencyOptions
                       : masterData.currencies
                   }
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   allowEmpty={false}
                 />
               </div>
@@ -282,7 +281,7 @@ export function InvoiceForm({
                 <input
                   className="form-input"
                   value={form.supplierInvoiceNo}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   onChange={(e) => setForm({ ...form, supplierInvoiceNo: e.target.value })}
                 />
               </div>
@@ -290,7 +289,7 @@ export function InvoiceForm({
                 <label className="form-label">طريقة الدفع</label>
                 <PaymentMethodSelect
                   value={form.paymentMethod}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   onChange={(paymentMethod) =>
                     setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                   }
@@ -302,7 +301,7 @@ export function InvoiceForm({
                   type="date"
                   className="form-input"
                   value={form.dueDate}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 />
               </div>

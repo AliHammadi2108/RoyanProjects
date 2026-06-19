@@ -16,7 +16,7 @@ import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
-import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
+import { resolveSourceDocument, isCascadeLockActive, masterFieldDisabled } from '@/lib/document-cascade';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
@@ -168,7 +168,6 @@ export function ComparisonForm({
   };
 
   const toggleQuotation = (id: string) => {
-    if (cascadeLock) return;
     const ids = selectedQuotationIds.includes(id)
       ? selectedQuotationIds.filter((x) => x !== id)
       : [...selectedQuotationIds, id];
@@ -177,7 +176,6 @@ export function ComparisonForm({
   };
 
   const handleRequestChange = (requestId: string) => {
-    if (cascadeLock) return;
     const request = approvedRequests.find((r) => r.id === requestId);
     if (!request) return;
     setForm({
@@ -327,7 +325,7 @@ export function ComparisonForm({
                   <select
                     className="form-input"
                     value={form.purchaseRequestId}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => handleRequestChange(e.target.value)}
                   >
                     {approvedRequests.map((r) => (
@@ -337,11 +335,11 @@ export function ComparisonForm({
                 </div>
                 <div className="space-y-2">
                   {quotations.map((q) => (
-                    <label key={q.id} className={`flex items-center gap-2 p-2 rounded border ${cascadeLock ? 'bg-gray-50' : 'cursor-pointer hover:bg-gray-50'}`}>
+                    <label key={q.id} className={`flex items-center gap-2 p-2 rounded border ${effectiveEditable ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50'}`}>
                       <input
                         type="checkbox"
                         checked={selectedQuotationIds.includes(q.id)}
-                        disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                        disabled={masterFieldDisabled(effectiveEditable)}
                         onChange={() => toggleQuotation(q.id)}
                       />
                       <span>{q.documentNo} - {q.supplier.nameAr}</span>
@@ -364,7 +362,7 @@ export function ComparisonForm({
                     value={form.currencyId}
                     onChange={(currencyId) => setForm({ ...form, currencyId })}
                     options={masterData.currencies}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     allowEmpty={false}
                   />
                 </div>
@@ -372,7 +370,7 @@ export function ComparisonForm({
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(paymentMethod) =>
                       setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                     }
@@ -384,7 +382,7 @@ export function ComparisonForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>

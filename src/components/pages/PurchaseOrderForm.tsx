@@ -17,7 +17,7 @@ import {
   buildPurchaseOrderItemsFromComparison,
   resolveComparisonSupplierId,
   isCascadeLockActive,
-  cascadeFieldDisabled,
+  masterFieldDisabled,
 } from '@/lib/document-cascade';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
@@ -341,7 +341,7 @@ export function PurchaseOrderForm({
                       <select
                         className="form-input"
                         value={form.technicalComparisonId}
-                        disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                        disabled={masterFieldDisabled(effectiveEditable)}
                         onChange={(e) => handleComparisonChange(e.target.value)}
                       >
                         <option value="">-- اختر من المقارنة --</option>
@@ -359,7 +359,7 @@ export function PurchaseOrderForm({
                       <select
                         className="form-input"
                         value={form.supplierNominationId}
-                        disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                        disabled={masterFieldDisabled(effectiveEditable)}
                         onChange={(e) => handleNominationChange(e.target.value)}
                       >
                         <option value="">-- اختر من الترشيح --</option>
@@ -385,7 +385,7 @@ export function PurchaseOrderForm({
                       setForm({ ...form, supplierId, currencyId });
                     }}
                     options={masterData.suppliers}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     allowEmpty={false}
                   />
                 </div>
@@ -396,7 +396,7 @@ export function PurchaseOrderForm({
                     value={form.currencyId}
                     onChange={(currencyId) => setForm({ ...form, currencyId })}
                     options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     allowEmpty={false}
                   />
                 </div>
@@ -407,14 +407,14 @@ export function PurchaseOrderForm({
                     value={form.warehouseId}
                     onChange={(warehouseId) => setForm({ ...form, warehouseId })}
                     options={masterData.warehouses}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                   />
                 </div>
                 <div>
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(paymentMethod) =>
                       setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                     }
@@ -426,7 +426,7 @@ export function PurchaseOrderForm({
                     type="date"
                     className="form-input"
                     value={form.expectedArrival}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, expectedArrival: e.target.value })}
                   />
                 </div>
@@ -436,7 +436,7 @@ export function PurchaseOrderForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>

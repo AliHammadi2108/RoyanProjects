@@ -16,7 +16,7 @@ import {
   resolveSourceDocument,
   buildReceivingItemsFromOrder,
   isCascadeLockActive,
-  cascadeFieldDisabled,
+  masterFieldDisabled,
 } from '@/lib/document-cascade';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
@@ -95,7 +95,6 @@ export function ReceivingForm({
   const selectedOrder = orders.find((o) => o.id === form.purchaseOrderId);
 
   const handleOrderChange = (orderId: string) => {
-    if (cascadeLock) return;
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
     const inspection = order.inspections[0];
@@ -110,7 +109,6 @@ export function ReceivingForm({
   };
 
   const handleInspectionChange = (inspectionId: string) => {
-    if (cascadeLock) return;
     const order = orders.find((o) => o.id === form.purchaseOrderId);
     if (!order) return;
     setForm({
@@ -201,7 +199,7 @@ export function ReceivingForm({
                   <select
                     className="form-input"
                     value={form.purchaseOrderId}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => handleOrderChange(e.target.value)}
                   >
                     {orders.map((o) => (
@@ -217,7 +215,7 @@ export function ReceivingForm({
                     <select
                       className="form-input"
                       value={form.inspectionId}
-                      disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                      disabled={masterFieldDisabled(effectiveEditable)}
                       onChange={(e) => handleInspectionChange(e.target.value)}
                     >
                       {selectedOrder.inspections.map((i) => (
@@ -236,7 +234,7 @@ export function ReceivingForm({
                   value={form.warehouseId}
                   onChange={(warehouseId) => setForm({ ...form, warehouseId })}
                   options={masterData.warehouses}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                 />
               </div>
               <div>
@@ -244,7 +242,7 @@ export function ReceivingForm({
                 <input
                   className="form-input"
                   value={form.supplierInvoiceNo}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   onChange={(e) => setForm({ ...form, supplierInvoiceNo: e.target.value })}
                 />
               </div>

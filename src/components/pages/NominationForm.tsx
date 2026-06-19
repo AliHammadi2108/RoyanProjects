@@ -9,7 +9,7 @@ import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createNomination, updateNomination, submitNomination, deleteNomination } from '@/actions/comparisons';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
-import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
+import { resolveSourceDocument, isCascadeLockActive, masterFieldDisabled } from '@/lib/document-cascade';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
@@ -94,7 +94,6 @@ export function NominationForm({
   }, [existing?.id]);
 
   const handleComparisonChange = (comparisonId: string) => {
-    if (cascadeLock) return;
     const comparison = approvedComparisons.find((c) => c.id === comparisonId);
     if (!comparison) return;
     const selectedItems = comparison.items.filter((i) => i.isSelected);
@@ -232,7 +231,7 @@ export function NominationForm({
                   <select
                     className="form-input"
                     value={form.technicalComparisonId}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => handleComparisonChange(e.target.value)}
                   >
                     {approvedComparisons.map((c) => (
@@ -249,7 +248,7 @@ export function NominationForm({
                     value={form.supplierId}
                     onChange={(supplierId) => setForm({ ...form, supplierId })}
                     options={masterData.suppliers}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     allowEmpty={false}
                   />
                 </div>
@@ -258,7 +257,7 @@ export function NominationForm({
                   <select
                     className="form-input"
                     value={form.comparisonType}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, comparisonType: e.target.value })}
                   >
                     <option value="LOWEST_PRICE">أقل سعر</option>
@@ -271,7 +270,7 @@ export function NominationForm({
                   <input
                     className="form-input"
                     value={form.committeeMembers}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, committeeMembers: e.target.value })}
                   />
                 </div>
@@ -281,7 +280,7 @@ export function NominationForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>

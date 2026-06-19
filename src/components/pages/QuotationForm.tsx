@@ -299,7 +299,7 @@ export function QuotationForm({
                             <option key={r.id} value={r.id}>
                               {r.documentNo}
                               {(r._count?.quotations ?? 0) > 0
-                                ? ` (مستخدم — ${r._count?.quotations} عرض)`
+                                ? ` (مرتبط — ${r._count?.quotations} عرض)`
                                 : ''}
                             </option>
                           ))

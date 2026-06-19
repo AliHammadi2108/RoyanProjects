@@ -8,7 +8,7 @@ import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createInspection, deleteInspection } from '@/actions/purchase-orders';
 import { fetchDocumentUsage } from '@/actions/common';
 import { INSPECTION_RESULTS } from '@/lib/constants';
-import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
+import { resolveSourceDocument, isCascadeLockActive, masterFieldDisabled } from '@/lib/document-cascade';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { useOperationToast } from '@/hooks/useOperationToast';
@@ -79,7 +79,6 @@ export function InspectionForm({
   }, [existing?.id]);
 
   const handleOrderChange = (orderId: string) => {
-    if (cascadeLock) return;
     const order = approvedOrders.find((o) => o.id === orderId);
     if (!order) return;
     setForm({
@@ -174,7 +173,7 @@ export function InspectionForm({
                   <select
                     className="form-input"
                     value={form.purchaseOrderId}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => handleOrderChange(e.target.value)}
                   >
                     {approvedOrders.map((o) => (
@@ -194,7 +193,7 @@ export function InspectionForm({
                   value={form.warehouseId}
                   onChange={(warehouseId) => setForm({ ...form, warehouseId })}
                   options={masterData.warehouses}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                 />
               </div>
               <div>
@@ -202,7 +201,7 @@ export function InspectionForm({
                 <select
                   className="form-input"
                   value={form.inspectionResult}
-                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                  disabled={masterFieldDisabled(effectiveEditable)}
                   onChange={(e) => setForm({ ...form, inspectionResult: e.target.value })}
                 >
                   <option value={INSPECTION_RESULTS.ACCEPTED}>مقبول</option>
@@ -217,7 +216,7 @@ export function InspectionForm({
                     className="form-input"
                     rows={2}
                     value={form.rejectionReason}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, rejectionReason: e.target.value })}
                   />
                 </div>

@@ -4,11 +4,15 @@ import { getAllowedSupplierIds, supplierWhereForUser } from '@/services/supplier
 import {
   buildDateRange,
   parseReportFilters,
-  resolveStatusFilter,
   sortRows,
   paginateSlice,
 } from './filters';
-import type { ReportResult, SupplierStatementRow } from './types';
+import type {
+  ReportSummary,
+  SupplierStatementResult,
+  SupplierStatementRow,
+  SupplierStatementSection,
+} from './types';
 
 export interface SupplierStatementFilters {
   supplierId?: string;
@@ -22,6 +26,7 @@ export interface SupplierStatementFilters {
   pageSize?: number;
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
+  showInBaseCurrency?: boolean;
 }
 
 export interface SupplierWithInvoicesRow {
@@ -53,6 +58,67 @@ export function paymentStatementLabels(bankReference?: string | null) {
     description: bankReference ? `دفعة - ${bankReference}` : DOCUMENT_LABELS_AR.SUPPLIER_PAYMENT,
   };
 }
+
+/** Convert document amount to base currency using stored exchange rate at transaction time. */
+export function convertAmountToBase(amount: number, exchangeRate?: number | null): number {
+  return amount * (exchangeRate && exchangeRate > 0 ? exchangeRate : 1);
+}
+
+/** Opening balance applies only to the supplier default currency section. */
+export function resolveOpeningBalanceForCurrency(
+  supplierOpeningBalance: number,
+  defaultCurrencyId: string | null | undefined,
+  targetCurrencyId: string | null | undefined
+): number {
+  if (!defaultCurrencyId || !targetCurrencyId || defaultCurrencyId !== targetCurrencyId) {
+    return 0;
+  }
+  return supplierOpeningBalance || 0;
+}
+
+/** Convert supplier opening balance (in default currency) to base currency. */
+export function resolveOpeningBalanceInBase(
+  supplierOpeningBalance: number,
+  defaultCurrency?: { isBase?: boolean; rateToBase?: number } | null
+): number {
+  if (!supplierOpeningBalance) return 0;
+  if (!defaultCurrency || defaultCurrency.isBase) return supplierOpeningBalance;
+  return convertAmountToBase(supplierOpeningBalance, defaultCurrency.rateToBase);
+}
+
+export function applyRunningBalance(
+  rows: SupplierStatementRow[],
+  openingBalance: number
+): { rows: SupplierStatementRow[]; closingBalance: number } {
+  let runningBalance = openingBalance;
+  const withBalance = rows.map((row) => {
+    runningBalance += row.debit - row.credit;
+    return { ...row, balance: runningBalance };
+  });
+  return { rows: withBalance, closingBalance: runningBalance };
+}
+
+export function summarizeStatementRows(
+  rows: SupplierStatementRow[],
+  openingBalance: number,
+  closingBalance: number
+): ReportSummary {
+  let totalPurchases = 0;
+  let totalPayments = 0;
+  for (const row of rows) {
+    totalPurchases += row.debit;
+    totalPayments += row.credit;
+  }
+  return {
+    openingBalance,
+    totalPurchases,
+    totalReturns: 0,
+    totalPayments,
+    closingBalance,
+    movementCount: rows.length,
+  };
+}
+
 
 function normalizePaymentStatus(status: string): string {
   const s = status.toLowerCase().replace(/\s+/g, '_');
@@ -86,6 +152,31 @@ function computeDisplayPaymentStatus(
   if (isOverdue(dueDate, remaining, storedStatus)) return 'Overdue';
   if (paidAmount > 0) return 'Partially Paid';
   return 'Unpaid';
+}
+
+function resolveCurrencyId(
+  documentCurrencyId: string | null | undefined,
+  supplierDefaultCurrencyId: string | null | undefined,
+  baseCurrencyId?: string
+): string {
+  return documentCurrencyId || supplierDefaultCurrencyId || baseCurrencyId || 'unknown';
+}
+
+function mapRowToBaseCurrency(
+  row: SupplierStatementRow,
+  baseCurrencyCode: string,
+  baseCurrencyId?: string
+): SupplierStatementRow {
+  const rate = row.exchangeRate || 1;
+  return {
+    ...row,
+    currencyId: baseCurrencyId,
+    currencyCode: baseCurrencyCode,
+    debit: convertAmountToBase(row.debit, rate),
+    credit: convertAmountToBase(row.credit, rate),
+    balance: 0,
+    exchangeRate: rate,
+  };
 }
 
 export async function getSuppliersWithInvoices(
@@ -165,30 +256,51 @@ export async function getSupplierStatementReport(
   userId: string,
   supplierId: string,
   rawFilters: unknown
-): Promise<ReportResult<SupplierStatementRow>> {
+): Promise<SupplierStatementResult> {
   const filters = parseReportFilters(rawFilters);
   const dateRange = buildDateRange(filters);
+  const showInBaseCurrency = Boolean(filters.showInBaseCurrency);
   const allowedSuppliers = await getAllowedSupplierIds(userId, 'view_balance');
 
+  const emptyResult: SupplierStatementResult = {
+    rows: [],
+    total: 0,
+    page: 1,
+    pageSize: filters.pageSize,
+    summary: {},
+    chartData: [],
+    showInBaseCurrency,
+  };
+
   if (allowedSuppliers !== null && !allowedSuppliers.includes(supplierId)) {
-    return { rows: [], total: 0, page: 1, pageSize: filters.pageSize, summary: {}, chartData: [] };
+    return emptyResult;
   }
 
-  const supplier = await prisma.supplier.findUnique({
-    where: { id: supplierId },
-    include: { defaultCurrency: true },
-  });
+  const [supplier, baseCurrency] = await Promise.all([
+    prisma.supplier.findUnique({
+      where: { id: supplierId },
+      include: { defaultCurrency: true },
+    }),
+    prisma.currency.findFirst({
+      where: { isBase: true, isActive: true },
+      select: { id: true, code: true, nameAr: true, isBase: true, rateToBase: true },
+    }),
+  ]);
+
   if (!supplier) {
-    return { rows: [], total: 0, page: 1, pageSize: filters.pageSize, summary: {}, chartData: [] };
+    return emptyResult;
   }
+
+  const baseCurrencyCode = baseCurrency?.code || 'SAR';
+  const baseCurrencyId = baseCurrency?.id;
 
   const invoiceWhere = {
     supplierId,
     status: { in: [...FINANCIAL_INVOICE_STATUSES] },
-    ...(filters.currencyId ? { currencyId: filters.currencyId } : {}),
+    ...(filters.currencyId && !showInBaseCurrency ? { currencyId: filters.currencyId } : {}),
   };
 
-  const [invoices, payments] = await Promise.all([
+  const [invoices, payments, activeCurrencies] = await Promise.all([
     prisma.purchaseInvoice.findMany({
       where: invoiceWhere,
       include: { currency: true },
@@ -198,7 +310,7 @@ export async function getSupplierStatementReport(
       where: {
         supplierId,
         status: POSTED_VOUCHER_STATUS,
-        ...(filters.currencyId ? { currencyId: filters.currencyId } : {}),
+        ...(filters.currencyId && !showInBaseCurrency ? { currencyId: filters.currencyId } : {}),
       },
       include: {
         currency: true,
@@ -206,17 +318,39 @@ export async function getSupplierStatementReport(
       },
       orderBy: { paymentDate: 'asc' },
     }),
+    prisma.currency.findMany({
+      where: { isActive: true },
+      select: { id: true, code: true, nameAr: true },
+    }),
   ]);
 
-  const movements: SupplierStatementRow[] = [];
+  const currencyMeta = new Map(activeCurrencies.map((c) => [c.id, c]));
   const openingDate = filters.dateFrom ? new Date(filters.dateFrom) : null;
+  const rawMovements: SupplierStatementRow[] = [];
+  const openingByCurrency = new Map<string, number>();
 
-  let openingBalance = supplier.openingBalance || 0;
-  let totalPurchases = 0;
-  let totalReturns = 0;
-  let totalPayments = 0;
+  const ensureOpening = (currencyId: string) => {
+    if (!openingByCurrency.has(currencyId)) {
+      openingByCurrency.set(
+        currencyId,
+        resolveOpeningBalanceForCurrency(
+          supplier.openingBalance,
+          supplier.defaultCurrencyId,
+          currencyId
+        )
+      );
+    }
+    return openingByCurrency.get(currencyId)!;
+  };
 
   for (const inv of invoices) {
+    const currencyId = resolveCurrencyId(
+      inv.currencyId,
+      supplier.defaultCurrencyId,
+      baseCurrencyId
+    );
+    const currencyCode = inv.currency?.code || supplier.defaultCurrency?.code || baseCurrencyCode;
+
     const paid = inv.paidAmount ?? 0;
     const remaining = inv.remainingAmount ?? Math.max(0, inv.netTotal - paid);
     const displayStatus = computeDisplayPaymentStatus(
@@ -231,12 +365,11 @@ export async function getSupplierStatementReport(
     const debit = inv.netTotal;
 
     if (openingDate && invDate < openingDate) {
-      openingBalance += debit;
+      openingByCurrency.set(currencyId, ensureOpening(currencyId) + debit);
       continue;
     }
 
     if (!matchesPaymentFilter(displayStatus, filters.paymentStatus)) continue;
-
     if (filters.movementType && filters.movementType !== 'all' && filters.movementType !== 'purchase') {
       continue;
     }
@@ -248,9 +381,8 @@ export async function getSupplierStatementReport(
       if (!inRange) continue;
     }
 
-    totalPurchases += debit;
     const invoiceLabels = invoiceStatementLabels(inv.supplierInvoiceNo);
-    movements.push({
+    rawMovements.push({
       id: inv.id,
       movementDate: invDate.toISOString(),
       movementType: 'purchase',
@@ -260,7 +392,8 @@ export async function getSupplierStatementReport(
       debit,
       credit: 0,
       balance: 0,
-      currencyCode: inv.currency?.code || supplier.defaultCurrency?.code || 'SAR',
+      currencyId,
+      currencyCode,
       exchangeRate: inv.exchangeRate,
       dueDate: (inv.dueDate || inv.paymentDueDate)?.toISOString(),
       paymentStatus: displayStatus,
@@ -269,11 +402,17 @@ export async function getSupplierStatementReport(
   }
 
   for (const pv of payments) {
+    const currencyId = resolveCurrencyId(
+      pv.currencyId,
+      supplier.defaultCurrencyId,
+      baseCurrencyId
+    );
+    const currencyCode = pv.currency?.code || supplier.defaultCurrency?.code || baseCurrencyCode;
     const payDate = pv.paymentDate;
     const credit = pv.totalAmount;
 
     if (openingDate && payDate < openingDate) {
-      openingBalance -= credit;
+      openingByCurrency.set(currencyId, ensureOpening(currencyId) - credit);
       continue;
     }
 
@@ -288,9 +427,8 @@ export async function getSupplierStatementReport(
       if (!inRange) continue;
     }
 
-    totalPayments += credit;
     const paymentLabels = paymentStatementLabels(pv.bankReference);
-    movements.push({
+    rawMovements.push({
       id: pv.id,
       movementDate: payDate.toISOString(),
       movementType: 'payment',
@@ -300,45 +438,124 @@ export async function getSupplierStatementReport(
       debit: 0,
       credit,
       balance: 0,
-      currencyCode: pv.currency?.code || supplier.defaultCurrency?.code || 'SAR',
+      currencyId,
+      currencyCode,
       exchangeRate: pv.exchangeRate,
       paymentStatus: 'Paid',
       route: `${DOCUMENT_ROUTES.SUPPLIER_PAYMENT}/${pv.id}`,
     });
   }
 
-  movements.sort(
+  rawMovements.sort(
     (a, b) => new Date(a.movementDate).getTime() - new Date(b.movementDate).getTime()
   );
 
-  let runningBalance = openingBalance;
-  for (const row of movements) {
-    runningBalance += row.debit - row.credit;
-    row.balance = runningBalance;
+  const useMultiCurrencySections =
+    !showInBaseCurrency && !filters.currencyId && rawMovements.length > 0;
+
+  if (showInBaseCurrency) {
+    const baseRows = rawMovements.map((row) =>
+      mapRowToBaseCurrency(row, baseCurrencyCode, baseCurrencyId)
+    );
+    const openingBalance = resolveOpeningBalanceInBase(
+      supplier.openingBalance,
+      supplier.defaultCurrency
+    );
+    const { rows: balanced, closingBalance } = applyRunningBalance(baseRows, openingBalance);
+    const sorted = sortRows(balanced, filters.sortBy || 'movementDate', filters.sortDir);
+    const total = sorted.length;
+    const paged = paginateSlice(sorted, filters.page, filters.pageSize);
+    const summary = summarizeStatementRows(sorted, openingBalance, closingBalance);
+
+    return {
+      rows: paged,
+      total,
+      page: filters.page,
+      pageSize: filters.pageSize,
+      summary,
+      chartData: paged.slice(0, 12).map((r) => ({
+        label: r.documentNo,
+        value: r.debit || r.credit,
+      })),
+      showInBaseCurrency: true,
+      baseCurrencyCode,
+    };
   }
 
-  const closingBalance = runningBalance;
+  if (useMultiCurrencySections) {
+    const currencyIds = Array.from(
+      new Set(rawMovements.map((r) => r.currencyId || r.currencyCode))
+    );
+    for (const currencyId of currencyIds) {
+      ensureOpening(currencyId);
+    }
 
-  const sorted = sortRows(movements, filters.sortBy || 'movementDate', filters.sortDir);
+    const sections: SupplierStatementSection[] = Array.from(currencyIds)
+      .map((currencyId) => {
+        const meta = currencyMeta.get(currencyId);
+        const sectionRows = rawMovements.filter(
+          (r) => (r.currencyId || r.currencyCode) === currencyId
+        );
+        const openingBalance = openingByCurrency.get(currencyId) ?? 0;
+        const { rows: balanced, closingBalance } = applyRunningBalance(sectionRows, openingBalance);
+        const sorted = sortRows(balanced, filters.sortBy || 'movementDate', filters.sortDir);
+        return {
+          currencyId,
+          currencyCode: meta?.code || sectionRows[0]?.currencyCode || currencyId,
+          currencyNameAr: meta?.nameAr,
+          rows: sorted,
+          total: sorted.length,
+          summary: summarizeStatementRows(sorted, openingBalance, closingBalance),
+        };
+      })
+      .sort((a, b) => a.currencyCode.localeCompare(b.currencyCode, 'ar'));
+
+    const allRows = sections.flatMap((s) => s.rows);
+
+    return {
+      rows: allRows,
+      total: allRows.length,
+      page: 1,
+      pageSize: allRows.length || filters.pageSize,
+      summary: {},
+      chartData: [],
+      sections,
+      showInBaseCurrency: false,
+      baseCurrencyCode,
+    };
+  }
+
+  const targetCurrencyId =
+    filters.currencyId ||
+    supplier.defaultCurrencyId ||
+    rawMovements[0]?.currencyId ||
+    baseCurrencyId ||
+    'unknown';
+  const openingBalance =
+    openingByCurrency.get(targetCurrencyId) ??
+    resolveOpeningBalanceForCurrency(
+      supplier.openingBalance,
+      supplier.defaultCurrencyId,
+      targetCurrencyId
+    );
+
+  const { rows: balanced, closingBalance } = applyRunningBalance(rawMovements, openingBalance);
+  const sorted = sortRows(balanced, filters.sortBy || 'movementDate', filters.sortDir);
   const total = sorted.length;
   const paged = paginateSlice(sorted, filters.page, filters.pageSize);
+  const summary = summarizeStatementRows(sorted, openingBalance, closingBalance);
 
   return {
     rows: paged,
     total,
     page: filters.page,
     pageSize: filters.pageSize,
-    summary: {
-      openingBalance,
-      totalPurchases,
-      totalReturns,
-      totalPayments,
-      closingBalance,
-      movementCount: total,
-    },
+    summary,
     chartData: paged.slice(0, 12).map((r) => ({
       label: r.documentNo,
       value: r.debit || r.credit,
     })),
+    showInBaseCurrency: false,
+    baseCurrencyCode,
   };
 }

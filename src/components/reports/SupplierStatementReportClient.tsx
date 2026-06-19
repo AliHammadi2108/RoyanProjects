@@ -19,7 +19,10 @@ import { AutocompleteSelect } from '@/components/ui/AutocompleteSelect';
 import type { AutocompleteOption } from '@/lib/autocomplete';
 import { formatDate, formatReportAmount, formatReportSummaryAmount, resolveCurrencyById, type CurrencyLike } from '@/lib/utils';
 import { filterCurrenciesForSupplier } from '@/lib/supplier-currency';
-import type { ReportResult, SupplierStatementRow } from '@/services/reports/types';
+import type {
+  SupplierStatementResult,
+  SupplierStatementRow,
+} from '@/services/reports/types';
 
 interface SupplierOption {
   id: string;
@@ -53,7 +56,7 @@ const EXPORT_COLUMNS = [
   { key: 'paymentStatus', label: 'حالة السداد' },
 ];
 
-const EMPTY_DATA: ReportResult<SupplierStatementRow> = {
+const EMPTY_DATA: SupplierStatementResult = {
   rows: [],
   total: 0,
   page: 1,
@@ -72,12 +75,13 @@ export function SupplierStatementReportClient({
   const router = useRouter();
   const [suppliers, setSuppliers] = useState(initialSuppliers);
   const [supplierId, setSupplierId] = useState('');
-  const [data, setData] = useState<ReportResult<SupplierStatementRow>>(EMPTY_DATA);
+  const [data, setData] = useState<SupplierStatementResult>(EMPTY_DATA);
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currencyId, setCurrencyId] = useState('');
+  const [showInBaseCurrency, setShowInBaseCurrency] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
   const [movementType, setMovementType] = useState('');
   const [sortBy, setSortBy] = useState('movementDate');
@@ -131,9 +135,10 @@ export function SupplierStatementReportClient({
         const result = await fetchSupplierStatementReport(supplierId, {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
-          currencyId: currencyId || undefined,
+          currencyId: showInBaseCurrency ? undefined : currencyId || undefined,
           paymentStatus: paymentStatus || undefined,
           movementType: movementType || undefined,
+          showInBaseCurrency,
           page: overrides?.page ?? page,
           sortBy: overrides?.sortBy ?? sortBy,
           sortDir: overrides?.sortDir ?? sortDir,
@@ -142,13 +147,42 @@ export function SupplierStatementReportClient({
         if (overrides?.page) setPage(overrides.page);
       });
     },
-    [supplierId, dateFrom, dateTo, currencyId, paymentStatus, movementType, page, sortBy, sortDir]
+    [supplierId, dateFrom, dateTo, currencyId, showInBaseCurrency, paymentStatus, movementType, page, sortBy, sortDir]
   );
 
-  const summaryCurrency = useMemo(
-    () => resolveCurrencyById(currencies, currencyId) ?? baseCurrency,
-    [currencies, currencyId, baseCurrency]
-  );
+  const displayCurrency = useMemo(() => {
+    if (data.showInBaseCurrency) return baseCurrency;
+    return resolveCurrencyById(currencies, currencyId) ?? baseCurrency;
+  }, [data.showInBaseCurrency, currencies, currencyId, baseCurrency]);
+
+  const hasSections = Boolean(data.sections && data.sections.length > 0);
+
+  const exportRows = useMemo(() => {
+    if (hasSections && data.sections) {
+      return data.sections.flatMap((section) =>
+        section.rows.map((row) => ({ ...row } as Record<string, unknown>))
+      );
+    }
+    return data.rows as unknown as Record<string, unknown>[];
+  }, [data.rows, data.sections, hasSections]);
+
+  const buildSummaryItems = (summary: SupplierStatementResult['summary'], currency = displayCurrency) =>
+    permissions.viewBalance
+      ? [
+          { label: 'رصيد افتتاحي', value: formatReportSummaryAmount(Number(summary.openingBalance ?? 0), currency) },
+          { label: 'إجمالي المشتريات', value: formatReportSummaryAmount(Number(summary.totalPurchases ?? 0), currency) },
+          { label: 'إجمالي المرتجعات', value: formatReportSummaryAmount(Number(summary.totalReturns ?? 0), currency) },
+          { label: 'إجمالي المدفوعات', value: formatReportSummaryAmount(Number(summary.totalPayments ?? 0), currency) },
+          { label: 'رصيد ختامي', value: formatReportSummaryAmount(Number(summary.closingBalance ?? 0), currency) },
+        ]
+      : [{ label: 'عدد الحركات', value: summary.movementCount ?? 0 }];
+
+  const formatRowAmount = (amount: number, row: SupplierStatementRow) => {
+    const rowCurrency = data.showInBaseCurrency
+      ? baseCurrency
+      : resolveCurrencyById(currencies, row.currencyId) ?? { code: row.currencyCode };
+    return formatReportAmount(amount, rowCurrency?.code ?? row.currencyCode, baseCurrency);
+  };
 
   const columns: ReportGridColumn<SupplierStatementRow>[] = [
     {
@@ -167,21 +201,20 @@ export function SupplierStatementReportClient({
             label: 'مدين',
             sortable: true,
             render: (row: SupplierStatementRow) =>
-              row.debit > 0 ? formatReportAmount(row.debit, row.currencyCode, baseCurrency) : '-',
+              row.debit > 0 ? formatRowAmount(row.debit, row) : '-',
           },
           {
             key: 'credit',
             label: 'دائن',
             sortable: true,
             render: (row: SupplierStatementRow) =>
-              row.credit > 0 ? formatReportAmount(row.credit, row.currencyCode, baseCurrency) : '-',
+              row.credit > 0 ? formatRowAmount(row.credit, row) : '-',
           },
           {
             key: 'balance',
             label: 'الرصيد',
             sortable: true,
-            render: (row: SupplierStatementRow) =>
-              formatReportAmount(row.balance, row.currencyCode, baseCurrency),
+            render: (row: SupplierStatementRow) => formatRowAmount(row.balance, row),
           },
         ]
       : []),
@@ -259,7 +292,13 @@ export function SupplierStatementReportClient({
       {supplierId ? (
         <ReportLayout
           title="كشف حساب المورد"
-          subtitle="حركات المشتريات والمدفوعات"
+          subtitle={
+            showInBaseCurrency
+              ? `عرض موحّد بالعملة الأساسية (${baseCurrency?.code || data.baseCurrencyCode || '—'})`
+              : hasSections
+                ? 'كشف منفصل لكل عملة'
+                : 'حركات المشتريات والمدفوعات'
+          }
           viewMode="grid"
           onViewModeChange={() => {}}
           onRefresh={() => loadStatement()}
@@ -270,18 +309,8 @@ export function SupplierStatementReportClient({
           canChart={false}
           exportFilename="supplier-statement"
           exportColumns={EXPORT_COLUMNS}
-          exportRows={data.rows as unknown as Record<string, unknown>[]}
-          summary={
-            permissions.viewBalance
-              ? [
-                  { label: 'رصيد افتتاحي', value: formatReportSummaryAmount(Number(data.summary.openingBalance ?? 0), summaryCurrency) },
-                  { label: 'إجمالي المشتريات', value: formatReportSummaryAmount(Number(data.summary.totalPurchases ?? 0), summaryCurrency) },
-                  { label: 'إجمالي المرتجعات', value: formatReportSummaryAmount(Number(data.summary.totalReturns ?? 0), summaryCurrency) },
-                  { label: 'إجمالي المدفوعات', value: formatReportSummaryAmount(Number(data.summary.totalPayments ?? 0), summaryCurrency) },
-                  { label: 'رصيد ختامي', value: formatReportSummaryAmount(Number(data.summary.closingBalance ?? 0), summaryCurrency) },
-                ]
-              : [{ label: 'عدد الحركات', value: data.summary.movementCount ?? 0 }]
-          }
+          exportRows={exportRows}
+          summary={hasSections ? undefined : buildSummaryItems(data.summary)}
           filters={
             <ReportFiltersBar
               onApply={() => loadStatement({ page: 1 })}
@@ -289,6 +318,7 @@ export function SupplierStatementReportClient({
                 setDateFrom('');
                 setDateTo('');
                 setCurrencyId('');
+                setShowInBaseCurrency(false);
                 setPaymentStatus('');
                 setMovementType('');
                 setPage(1);
@@ -301,12 +331,31 @@ export function SupplierStatementReportClient({
                 <input type="date" className={reportInputClass()} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
               </ReportFilterField>
               <ReportFilterField label="العملة">
-                <select className={reportSelectClass()} value={currencyId} onChange={(e) => setCurrencyId(e.target.value)}>
-                  <option value="">الكل</option>
+                <select
+                  className={reportSelectClass()}
+                  value={currencyId}
+                  disabled={showInBaseCurrency}
+                  onChange={(e) => setCurrencyId(e.target.value)}
+                >
+                  <option value="">الكل (كشف لكل عملة)</option>
                   {supplierCurrencyOptions.map((c) => (
                     <option key={c.id} value={c.id}>{c.nameAr} ({c.code})</option>
                   ))}
                 </select>
+              </ReportFilterField>
+              <ReportFilterField label="عرض">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer min-h-[2.25rem]">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300"
+                    checked={showInBaseCurrency}
+                    onChange={(e) => {
+                      setShowInBaseCurrency(e.target.checked);
+                      if (e.target.checked) setCurrencyId('');
+                    }}
+                  />
+                  <span>عرض بالعملة الأساسية</span>
+                </label>
               </ReportFilterField>
               <ReportFilterField label="حالة السداد">
                 <select className={reportSelectClass()} value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
@@ -327,21 +376,59 @@ export function SupplierStatementReportClient({
             </ReportFiltersBar>
           }
         >
-          <ReportGrid
-            columns={columns}
-            rows={data.rows}
-            sortBy={sortBy}
-            sortDir={sortDir}
-            onSort={handleSort}
-            onRowClick={handleRowClick}
-          />
-          {data.total > data.pageSize ? (
-            <div className="flex justify-center gap-2 print:hidden">
-              <button type="button" disabled={page <= 1} className="btn-secondary text-sm" onClick={() => loadStatement({ page: page - 1 })}>السابق</button>
-              <span className="text-sm text-gray-600 py-2">صفحة {page}</span>
-              <button type="button" disabled={page >= Math.ceil(data.total / data.pageSize)} className="btn-secondary text-sm" onClick={() => loadStatement({ page: page + 1 })}>التالي</button>
+          {hasSections && data.sections ? (
+            <div className="space-y-6">
+              {data.sections.map((section) => {
+                const sectionCurrency =
+                  resolveCurrencyById(currencies, section.currencyId) ?? {
+                    code: section.currencyCode,
+                    nameAr: section.currencyNameAr,
+                  };
+                return (
+                  <div key={section.currencyId} className="space-y-3">
+                    <h3 className="text-base font-bold text-gray-900 border-b pb-2">
+                      كشف بالعملة: {section.currencyNameAr || section.currencyCode}
+                      {' '}({section.currencyCode})
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {buildSummaryItems(section.summary, sectionCurrency).map((item) => (
+                        <div key={item.label} className="card border-r-4 border-r-primary-500 py-3">
+                          <p className="text-xs text-gray-500">{item.label}</p>
+                          <p className="text-lg font-bold text-gray-900 mt-1">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <ReportGrid
+                      columns={columns}
+                      rows={section.rows}
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      onRowClick={handleRowClick}
+                    />
+                  </div>
+                );
+              })}
             </div>
-          ) : null}
+          ) : (
+            <>
+              <ReportGrid
+                columns={columns}
+                rows={data.rows}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSort={handleSort}
+                onRowClick={handleRowClick}
+              />
+              {!hasSections && data.total > data.pageSize ? (
+                <div className="flex justify-center gap-2 print:hidden">
+                  <button type="button" disabled={page <= 1} className="btn-secondary text-sm" onClick={() => loadStatement({ page: page - 1 })}>السابق</button>
+                  <span className="text-sm text-gray-600 py-2">صفحة {page}</span>
+                  <button type="button" disabled={page >= Math.ceil(data.total / data.pageSize)} className="btn-secondary text-sm" onClick={() => loadStatement({ page: page + 1 })}>التالي</button>
+                </div>
+              ) : null}
+            </>
+          )}
         </ReportLayout>
       ) : (
         <p className="text-sm text-gray-500 text-center py-8">اختر مورداً لعرض كشف الحساب.</p>

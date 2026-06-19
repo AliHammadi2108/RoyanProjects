@@ -20,6 +20,7 @@ export const reportFiltersSchema = z.object({
   currencyId: z.string().optional(),
   paymentStatus: z.string().optional(),
   movementType: z.string().optional(),
+  showInBaseCurrency: z.coerce.boolean().optional(),
 });
 
 export type ParsedReportFilters = z.infer<typeof reportFiltersSchema>;

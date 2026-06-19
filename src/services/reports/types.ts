@@ -79,11 +79,27 @@ export interface SupplierStatementRow {
   debit: number;
   credit: number;
   balance: number;
+  currencyId?: string;
   currencyCode: string;
   exchangeRate: number;
   dueDate?: string;
   paymentStatus?: string;
   route: string;
+}
+
+export interface SupplierStatementSection {
+  currencyId: string;
+  currencyCode: string;
+  currencyNameAr?: string;
+  rows: SupplierStatementRow[];
+  total: number;
+  summary: ReportSummary;
+}
+
+export interface SupplierStatementResult extends ReportResult<SupplierStatementRow> {
+  sections?: SupplierStatementSection[];
+  showInBaseCurrency?: boolean;
+  baseCurrencyCode?: string;
 }
 
 export interface UsedDocumentRow {

@@ -19,7 +19,8 @@ export const config = {
     '/purchases/:path*',
     '/approvals/:path*',
     '/notifications/:path*',
-    '/settings/:path*',
+    '/settings/:path*',
+    '/reports/:path*',
     '/unauthorized',
   ],
 };

@@ -558,6 +558,22 @@ async function getDocumentNo(documentType: string, documentId: string): Promise<
       const doc = await prisma.purchaseOrder.findUnique({ where: { id: documentId }, select: { documentNo: true } });
       return doc?.documentNo || documentId;
     }
+    case 'INSPECTION': {
+      const doc = await prisma.purchaseOrderInspection.findUnique({ where: { id: documentId }, select: { documentNo: true } });
+      return doc?.documentNo || documentId;
+    }
+    case 'RECEIVING': {
+      const doc = await prisma.purchaseReceiving.findUnique({ where: { id: documentId }, select: { documentNo: true } });
+      return doc?.documentNo || documentId;
+    }
+    case 'INVOICE': {
+      const doc = await prisma.purchaseInvoice.findUnique({ where: { id: documentId }, select: { documentNo: true } });
+      return doc?.documentNo || documentId;
+    }
+    case DOCUMENT_TYPES.SUPPLIER_PAYMENT: {
+      const doc = await prisma.supplierPaymentVoucher.findUnique({ where: { id: documentId }, select: { documentNo: true } });
+      return doc?.documentNo || documentId;
+    }
     default:
       return documentId;
   }

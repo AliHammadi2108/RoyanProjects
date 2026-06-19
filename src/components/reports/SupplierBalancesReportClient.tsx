@@ -11,7 +11,12 @@ import {
   reportInputClass,
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
-import { formatReportAmount, formatReportSummaryAmount, type CurrencyLike } from '@/lib/utils';
+import {
+  formatReportAmount,
+  formatReportSummaryAmount,
+  getCurrencySymbol,
+  type CurrencyLike,
+} from '@/lib/utils';
 import type { ReportResult, SupplierBalanceRow } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
@@ -168,7 +173,11 @@ export function SupplierBalancesReportClient({
           ) : null}
         </>
       ) : (
-        <ReportCharts data={data.chartData} title="أعلى أرصدة الموردين" valuePrefix="ر.س " />
+        <ReportCharts
+          data={data.chartData}
+          title="أعلى أرصدة الموردين"
+          valuePrefix={`${getCurrencySymbol(baseCurrency)} `}
+        />
       )}
     </ReportLayout>
   );

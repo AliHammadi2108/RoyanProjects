@@ -39,9 +39,9 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
       const q = search.trim().toLowerCase();
       rows = rows.filter(
         (r) =>
-          r.documentNo.toLowerCase().includes(q) ||
-          r.supplier.nameAr.toLowerCase().includes(q) ||
-          r.supplier.code.toLowerCase().includes(q)
+          String(r.documentNo || '').toLowerCase().includes(q) ||
+          String(r.supplier?.nameAr || '').toLowerCase().includes(q) ||
+          String(r.supplier?.code || '').toLowerCase().includes(q)
       );
     }
     return rows;

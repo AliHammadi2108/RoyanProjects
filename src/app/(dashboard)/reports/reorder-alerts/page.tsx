@@ -9,6 +9,7 @@ import {
   fetchReorderAlertFilterOptions,
 } from '@/actions/reorder-alerts';
 import { getCurrentUser } from '@/lib/permissions';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function ReorderAlertsReportPage({
   searchParams,
@@ -33,9 +34,9 @@ export default async function ReorderAlertsReportPage({
       <Header title="تنبيهات حد الطلب" subtitle="الأصناف التي وصلت حد الطلب" />
       <PageContainer>
         <ReorderAlertsReportClient
-          initialData={JSON.parse(JSON.stringify(data))}
+          initialData={serializeForClient(data)}
           permissions={{ export: canExport, print: canPrint, createPr: canCreatePr }}
-          filterOptions={JSON.parse(JSON.stringify(filterOptions))}
+          filterOptions={serializeForClient(filterOptions)}
           printedBy={user?.nameAr || user?.username}
         />
       </PageContainer>

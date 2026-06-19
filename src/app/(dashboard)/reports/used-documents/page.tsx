@@ -8,6 +8,7 @@ import {
   canViewReportCharts,
 } from '@/actions/reports';
 import { getCurrentUser } from '@/lib/permissions';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function UsedDocumentsReportPage() {
   const user = await getCurrentUser();
@@ -23,7 +24,7 @@ export default async function UsedDocumentsReportPage() {
       <Header title="تقارير الوثائق المستخدمة والمقفلة" subtitle="وثائق محوّلة أو مقفلة للتعديل" />
       <PageContainer>
         <UsedDocumentsReportClient
-          initialData={JSON.parse(JSON.stringify(data))}
+          initialData={serializeForClient(data)}
           permissions={{ export: canExport, print: canPrint, charts: canCharts }}
           printedBy={user?.nameAr || user?.username}
         />

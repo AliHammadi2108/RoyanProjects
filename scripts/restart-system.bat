@@ -23,8 +23,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "%ROOT%\.next" set "DO_BUILD=1"
-if /I "%REBUILD%"=="1" set "DO_BUILD=1"
+if /I "%SKIP_BUILD%"=="1" (
+  echo Skipping build (SKIP_BUILD=1)
+) else (
+  set "DO_BUILD=1"
+)
+if /I "%REBUILD%"=="0" set "DO_BUILD="
 
 if defined DO_BUILD (
   echo بناء الإنتاج...

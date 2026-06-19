@@ -60,7 +60,7 @@ export async function processApproval(data: unknown) {
 }
 
 export async function getDocumentApproval(documentType: string, documentId: string) {
-  await requirePermission('approvals.view');
+  await requireAuth();
   return getApprovalForDocument(documentType, documentId);
 }
 

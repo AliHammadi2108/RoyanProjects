@@ -11,7 +11,7 @@ export default async function NewPurchaseRequestPage({
     qty?: string;
   };
 }) {
-  const masterData = await getMasterData();
+  const masterData = JSON.parse(JSON.stringify(await getMasterData()));
   return (
     <PurchaseRequestForm
       masterData={masterData}

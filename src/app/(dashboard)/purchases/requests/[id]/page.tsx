@@ -8,10 +8,11 @@ export default async function PurchaseRequestDetailPage({
 }: {
   params: { id: string };
 }) {
-  const [request, masterData] = await Promise.all([
+  const [request, masterDataRaw] = await Promise.all([
     getPurchaseRequest(params.id),
     getMasterData(),
   ]);
+  const masterData = JSON.parse(JSON.stringify(masterDataRaw));
 
   if (!request) notFound();
 

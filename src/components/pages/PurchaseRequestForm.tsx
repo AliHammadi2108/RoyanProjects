@@ -78,8 +78,12 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
 
   useEffect(() => {
     if (existing?.id) {
-      getDocumentApproval('PURCHASE_REQUEST', existing.id as string).then(setApproval);
-      fetchDocumentUsage('PURCHASE_REQUEST', existing.id as string).then(setUsage);
+      getDocumentApproval('PURCHASE_REQUEST', existing.id as string)
+        .then(setApproval)
+        .catch(() => setApproval(null));
+      fetchDocumentUsage('PURCHASE_REQUEST', existing.id as string)
+        .then(setUsage)
+        .catch(() => setUsage(null));
     }
   }, [existing?.id]);
 

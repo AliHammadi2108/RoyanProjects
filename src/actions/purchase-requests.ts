@@ -335,25 +335,18 @@ export async function deletePurchaseRequest(id: string) {
   return { success: true };
 }
 
-export async function getApprovedPurchaseRequests(options?: { includeUsed?: boolean }) {
+/** Approved purchase requests for quotation — includes already-used requests (multi-quotation per PR). */
+export async function getApprovedPurchaseRequests() {
   await requirePermission('quotations.create');
-  const rows = await prisma.purchaseRequest.findMany({
+  return prisma.purchaseRequest.findMany({
     where: { status: DOCUMENT_STATUS.APPROVED },
     include: { branch: true, items: true, _count: { select: { quotations: true } } },
     orderBy: { createdAt: 'desc' },
   });
-
-  if (options?.includeUsed) return rows;
-
-  const usageMap = await getDocumentUsageMap(
-    'PURCHASE_REQUEST',
-    rows.map((r) => r.id)
-  );
-  return rows.filter((r) => !usageMap.get(r.id)?.isUsed && r._count.quotations === 0);
 }
 
-export async function fetchApprovedPurchaseRequests(includeUsed = false) {
-  return getApprovedPurchaseRequests({ includeUsed });
+export async function fetchApprovedPurchaseRequests() {
+  return getApprovedPurchaseRequests();
 }
 
 export async function getPurchaseRequestUsageMap(ids: string[]) {

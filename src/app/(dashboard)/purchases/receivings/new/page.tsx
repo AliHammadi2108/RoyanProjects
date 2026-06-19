@@ -1,6 +1,7 @@
 import { getMasterData } from '@/actions/common';
 import { getOrdersForReceiving } from '@/actions/purchase-orders';
 import { ReceivingForm } from '@/components/pages/ReceivingForm';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function NewReceivingPage({
   searchParams,
@@ -15,7 +16,7 @@ export default async function NewReceivingPage({
   return (
     <ReceivingForm
       masterData={masterData}
-      orders={JSON.parse(JSON.stringify(orders))}
+      orders={serializeForClient(orders)}
       isNew
       defaultOrderId={searchParams.orderId}
       defaultInspectionId={searchParams.inspectionId}

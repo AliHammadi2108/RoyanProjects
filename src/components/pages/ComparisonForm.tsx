@@ -16,7 +16,8 @@ import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
-import { resolveSourceDocument } from '@/lib/document-cascade';
+import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
 
 interface ApprovedRequest {
@@ -167,6 +168,7 @@ export function ComparisonForm({
   };
 
   const toggleQuotation = (id: string) => {
+    if (cascadeLock) return;
     const ids = selectedQuotationIds.includes(id)
       ? selectedQuotationIds.filter((x) => x !== id)
       : [...selectedQuotationIds, id];
@@ -175,6 +177,7 @@ export function ComparisonForm({
   };
 
   const handleRequestChange = (requestId: string) => {
+    if (cascadeLock) return;
     const request = approvedRequests.find((r) => r.id === requestId);
     if (!request) return;
     setForm({
@@ -186,6 +189,13 @@ export function ComparisonForm({
       items: [],
     });
     setSelectedQuotationIds([]);
+  };
+
+  const updateItemUnitPrice = (idx: number, unitPrice: number) => {
+    const items = [...form.items];
+    const item = { ...items[idx], unitPrice, netAmount: items[idx].quantity * unitPrice };
+    items[idx] = item;
+    setForm({ ...form, items });
   };
 
   const handleSave = async (submit = false, recipientUserIds?: string[]) => {
@@ -282,6 +292,13 @@ export function ComparisonForm({
     onAfterWorkflowAction: refreshApproval,
   });
 
+  const cascadeLock = isCascadeLockActive(
+    isNew,
+    defaultRequestId,
+    form.purchaseRequestId,
+    selectedQuotationIds.length > 0 ? selectedQuotationIds[0] : undefined
+  );
+
   return (
     <>
       <Header
@@ -310,6 +327,7 @@ export function ComparisonForm({
                   <select
                     className="form-input"
                     value={form.purchaseRequestId}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => handleRequestChange(e.target.value)}
                   >
                     {approvedRequests.map((r) => (
@@ -319,10 +337,11 @@ export function ComparisonForm({
                 </div>
                 <div className="space-y-2">
                   {quotations.map((q) => (
-                    <label key={q.id} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-gray-50">
+                    <label key={q.id} className={`flex items-center gap-2 p-2 rounded border ${cascadeLock ? 'bg-gray-50' : 'cursor-pointer hover:bg-gray-50'}`}>
                       <input
                         type="checkbox"
                         checked={selectedQuotationIds.includes(q.id)}
+                        disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                         onChange={() => toggleQuotation(q.id)}
                       />
                       <span>{q.documentNo} - {q.supplier.nameAr}</span>
@@ -339,10 +358,21 @@ export function ComparisonForm({
               <h2 className="font-semibold mb-4">بيانات إضافية</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="form-label">العملة</label>
+                  <MasterDataSelect
+                    kind="currency"
+                    value={form.currencyId}
+                    onChange={(currencyId) => setForm({ ...form, currencyId })}
+                    options={masterData.currencies}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    allowEmpty={false}
+                  />
+                </div>
+                <div>
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(paymentMethod) =>
                       setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                     }
@@ -354,7 +384,7 @@ export function ComparisonForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -383,7 +413,22 @@ export function ComparisonForm({
                         <td className="px-3 py-2">{item.supplierName}</td>
                         <td className="px-3 py-2">{item.quotationNo}</td>
                         <td className="px-3 py-2">{item.quantity}</td>
-                        <td className="px-3 py-2">{item.unitPrice.toFixed(2)}</td>
+                        <td className="px-3 py-2">
+                          {cascadeLock && effectiveEditable ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="form-input text-sm w-24"
+                              value={item.unitPrice}
+                              onChange={(e) =>
+                                updateItemUnitPrice(idx, parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          ) : (
+                            item.unitPrice.toFixed(2)
+                          )}
+                        </td>
                         <td className="px-3 py-2">{formatCurrency(item.netAmount)}</td>
                         {!isNew && (
                           <td className="px-3 py-2">

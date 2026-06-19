@@ -1,22 +1,21 @@
 import { getReceivings } from '@/actions/purchase-orders';
-import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 import { parseListFilter } from '@/lib/purchase-open-filter';
+import { loadPurchaseListPageData } from '@/lib/purchase-list-page';
 
 export default async function ReceivingsPage({
   searchParams,
 }: {
   searchParams: { filter?: string };
 }) {
-  const receivings = await getReceivings();
-  const usageMap = await fetchDocumentUsageMap(
-    'RECEIVING',
-    receivings.map((r) => r.id)
+  const { data, usageMap } = await loadPurchaseListPageData(
+    () => getReceivings(),
+    'RECEIVING'
   );
   return (
     <GenericDocumentList
       variant="receiving"
-      data={JSON.parse(JSON.stringify(receivings))}
+      data={data}
       usageMap={usageMap}
       initialFilter={parseListFilter(searchParams.filter)}
     />

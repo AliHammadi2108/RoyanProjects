@@ -1,3 +1,22 @@
+/** True when a new document is prefilled from a parent operation (cascade / انزال). */
+export function isCascadeLockActive(
+  isNew?: boolean,
+  ...sourceIds: (string | undefined | null)[]
+): boolean {
+  return Boolean(isNew && sourceIds.some((id) => id));
+}
+
+/** Disable a header field when cascade lock is on unless the field stays editable in cascade mode. */
+export function cascadeFieldDisabled(
+  effectiveEditable: boolean,
+  cascadeLock: boolean,
+  editableInCascade = false
+): boolean {
+  if (!effectiveEditable) return true;
+  if (cascadeLock && !editableInCascade) return true;
+  return false;
+}
+
 /** Resolve preferred source document without falling back when an explicit id was requested. */
 export function resolveSourceDocument<T extends { id: string }>(
   list: T[],

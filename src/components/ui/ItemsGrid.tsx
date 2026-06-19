@@ -52,6 +52,8 @@ interface ItemsGridProps {
   onChange: (items: LineItem[]) => void;
   availableItems: AvailableItem[];
   readOnly?: boolean;
+  /** Lock line structure from cascade; only item + unit price remain editable. */
+  cascadeLock?: boolean;
   unitMode?: 'purchase' | 'sale';
   warehouseId?: string;
   asyncItemSearch?: boolean;
@@ -109,10 +111,12 @@ export function ItemsGrid({
   onChange,
   availableItems,
   readOnly,
+  cascadeLock = false,
   unitMode = 'purchase',
   warehouseId,
   asyncItemSearch = true,
 }: ItemsGridProps) {
+  const lineStructureLocked = readOnly || cascadeLock;
   const emptyRow = (): LineItem => ({
     itemId: '',
     itemNameSnapshot: '',
@@ -303,7 +307,7 @@ export function ItemsGrid({
               <th className="px-3 py-2.5 text-right font-medium text-gray-600">الخصم</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600">الإجمالي</th>
               <th className="px-3 py-2.5 text-right font-medium text-gray-600 w-[12%]">البيان</th>
-              {!readOnly && <th className="px-3 py-2.5 w-10"></th>}
+              {!lineStructureLocked && <th className="px-3 py-2.5 w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -338,7 +342,7 @@ export function ItemsGrid({
                     )}
                   </td>
                   <td className="px-3 py-2 align-middle">
-                    {readOnly ? (
+                    {readOnly || cascadeLock ? (
                       <span
                         className="block whitespace-normal break-words leading-relaxed text-gray-900"
                         title={unitDisplayText !== '-' ? unitDisplayText : undefined}
@@ -367,7 +371,7 @@ export function ItemsGrid({
                     )}
                   </td>
                   <td className="px-3 py-2 align-middle min-w-[7.5rem]">
-                    {readOnly ? (
+                    {readOnly || cascadeLock ? (
                       <span className="block text-gray-900 tabular-nums">{row.quantity}</span>
                     ) : (
                       <IntegerStepperInput
@@ -395,7 +399,7 @@ export function ItemsGrid({
                     )}
                   </td>
                   <td className="px-3 py-2 align-middle">
-                    {readOnly ? (
+                    {readOnly || cascadeLock ? (
                       <span className="block text-gray-900 tabular-nums">{row.discount.toFixed(2)}</span>
                     ) : (
                       <input type="number" min="0" step="0.01" className="form-input text-sm w-full h-9"
@@ -404,7 +408,7 @@ export function ItemsGrid({
                   </td>
                   <td className="px-3 py-2 align-middle font-medium whitespace-nowrap tabular-nums">{row.total.toFixed(2)}</td>
                   <td className="px-3 py-2 align-top">
-                    {readOnly ? (
+                    {readOnly || cascadeLock ? (
                       <span className="block whitespace-normal break-words leading-relaxed text-gray-900">
                         {row.notes || '-'}
                       </span>
@@ -413,7 +417,7 @@ export function ItemsGrid({
                         value={row.notes || ''} onChange={(e) => updateRow(idx, 'notes', e.target.value)} />
                     )}
                   </td>
-                  {!readOnly && (
+                  {!lineStructureLocked && (
                     <td className="px-3 py-2 align-middle">
                       <button type="button" onClick={() => removeRow(idx)} className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
@@ -428,7 +432,7 @@ export function ItemsGrid({
       </div>
 
       <div className="flex items-center justify-between">
-        {!readOnly && (
+        {!lineStructureLocked && (
           <button type="button" onClick={addRow} className="btn-secondary text-sm">
             <Plus className="w-4 h-4" /> إضافة صف
           </button>

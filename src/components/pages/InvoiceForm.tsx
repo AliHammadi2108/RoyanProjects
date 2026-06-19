@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,7 +17,14 @@ import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import {
   resolveSourceDocument,
   buildInvoiceItemsFromReceiving,
+  isCascadeLockActive,
+  cascadeFieldDisabled,
 } from '@/lib/document-cascade';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
+import {
+  filterCurrenciesForSupplier,
+  resolveCurrencyOnSupplierChange,
+} from '@/lib/supplier-currency';
 import type { MasterData } from '@/types/master-data';
 import { supplierPhoneFromMaster } from '@/lib/whatsapp';
 
@@ -29,6 +36,7 @@ interface ReceivingOption {
   supplierId: string;
   purchaseOrder: {
     documentNo: string;
+    currencyId?: string | null;
     items: Array<{
       itemId: string;
       unitId?: string | null;
@@ -77,6 +85,11 @@ export function InvoiceForm({
     receivingId: (existing?.receivingId as string) || defaultReceiving?.id || '',
     branchId: (existing?.branchId as string) || defaultReceiving?.branchId || masterData.branches[0]?.id || '',
     supplierId: (existing?.supplierId as string) || defaultReceiving?.supplierId || '',
+    currencyId:
+      (existing?.currencyId as string) ||
+      (defaultReceiving?.purchaseOrder as { currencyId?: string } | undefined)?.currencyId ||
+      masterData.currencies[0]?.id ||
+      '',
     paymentMethod: normalizePaymentMethod(existing?.paymentMethod as string),
     dueDate: existing?.dueDate
       ? new Date(existing.dueDate as string).toISOString().split('T')[0]
@@ -108,6 +121,7 @@ export function InvoiceForm({
   });
 
   const handleReceivingChange = (receivingId: string) => {
+    if (cascadeLock) return;
     const receiving = receivings.find((r) => r.id === receivingId);
     if (!receiving) return;
     setForm({
@@ -116,6 +130,7 @@ export function InvoiceForm({
       purchaseOrderId: receiving.purchaseOrderId,
       branchId: receiving.branchId,
       supplierId: receiving.supplierId,
+      currencyId: receiving.purchaseOrder.currencyId || form.currencyId,
       items: buildInvoiceItemsFromReceiving(
         receiving.items,
         receiving.purchaseOrder.items || []
@@ -141,7 +156,7 @@ export function InvoiceForm({
 
   const handleDelete = async () => {
     if (!existing?.id) return;
-    if (!confirm(`حذف الفاتورة ${existing.documentNo}؟`)) return;
+    if (!confirm(`ط­ط°ظپ ط§ظ„ظپط§طھظˆط±ط© ${existing.documentNo}طں`)) return;
     setError('');
     try {
       await deleteInvoice(existing.id as string);
@@ -149,7 +164,7 @@ export function InvoiceForm({
       router.push('/purchases/invoices');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل الحذف');
+      setError(err instanceof Error ? err.message : 'ظپط´ظ„ ط§ظ„ط­ط°ظپ');
     }
   };
 
@@ -160,7 +175,7 @@ export function InvoiceForm({
     isNew,
     existing,
     loading,
-    saveLabel: 'حفظ الفاتورة',
+    saveLabel: 'ط­ظپط¸ ط§ظ„ظپط§طھظˆط±ط©',
     onSave: async () => {
       await handleSave();
     },
@@ -179,10 +194,23 @@ export function InvoiceForm({
     },
   });
 
+  const selectedSupplier = masterData.suppliers.find((s) => s.id === form.supplierId);
+  const supplierCurrencyOptions = filterCurrenciesForSupplier(
+    masterData.currencies,
+    selectedSupplier
+  );
+
+  const cascadeLock = isCascadeLockActive(
+    isNew,
+    defaultReceivingId,
+    defaultOrderId,
+    form.receivingId
+  );
+
   return (
     <>
       <Header
-        title={isNew ? 'فاتورة مشتريات جديدة' : `فاتورة ${existing?.documentNo}`}
+        title={isNew ? 'ظپط§طھظˆط±ط© ظ…ط´طھط±ظٹط§طھ ط¬ط¯ظٹط¯ط©' : `ظپط§طھظˆط±ط© ${existing?.documentNo}`}
         subtitle="APST008"
       />
       <PageContainer>
@@ -193,19 +221,20 @@ export function InvoiceForm({
 
         <div className="space-y-4">
           <div className="card">
-            <h2 className="font-semibold mb-4">البيانات الرئيسية</h2>
+            <h2 className="font-semibold mb-4">ط§ظ„ط¨ظٹط§ظ†ط§طھ ط§ظ„ط±ط¦ظٹط³ظٹط©</h2>
             {isNew && (
               <div className="mb-4 space-y-2">
                 {defaultReceivingId && defaultReceiving && (
                   <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                    تم إنزال البيانات من إذن التوريد {defaultReceiving.documentNo}
+                    طھظ… ط¥ظ†ط²ط§ظ„ ط§ظ„ط¨ظٹط§ظ†ط§طھ ظ…ظ† ط¥ط°ظ† ط§ظ„طھظˆط±ظٹط¯ {defaultReceiving.documentNo}
                   </div>
                 )}
                 <div>
-                  <label className="form-label">إذن التوريد</label>
+                  <label className="form-label">ط¥ط°ظ† ط§ظ„طھظˆط±ظٹط¯</label>
                   <select
                     className="form-input"
                     value={form.receivingId}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => handleReceivingChange(e.target.value)}
                   >
                     {receivings.map((r) => (
@@ -219,31 +248,61 @@ export function InvoiceForm({
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="form-label">رقم فاتورة المورد</label>
+                <label className="form-label">ط§ظ„ظ…ظˆط±ط¯</label>
+                <MasterDataSelect
+                  kind="supplier"
+                  value={form.supplierId}
+                  onChange={(supplierId) => {
+                    const supplier = masterData.suppliers.find((s) => s.id === supplierId);
+                    const currencyId = resolveCurrencyOnSupplierChange(supplier, form.currencyId);
+                    setForm({ ...form, supplierId, currencyId });
+                  }}
+                  options={masterData.suppliers}
+                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                  allowEmpty={false}
+                />
+              </div>
+              <div>
+                <label className="form-label">ط§ظ„ط¹ظ…ظ„ط©</label>
+                <MasterDataSelect
+                  kind="currency"
+                  value={form.currencyId}
+                  onChange={(currencyId) => setForm({ ...form, currencyId })}
+                  options={
+                    supplierCurrencyOptions.length
+                      ? supplierCurrencyOptions
+                      : masterData.currencies
+                  }
+                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                  allowEmpty={false}
+                />
+              </div>
+              <div>
+                <label className="form-label">ط±ظ‚ظ… ظپط§طھظˆط±ط© ط§ظ„ظ…ظˆط±ط¯</label>
                 <input
                   className="form-input"
                   value={form.supplierInvoiceNo}
-                  disabled={!effectiveEditable}
+                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                   onChange={(e) => setForm({ ...form, supplierInvoiceNo: e.target.value })}
                 />
               </div>
               <div>
-                <label className="form-label">طريقة الدفع</label>
+                <label className="form-label">ط·ط±ظٹظ‚ط© ط§ظ„ط¯ظپط¹</label>
                 <PaymentMethodSelect
                   value={form.paymentMethod}
-                  disabled={!effectiveEditable}
+                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                   onChange={(paymentMethod) =>
                     setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                   }
                 />
               </div>
               <div>
-                <label className="form-label">تاريخ الاستحقاق</label>
+                <label className="form-label">طھط§ط±ظٹط® ط§ظ„ط§ط³طھط­ظ‚ط§ظ‚</label>
                 <input
                   type="date"
                   className="form-input"
                   value={form.dueDate}
-                  disabled={!effectiveEditable}
+                  disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 />
               </div>
@@ -251,14 +310,15 @@ export function InvoiceForm({
           </div>
 
           <div className="card">
-            <h2 className="font-semibold mb-4">الأصناف</h2>
+            <h2 className="font-semibold mb-4">ط§ظ„ط£طµظ†ط§ظپ</h2>
             <ItemsGrid
               items={form.items}
               onChange={(items) => setForm({ ...form, items })}
               availableItems={masterData.items}
               readOnly={!effectiveEditable}
+              cascadeLock={cascadeLock && effectiveEditable}
             />
-            <div className="mt-4 text-left font-bold">صافي المبلغ: {formatCurrency(netTotal)}</div>
+            <div className="mt-4 text-left font-bold">طµط§ظپظٹ ط§ظ„ظ…ط¨ظ„ط؛: {formatCurrency(netTotal)}</div>
           </div>
 
           <DocumentFormFooter
@@ -269,7 +329,7 @@ export function InvoiceForm({
             loading={loading}
             hideActions
             hideReadOnlyMessage
-            saveLabel="حفظ الفاتورة"
+            saveLabel="ط­ظپط¸ ط§ظ„ظپط§طھظˆط±ط©"
             showSubmit={false}
             onSaveDraft={handleSave}
             onDelete={handleDelete}
@@ -279,3 +339,4 @@ export function InvoiceForm({
     </>
   );
 }
+

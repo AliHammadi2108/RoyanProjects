@@ -2,6 +2,7 @@ import { getQuotation } from '@/actions/quotations';
 import { getMasterData } from '@/actions/common';
 import { QuotationForm } from '@/components/pages/QuotationForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function QuotationDetailPage({
   params,
@@ -19,7 +20,7 @@ export default async function QuotationDetailPage({
     <QuotationForm
       masterData={masterData}
       approvedRequests={[]}
-      existing={JSON.parse(JSON.stringify(quotation))}
+      existing={serializeForClient(quotation)}
     />
   );
 }

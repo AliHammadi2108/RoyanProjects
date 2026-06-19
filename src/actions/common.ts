@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { revalidatePath } from 'next/cache';
 import { requirePermission, requireAuth, isAdmin, getUserPermissions } from '@/lib/permissions';
@@ -205,7 +205,7 @@ export async function fetchDocumentUsageMap(
   map.forEach((v, k) => {
     result[k] = v;
   });
-  return result;
+  return serializeForClient(result);
 }
 
 export async function getMasterData() {
@@ -242,3 +242,4 @@ export async function getMasterData() {
 
   return serializeForClient({ branches, departments, warehouses, suppliers, items, currencies, units });
 }
+

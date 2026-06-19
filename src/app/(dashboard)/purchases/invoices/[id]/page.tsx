@@ -2,6 +2,7 @@ import { getInvoice, getReceivingsForInvoice } from '@/actions/purchase-orders';
 import { getMasterData } from '@/actions/common';
 import { InvoiceForm } from '@/components/pages/InvoiceForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function InvoiceDetailPage({
   params,
@@ -19,8 +20,8 @@ export default async function InvoiceDetailPage({
   return (
     <InvoiceForm
       masterData={masterData}
-      receivings={JSON.parse(JSON.stringify(receivings))}
-      existing={JSON.parse(JSON.stringify(invoice))}
+      receivings={serializeForClient(receivings)}
+      existing={serializeForClient(invoice)}
     />
   );
 }

@@ -5,6 +5,8 @@ import {
   buildInvoiceItemsFromReceiving,
   buildPurchaseOrderItemsFromComparison,
   resolveComparisonSupplierId,
+  isCascadeLockActive,
+  cascadeFieldDisabled,
 } from '@/lib/document-cascade';
 
 describe('document-cascade', () => {
@@ -78,5 +80,19 @@ describe('document-cascade', () => {
     ]);
 
     expect(supplierId).toBe('s1');
+  });
+
+  it('isCascadeLockActive only on new documents with a parent source', () => {
+    expect(isCascadeLockActive(true, 'src-1')).toBe(true);
+    expect(isCascadeLockActive(true, undefined, 'src-2')).toBe(true);
+    expect(isCascadeLockActive(false, 'src-1')).toBe(false);
+    expect(isCascadeLockActive(true)).toBe(false);
+  });
+
+  it('cascadeFieldDisabled allows only cascade-editable fields', () => {
+    expect(cascadeFieldDisabled(true, true, false)).toBe(true);
+    expect(cascadeFieldDisabled(true, true, true)).toBe(false);
+    expect(cascadeFieldDisabled(false, true, true)).toBe(true);
+    expect(cascadeFieldDisabled(true, false, false)).toBe(false);
   });
 });

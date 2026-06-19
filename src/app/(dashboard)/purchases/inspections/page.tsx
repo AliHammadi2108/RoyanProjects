@@ -1,22 +1,21 @@
 import { getInspections } from '@/actions/purchase-orders';
-import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 import { parseListFilter } from '@/lib/purchase-open-filter';
+import { loadPurchaseListPageData } from '@/lib/purchase-list-page';
 
 export default async function InspectionsPage({
   searchParams,
 }: {
   searchParams: { filter?: string };
 }) {
-  const inspections = await getInspections();
-  const usageMap = await fetchDocumentUsageMap(
-    'INSPECTION',
-    inspections.map((i) => i.id)
+  const { data, usageMap } = await loadPurchaseListPageData(
+    () => getInspections(),
+    'INSPECTION'
   );
   return (
     <GenericDocumentList
       variant="inspection"
-      data={JSON.parse(JSON.stringify(inspections))}
+      data={data}
       usageMap={usageMap}
       initialFilter={parseListFilter(searchParams.filter)}
     />

@@ -1,22 +1,21 @@
 import { getNominations } from '@/actions/comparisons';
-import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 import { parseListFilter } from '@/lib/purchase-open-filter';
+import { loadPurchaseListPageData } from '@/lib/purchase-list-page';
 
 export default async function SupplierSelectionPage({
   searchParams,
 }: {
   searchParams: { filter?: string };
 }) {
-  const nominations = await getNominations();
-  const usageMap = await fetchDocumentUsageMap(
-    'SUPPLIER_NOMINATION',
-    nominations.map((n) => n.id)
+  const { data, usageMap } = await loadPurchaseListPageData(
+    () => getNominations(),
+    'SUPPLIER_NOMINATION'
   );
   return (
     <GenericDocumentList
       variant="nomination"
-      data={JSON.parse(JSON.stringify(nominations))}
+      data={data}
       usageMap={usageMap}
       initialFilter={parseListFilter(searchParams.filter)}
     />

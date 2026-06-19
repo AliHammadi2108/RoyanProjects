@@ -2,6 +2,7 @@ import { getComparison } from '@/actions/comparisons';
 import { getMasterData } from '@/actions/common';
 import { ComparisonForm } from '@/components/pages/ComparisonForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function ComparisonDetailPage({
   params,
@@ -19,7 +20,7 @@ export default async function ComparisonDetailPage({
     <ComparisonForm
       masterData={masterData}
       approvedRequests={[]}
-      existing={JSON.parse(JSON.stringify(comparison))}
+      existing={serializeForClient(comparison)}
     />
   );
 }

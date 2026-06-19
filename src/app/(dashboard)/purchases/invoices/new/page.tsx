@@ -1,6 +1,7 @@
 import { getMasterData } from '@/actions/common';
 import { getReceivingsForInvoice } from '@/actions/purchase-orders';
 import { InvoiceForm } from '@/components/pages/InvoiceForm';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function NewInvoicePage({
   searchParams,
@@ -15,7 +16,7 @@ export default async function NewInvoicePage({
   return (
     <InvoiceForm
       masterData={masterData}
-      receivings={JSON.parse(JSON.stringify(receivings))}
+      receivings={serializeForClient(receivings)}
       isNew
       defaultOrderId={searchParams.orderId}
       defaultReceivingId={searchParams.receivingId}

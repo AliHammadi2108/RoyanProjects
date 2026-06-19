@@ -1,6 +1,7 @@
 import { getMasterData } from '@/actions/common';
 import { getApprovedPurchaseRequests } from '@/actions/purchase-requests';
 import { ComparisonForm } from '@/components/pages/ComparisonForm';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function NewComparisonPage({
   searchParams,
@@ -22,7 +23,7 @@ export default async function NewComparisonPage({
   return (
     <ComparisonForm
       masterData={masterData}
-      approvedRequests={JSON.parse(JSON.stringify(approvedRequests))}
+      approvedRequests={serializeForClient(approvedRequests)}
       isNew
       defaultRequestId={searchParams.requestId}
       defaultQuotationIds={defaultQuotationIds}

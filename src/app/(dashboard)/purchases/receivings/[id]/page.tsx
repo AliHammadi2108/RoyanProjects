@@ -2,6 +2,7 @@ import { getReceiving, getOrdersForReceiving } from '@/actions/purchase-orders';
 import { getMasterData } from '@/actions/common';
 import { ReceivingForm } from '@/components/pages/ReceivingForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function ReceivingDetailPage({
   params,
@@ -19,8 +20,8 @@ export default async function ReceivingDetailPage({
   return (
     <ReceivingForm
       masterData={masterData}
-      orders={JSON.parse(JSON.stringify(orders))}
-      existing={JSON.parse(JSON.stringify(receiving))}
+      orders={serializeForClient(orders)}
+      existing={serializeForClient(receiving)}
     />
   );
 }

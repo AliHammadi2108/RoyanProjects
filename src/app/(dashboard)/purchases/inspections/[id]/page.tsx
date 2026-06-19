@@ -2,6 +2,7 @@ import { getInspection, getApprovedOrdersForInspection } from '@/actions/purchas
 import { getMasterData } from '@/actions/common';
 import { InspectionForm } from '@/components/pages/InspectionForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function InspectionDetailPage({
   params,
@@ -19,8 +20,8 @@ export default async function InspectionDetailPage({
   return (
     <InspectionForm
       masterData={masterData}
-      approvedOrders={JSON.parse(JSON.stringify(approvedOrders))}
-      existing={JSON.parse(JSON.stringify(inspection))}
+      approvedOrders={serializeForClient(approvedOrders)}
+      existing={serializeForClient(inspection)}
     />
   );
 }

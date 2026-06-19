@@ -9,7 +9,9 @@ import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createNomination, updateNomination, submitNomination, deleteNomination } from '@/actions/comparisons';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
-import { resolveSourceDocument } from '@/lib/document-cascade';
+import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
+import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
+import type { MasterData } from '@/types/master-data';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { useOperationToast } from '@/hooks/useOperationToast';
@@ -36,6 +38,7 @@ interface ApprovedComparison {
 }
 
 interface NominationFormProps {
+  masterData: MasterData;
   approvedComparisons: ApprovedComparison[];
   existing?: Record<string, unknown>;
   isNew?: boolean;
@@ -43,6 +46,7 @@ interface NominationFormProps {
 }
 
 export function NominationForm({
+  masterData,
   approvedComparisons,
   existing,
   isNew,
@@ -90,6 +94,7 @@ export function NominationForm({
   }, [existing?.id]);
 
   const handleComparisonChange = (comparisonId: string) => {
+    if (cascadeLock) return;
     const comparison = approvedComparisons.find((c) => c.id === comparisonId);
     if (!comparison) return;
     const selectedItems = comparison.items.filter((i) => i.isSelected);
@@ -110,6 +115,12 @@ export function NominationForm({
       supplierId: items[0]?.supplierId || '',
       items,
     });
+  };
+
+  const updateItemUnitPrice = (idx: number, unitPrice: number) => {
+    const items = [...form.items];
+    items[idx] = { ...items[idx], unitPrice };
+    setForm({ ...form, items });
   };
 
   const handleSave = async (submit = false, recipientUserIds?: string[]) => {
@@ -192,6 +203,12 @@ export function NominationForm({
     onAfterWorkflowAction: refreshApproval,
   });
 
+  const cascadeLock = isCascadeLockActive(
+    isNew,
+    defaultComparisonId,
+    form.technicalComparisonId
+  );
+
   return (
     <>
       <Header
@@ -215,6 +232,7 @@ export function NominationForm({
                   <select
                     className="form-input"
                     value={form.technicalComparisonId}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => handleComparisonChange(e.target.value)}
                   >
                     {approvedComparisons.map((c) => (
@@ -225,11 +243,22 @@ export function NominationForm({
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="form-label">المورد</label>
+                  <MasterDataSelect
+                    kind="supplier"
+                    value={form.supplierId}
+                    onChange={(supplierId) => setForm({ ...form, supplierId })}
+                    options={masterData.suppliers}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    allowEmpty={false}
+                  />
+                </div>
+                <div>
                   <label className="form-label">نوع المقارنة</label>
                   <select
                     className="form-input"
                     value={form.comparisonType}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, comparisonType: e.target.value })}
                   >
                     <option value="LOWEST_PRICE">أقل سعر</option>
@@ -242,7 +271,7 @@ export function NominationForm({
                   <input
                     className="form-input"
                     value={form.committeeMembers}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, committeeMembers: e.target.value })}
                   />
                 </div>
@@ -252,7 +281,7 @@ export function NominationForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -277,7 +306,22 @@ export function NominationForm({
                       <td className="px-3 py-2">{item.itemNameSnapshot}</td>
                       <td className="px-3 py-2">{item.supplierName}</td>
                       <td className="px-3 py-2">{item.quantity}</td>
-                      <td className="px-3 py-2">{item.unitPrice.toFixed(2)}</td>
+                      <td className="px-3 py-2">
+                        {cascadeLock && effectiveEditable ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="form-input text-sm w-24"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              updateItemUnitPrice(idx, parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        ) : (
+                          item.unitPrice.toFixed(2)
+                        )}
+                      </td>
                       <td className="px-3 py-2">{formatCurrency(item.quantity * item.unitPrice)}</td>
                     </tr>
                   ))}

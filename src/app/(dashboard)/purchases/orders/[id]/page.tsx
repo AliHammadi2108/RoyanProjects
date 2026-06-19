@@ -2,6 +2,7 @@ import { getPurchaseOrder, getApprovedNominations } from '@/actions/purchase-ord
 import { getMasterData } from '@/actions/common';
 import { PurchaseOrderForm } from '@/components/pages/PurchaseOrderForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function PurchaseOrderDetailPage({
   params,
@@ -19,8 +20,8 @@ export default async function PurchaseOrderDetailPage({
   return (
     <PurchaseOrderForm
       masterData={masterData}
-      approvedNominations={JSON.parse(JSON.stringify(approvedNominations))}
-      existing={JSON.parse(JSON.stringify(order))}
+      approvedNominations={serializeForClient(approvedNominations)}
+      existing={serializeForClient(order)}
     />
   );
 }

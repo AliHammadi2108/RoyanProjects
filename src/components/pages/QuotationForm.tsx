@@ -13,7 +13,7 @@ import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
-import { resolveSourceDocument } from '@/lib/document-cascade';
+import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { useOperationToast } from '@/hooks/useOperationToast';
@@ -32,6 +32,7 @@ interface ApprovedRequest {
   branchId: string;
   purchaseCycleId: string;
   currencyId?: string | null;
+  _count?: { quotations: number };
   items: Array<{
     itemId: string;
     itemNameSnapshot: string;
@@ -66,7 +67,6 @@ export function QuotationForm({
   const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
   const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
   const [requestOptions, setRequestOptions] = useState(approvedRequests);
-  const [showUsedRequests, setShowUsedRequests] = useState(false);
 
   const defaultRequest = resolveSourceDocument(requestOptions, defaultRequestId);
 
@@ -126,10 +126,10 @@ export function QuotationForm({
 
   useEffect(() => {
     if (!isNew) return;
-    fetchApprovedPurchaseRequests(showUsedRequests)
+    fetchApprovedPurchaseRequests()
       .then((rows) => setRequestOptions(rows as ApprovedRequest[]))
       .catch(() => {});
-  }, [showUsedRequests, isNew]);
+  }, [isNew]);
 
   const handleRequestChange = (requestId: string) => {
     const request = requestOptions.find((r) => r.id === requestId);
@@ -253,6 +253,8 @@ export function QuotationForm({
     },
   });
 
+  const cascadeLock = isCascadeLockActive(isNew, form.purchaseRequestId, defaultRequestId);
+
   return (
     <>
       <Header
@@ -283,24 +285,22 @@ export function QuotationForm({
                       <select
                         className="form-input"
                         value={form.purchaseRequestId}
+                        disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                         onChange={(e) => handleRequestChange(e.target.value)}
                       >
                         {requestOptions.length === 0 ? (
                           <option value="">لا توجد طلبات متاحة</option>
                         ) : (
                           requestOptions.map((r) => (
-                            <option key={r.id} value={r.id}>{r.documentNo}</option>
+                            <option key={r.id} value={r.id}>
+                              {r.documentNo}
+                              {(r._count?.quotations ?? 0) > 0
+                                ? ` (مستخدم — ${r._count?.quotations} عرض)`
+                                : ''}
+                            </option>
                           ))
                         )}
                       </select>
-                      <label className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                        <input
-                          type="checkbox"
-                          checked={showUsedRequests}
-                          onChange={(e) => setShowUsedRequests(e.target.checked)}
-                        />
-                        إظهار المستخدمة
-                      </label>
                     </div>
                   </div>
                 )}
@@ -315,7 +315,7 @@ export function QuotationForm({
                       setForm({ ...form, supplierId, currencyId });
                     }}
                     options={masterData.suppliers}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
                   />
                 </div>
                 <div>
@@ -325,7 +325,7 @@ export function QuotationForm({
                     value={form.currencyId}
                     onChange={(currencyId) => setForm({ ...form, currencyId })}
                     options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
                     allowEmpty={false}
                   />
                 </div>
@@ -333,7 +333,7 @@ export function QuotationForm({
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(paymentMethod) =>
                       setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                     }
@@ -345,7 +345,7 @@ export function QuotationForm({
                     type="number"
                     className="form-input"
                     value={form.deliveryDays}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, deliveryDays: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -355,7 +355,7 @@ export function QuotationForm({
                     type="date"
                     className="form-input"
                     value={form.expiryDate}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
                   />
                 </div>
@@ -365,7 +365,7 @@ export function QuotationForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={!effectiveEditable}
+                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
@@ -415,6 +415,7 @@ export function QuotationForm({
                 onChange={(items) => setForm({ ...form, items })}
                 availableItems={masterData.items}
                 readOnly={!effectiveEditable}
+                cascadeLock={cascadeLock && effectiveEditable}
               />
               <div className="mt-4 pt-4 border-t flex justify-between text-sm">
                 <span>الإجمالي: {formatCurrency(total)}</span>

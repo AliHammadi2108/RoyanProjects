@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+﻿import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from './auth';
 import { prisma } from './db';
@@ -110,7 +110,7 @@ export async function requirePermission(permission: string) {
   const user = await requireAuth();
   const allowed = await hasPermission(user.id, permission);
   if (!allowed) {
-    throw new Error('ليس لديك صلاحية لتنفيذ هذا الإجراء');
+    redirect('/unauthorized');
   }
   return user;
 }

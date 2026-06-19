@@ -3,6 +3,7 @@ import { getMasterData, getSessionPermissions } from '@/actions/common';
 import { canViewSupplierPaymentAmounts } from '@/actions/supplier-payments';
 import { SupplierPaymentForm } from '@/components/pages/SupplierPaymentForm';
 import { notFound } from 'next/navigation';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function SupplierPaymentDetailPage({
   params,
@@ -21,7 +22,7 @@ export default async function SupplierPaymentDetailPage({
   return (
     <SupplierPaymentForm
       masterData={masterData}
-      existing={JSON.parse(JSON.stringify(voucher))}
+      existing={serializeForClient(voucher)}
       canViewAmounts={canViewAmounts}
       userPermissions={permissions}
     />

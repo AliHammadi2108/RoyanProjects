@@ -1,22 +1,21 @@
 import { getComparisons } from '@/actions/comparisons';
-import { fetchDocumentUsageMap } from '@/actions/common';
 import { GenericDocumentList } from '@/components/pages/GenericDocumentList';
 import { parseListFilter } from '@/lib/purchase-open-filter';
+import { loadPurchaseListPageData } from '@/lib/purchase-list-page';
 
 export default async function ComparisonsPage({
   searchParams,
 }: {
   searchParams: { filter?: string };
 }) {
-  const comparisons = await getComparisons();
-  const usageMap = await fetchDocumentUsageMap(
-    'TECHNICAL_COMPARISON',
-    comparisons.map((c) => c.id)
+  const { data, usageMap } = await loadPurchaseListPageData(
+    () => getComparisons(),
+    'TECHNICAL_COMPARISON'
   );
   return (
     <GenericDocumentList
       variant="comparison"
-      data={JSON.parse(JSON.stringify(comparisons))}
+      data={data}
       usageMap={usageMap}
       initialFilter={parseListFilter(searchParams.filter)}
     />

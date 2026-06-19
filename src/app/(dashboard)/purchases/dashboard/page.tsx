@@ -4,6 +4,7 @@ import { PurchaseDashboardClient } from '@/components/pages/PurchaseDashboardCli
 import { fetchPurchaseDashboard } from '@/actions/purchase-dashboard';
 import { getCurrentUser } from '@/lib/permissions';
 import { getAccessibleHrefs } from '@/lib/screen-access';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export default async function PurchaseDashboardPage() {
   const user = await getCurrentUser();
@@ -22,7 +23,7 @@ export default async function PurchaseDashboardPage() {
       />
       <PageContainer>
         <PurchaseDashboardClient
-          data={JSON.parse(JSON.stringify(data))}
+          data={serializeForClient(data)}
           allowedRoutes={purchaseRoutes}
         />
       </PageContainer>

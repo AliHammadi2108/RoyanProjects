@@ -54,28 +54,28 @@ export async function assertDocumentMutable(
   action: GuardAction = 'edit'
 ) {
   const status = await fetchDocumentStatus(documentType, documentId);
-  if (!status) throw new Error('ط§ظ„ظ…ط³طھظ†ط¯ ط؛ظٹط± ظ…ظˆط¬ظˆط¯');
+  if (!status) throw new Error('المستند غير موجود');
 
   if (action === 'delete' && status !== DOCUMENT_STATUS.DRAFT) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† ط­ط°ظپ ط§ظ„ظ…ط³طھظ†ط¯ ط¥ظ„ط§ ظˆظ‡ظˆ ظپظٹ ط­ط§ظ„ط© ظ…ط³ظˆط¯ط©');
+    throw new Error('لا يمكن حذف المستند إلا وهو في حالة مسودة');
   }
 
   if (action === 'edit' && NON_EDITABLE_STATUSES.includes(status as (typeof NON_EDITABLE_STATUSES)[number])) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† طھط¹ط¯ظٹظ„ ط§ظ„ظ…ط³طھظ†ط¯ ظپظٹ ط­ط§ظ„طھظ‡ ط§ظ„ط­ط§ظ„ظٹط©');
+    throw new Error('لا يمكن تعديل المستند في حالته الحالية');
   }
 
   if (action === 'cancel' && LOCKED_STATUSES.includes(status as (typeof LOCKED_STATUSES)[number])) {
-    throw new Error('ظ„ط§ ظٹظ…ظƒظ† ط¥ظ„ط؛ط§ط، ظ…ط³طھظ†ط¯ ظ…ط¹طھظ…ط¯ ط£ظˆ ظ…ط؛ظ„ظ‚');
+    throw new Error('لا يمكن إلغاء مستند معتمد أو مغلق');
   }
 
   const usage = await getDocumentUsage(documentType, documentId);
   if (usage.isUsed) {
     const msg =
       action === 'delete'
-        ? 'ظ„ط§ ظٹظ…ظƒظ† ط­ط°ظپ ظ…ط³طھظ†ط¯ ظ…ط±طھط¨ط· ط¨ظˆط«ظٹظ‚ط© ظ„ط§ط­ظ‚ط©'
+        ? 'لا يمكن حذف مستند مرتبط بوثيقة لاحقة'
         : action === 'cancel'
-          ? 'ظ„ط§ ظٹظ…ظƒظ† ط¥ظ„ط؛ط§ط، ظ…ط³طھظ†ط¯ ظ…ط³طھط®ط¯ظ… ظپظٹ ط³ظ„ط³ظ„ط© ط§ظ„ط´ط±ط§ط،'
-          : 'ظ„ط§ ظٹظ…ظƒظ† طھط¹ط¯ظٹظ„ ظ…ط³طھظ†ط¯ ظ…ط³طھط®ط¯ظ… ظپظٹ ط³ظ„ط³ظ„ط© ط§ظ„ط´ط±ط§ط،';
+          ? 'لا يمكن إلغاء مستند مستخدم في سلسلة الشراء'
+          : 'لا يمكن تعديل مستند مستخدم في سلسلة الشراء';
     throw new Error(msg);
   }
 }

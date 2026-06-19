@@ -156,7 +156,7 @@ export function InvoiceForm({
 
   const handleDelete = async () => {
     if (!existing?.id) return;
-    if (!confirm(`ط­ط°ظپ ط§ظ„ظپط§طھظˆط±ط© ${existing.documentNo}طں`)) return;
+    if (!confirm(`حذف الفاتورة ${existing.documentNo}؟`)) return;
     setError('');
     try {
       await deleteInvoice(existing.id as string);
@@ -164,7 +164,7 @@ export function InvoiceForm({
       router.push('/purchases/invoices');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ظپط´ظ„ ط§ظ„ط­ط°ظپ');
+      setError(err instanceof Error ? err.message : 'فشل الحذف');
     }
   };
 
@@ -175,7 +175,7 @@ export function InvoiceForm({
     isNew,
     existing,
     loading,
-    saveLabel: 'ط­ظپط¸ ط§ظ„ظپط§طھظˆط±ط©',
+    saveLabel: 'حفظ الفاتورة',
     onSave: async () => {
       await handleSave();
     },
@@ -210,7 +210,7 @@ export function InvoiceForm({
   return (
     <>
       <Header
-        title={isNew ? 'ظپط§طھظˆط±ط© ظ…ط´طھط±ظٹط§طھ ط¬ط¯ظٹط¯ط©' : `ظپط§طھظˆط±ط© ${existing?.documentNo}`}
+        title={isNew ? 'فاتورة مشتريات جديدة' : `فاتورة ${existing?.documentNo}`}
         subtitle="APST008"
       />
       <PageContainer>
@@ -221,16 +221,16 @@ export function InvoiceForm({
 
         <div className="space-y-4">
           <div className="card">
-            <h2 className="font-semibold mb-4">ط§ظ„ط¨ظٹط§ظ†ط§طھ ط§ظ„ط±ط¦ظٹط³ظٹط©</h2>
+            <h2 className="font-semibold mb-4">البيانات الرئيسية</h2>
             {isNew && (
               <div className="mb-4 space-y-2">
                 {defaultReceivingId && defaultReceiving && (
                   <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                    طھظ… ط¥ظ†ط²ط§ظ„ ط§ظ„ط¨ظٹط§ظ†ط§طھ ظ…ظ† ط¥ط°ظ† ط§ظ„طھظˆط±ظٹط¯ {defaultReceiving.documentNo}
+                    تم إنزال البيانات من إذن التوريد {defaultReceiving.documentNo}
                   </div>
                 )}
                 <div>
-                  <label className="form-label">ط¥ط°ظ† ط§ظ„طھظˆط±ظٹط¯</label>
+                  <label className="form-label">إذن التوريد</label>
                   <select
                     className="form-input"
                     value={form.receivingId}
@@ -248,7 +248,7 @@ export function InvoiceForm({
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="form-label">ط§ظ„ظ…ظˆط±ط¯</label>
+                <label className="form-label">المورد</label>
                 <MasterDataSelect
                   kind="supplier"
                   value={form.supplierId}
@@ -263,7 +263,7 @@ export function InvoiceForm({
                 />
               </div>
               <div>
-                <label className="form-label">ط§ظ„ط¹ظ…ظ„ط©</label>
+                <label className="form-label">العملة</label>
                 <MasterDataSelect
                   kind="currency"
                   value={form.currencyId}
@@ -278,7 +278,7 @@ export function InvoiceForm({
                 />
               </div>
               <div>
-                <label className="form-label">ط±ظ‚ظ… ظپط§طھظˆط±ط© ط§ظ„ظ…ظˆط±ط¯</label>
+                <label className="form-label">رقم فاتورة المورد</label>
                 <input
                   className="form-input"
                   value={form.supplierInvoiceNo}
@@ -287,7 +287,7 @@ export function InvoiceForm({
                 />
               </div>
               <div>
-                <label className="form-label">ط·ط±ظٹظ‚ط© ط§ظ„ط¯ظپط¹</label>
+                <label className="form-label">طريقة الدفع</label>
                 <PaymentMethodSelect
                   value={form.paymentMethod}
                   disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
@@ -297,7 +297,7 @@ export function InvoiceForm({
                 />
               </div>
               <div>
-                <label className="form-label">طھط§ط±ظٹط® ط§ظ„ط§ط³طھط­ظ‚ط§ظ‚</label>
+                <label className="form-label">تاريخ الاستحقاق</label>
                 <input
                   type="date"
                   className="form-input"
@@ -310,7 +310,7 @@ export function InvoiceForm({
           </div>
 
           <div className="card">
-            <h2 className="font-semibold mb-4">ط§ظ„ط£طµظ†ط§ظپ</h2>
+            <h2 className="font-semibold mb-4">الأصناف</h2>
             <ItemsGrid
               items={form.items}
               onChange={(items) => setForm({ ...form, items })}
@@ -318,7 +318,7 @@ export function InvoiceForm({
               readOnly={!effectiveEditable}
               cascadeLock={cascadeLock && effectiveEditable}
             />
-            <div className="mt-4 text-left font-bold">طµط§ظپظٹ ط§ظ„ظ…ط¨ظ„ط؛: {formatCurrency(netTotal)}</div>
+            <div className="mt-4 text-left font-bold">صافي المبلغ: {formatCurrency(netTotal)}</div>
           </div>
 
           <DocumentFormFooter
@@ -329,7 +329,7 @@ export function InvoiceForm({
             loading={loading}
             hideActions
             hideReadOnlyMessage
-            saveLabel="ط­ظپط¸ ط§ظ„ظپط§طھظˆط±ط©"
+            saveLabel="حفظ الفاتورة"
             showSubmit={false}
             onSaveDraft={handleSave}
             onDelete={handleDelete}

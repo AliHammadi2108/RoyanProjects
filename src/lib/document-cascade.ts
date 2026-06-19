@@ -6,16 +6,28 @@ export function isCascadeLockActive(
   return Boolean(isNew && sourceIds.some((id) => id));
 }
 
-/** Disable a header field when cascade lock is on unless the field stays editable in cascade mode. */
+export type CascadeFieldSection = 'master' | 'line';
+
+/** Disable a field when cascade lock is on unless the field stays editable in cascade mode. */
 export function cascadeFieldDisabled(
   effectiveEditable: boolean,
   cascadeLock: boolean,
-  editableInCascade = false
+  editableInCascade = false,
+  section: CascadeFieldSection = 'line'
 ): boolean {
   if (!effectiveEditable) return true;
+  if (section === 'master') return false;
   if (cascadeLock && !editableInCascade) return true;
   return false;
 }
+
+/** Master/header fields stay editable even when prefilled from a parent document. */
+export function masterFieldDisabled(effectiveEditable: boolean): boolean {
+  return !effectiveEditable;
+}
+
+/** @deprecated Use masterFieldDisabled */
+export const quotationMasterFieldDisabled = masterFieldDisabled;
 
 /** Resolve preferred source document without falling back when an explicit id was requested. */
 export function resolveSourceDocument<T extends { id: string }>(

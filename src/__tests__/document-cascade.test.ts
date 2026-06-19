@@ -7,6 +7,8 @@ import {
   resolveComparisonSupplierId,
   isCascadeLockActive,
   cascadeFieldDisabled,
+  masterFieldDisabled,
+  quotationMasterFieldDisabled,
 } from '@/lib/document-cascade';
 
 describe('document-cascade', () => {
@@ -89,10 +91,22 @@ describe('document-cascade', () => {
     expect(isCascadeLockActive(true)).toBe(false);
   });
 
-  it('cascadeFieldDisabled allows only cascade-editable fields', () => {
+  it('cascadeFieldDisabled allows only cascade-editable line fields', () => {
     expect(cascadeFieldDisabled(true, true, false)).toBe(true);
     expect(cascadeFieldDisabled(true, true, true)).toBe(false);
     expect(cascadeFieldDisabled(false, true, true)).toBe(true);
     expect(cascadeFieldDisabled(true, false, false)).toBe(false);
+  });
+
+  it('cascadeFieldDisabled ignores cascade lock for master section', () => {
+    expect(cascadeFieldDisabled(true, true, false, 'master')).toBe(false);
+    expect(cascadeFieldDisabled(false, true, false, 'master')).toBe(true);
+  });
+
+  it('masterFieldDisabled ignores cascade lock', () => {
+    expect(masterFieldDisabled(true)).toBe(false);
+    expect(masterFieldDisabled(false)).toBe(true);
+    expect(quotationMasterFieldDisabled(true)).toBe(false);
+    expect(quotationMasterFieldDisabled(false)).toBe(true);
   });
 });

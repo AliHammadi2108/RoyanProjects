@@ -13,7 +13,11 @@ import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
-import { resolveSourceDocument, isCascadeLockActive, cascadeFieldDisabled } from '@/lib/document-cascade';
+import {
+  resolveSourceDocument,
+  isCascadeLockActive,
+  masterFieldDisabled,
+} from '@/lib/document-cascade';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { useOperationToast } from '@/hooks/useOperationToast';
@@ -285,7 +289,7 @@ export function QuotationForm({
                       <select
                         className="form-input"
                         value={form.purchaseRequestId}
-                        disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                        disabled={masterFieldDisabled(effectiveEditable)}
                         onChange={(e) => handleRequestChange(e.target.value)}
                       >
                         {requestOptions.length === 0 ? (
@@ -315,7 +319,7 @@ export function QuotationForm({
                       setForm({ ...form, supplierId, currencyId });
                     }}
                     options={masterData.suppliers}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                   />
                 </div>
                 <div>
@@ -325,7 +329,7 @@ export function QuotationForm({
                     value={form.currencyId}
                     onChange={(currencyId) => setForm({ ...form, currencyId })}
                     options={supplierCurrencyOptions.length ? supplierCurrencyOptions : masterData.currencies}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock, true)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     allowEmpty={false}
                   />
                 </div>
@@ -333,7 +337,7 @@ export function QuotationForm({
                   <label className="form-label">طريقة الدفع</label>
                   <PaymentMethodSelect
                     value={form.paymentMethod}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(paymentMethod) =>
                       setForm({ ...form, paymentMethod: normalizePaymentMethod(paymentMethod) })
                     }
@@ -345,7 +349,7 @@ export function QuotationForm({
                     type="number"
                     className="form-input"
                     value={form.deliveryDays}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, deliveryDays: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -355,7 +359,7 @@ export function QuotationForm({
                     type="date"
                     className="form-input"
                     value={form.expiryDate}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
                   />
                 </div>
@@ -365,7 +369,7 @@ export function QuotationForm({
                     className="form-input"
                     rows={2}
                     value={form.notes}
-                    disabled={cascadeFieldDisabled(effectiveEditable, cascadeLock)}
+                    disabled={masterFieldDisabled(effectiveEditable)}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>

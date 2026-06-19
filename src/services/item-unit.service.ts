@@ -3,19 +3,51 @@ import { calcBaseQty } from '@/lib/item-units';
 
 export type ItemUnitMode = 'purchase' | 'sale';
 
+/** Create ItemUnit rows for legacy items that only have item.unitId. */
+export async function backfillMissingItemUnits(itemIds?: string[]) {
+  const items = await prisma.item.findMany({
+    where: {
+      isActive: true,
+      unitId: { not: null },
+      itemUnits: { none: {} },
+      ...(itemIds?.length ? { id: { in: itemIds } } : {}),
+    },
+    select: { id: true, unitId: true },
+  });
+
+  if (items.length === 0) return 0;
+
+  await prisma.$transaction(
+    items.map((item) =>
+      prisma.itemUnit.create({
+        data: {
+          itemId: item.id,
+          unitId: item.unitId!,
+          isBase: true,
+          factorToBase: 1,
+          isDefaultPurchase: true,
+          isDefaultSale: true,
+          isActive: true,
+        },
+      })
+    )
+  );
+
+  return items.length;
+}
+
 export async function resolveItemUnitForLine(
   itemId: string,
   options?: { itemUnitId?: string; unitId?: string; mode?: ItemUnitMode }
 ) {
   const mode = options?.mode ?? 'purchase';
 
-  if (options?.itemUnitId) {
+  if (options?.itemUnitId && !options.itemUnitId.startsWith('legacy:')) {
     const iu = await prisma.itemUnit.findFirst({
       where: { id: options.itemUnitId, itemId, isActive: true },
       include: { unit: true },
     });
-    if (!iu) throw new Error('وحدة الصنف غير صالحة');
-    return iu;
+    if (iu) return iu;
   }
 
   if (options?.unitId) {
@@ -40,10 +72,17 @@ export async function resolveItemUnitForLine(
   });
   if (base) return base;
 
-  const any = await prisma.itemUnit.findFirst({
+  let any = await prisma.itemUnit.findFirst({
     where: { itemId, isActive: true },
     include: { unit: true },
   });
+  if (!any) {
+    await backfillMissingItemUnits([itemId]);
+    any = await prisma.itemUnit.findFirst({
+      where: { itemId, isActive: true },
+      include: { unit: true },
+    });
+  }
   if (!any) throw new Error('الصنف لا يحتوي على وحدات معرّفة');
   return any;
 }

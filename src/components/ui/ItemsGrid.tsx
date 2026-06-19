@@ -26,6 +26,7 @@ export interface AvailableItem {
   nameAr: string;
   barcode?: string | null;
   unitId?: string | null;
+  legacyUnit?: { nameAr: string; symbol?: string | null } | null;
   itemUnits?: ItemUnitOption[];
 }
 
@@ -62,11 +63,27 @@ function formatUnitLabel(unit: ItemUnitOption): string {
 }
 
 function pickDefaultUnit(item: AvailableItem, mode: 'purchase' | 'sale'): ItemUnitOption | undefined {
-  const units = item.itemUnits ?? [];
+  const units = getItemUnits(item);
   if (units.length === 0) return undefined;
   const preferred = units.find((u) => (mode === 'purchase' ? u.isDefaultPurchase : u.isDefaultSale));
   if (preferred) return preferred;
   return units.find((u) => u.isBase) ?? units[0];
+}
+
+function getItemUnits(item: AvailableItem): ItemUnitOption[] {
+  if (item.itemUnits && item.itemUnits.length > 0) return item.itemUnits;
+  if (!item.unitId) return [];
+  return [
+    {
+      id: `legacy:${item.id}:${item.unitId}`,
+      unitId: item.unitId,
+      factorToBase: 1,
+      isDefaultPurchase: true,
+      isDefaultSale: true,
+      isBase: true,
+      unit: item.legacyUnit ? { nameAr: item.legacyUnit.nameAr, symbol: item.legacyUnit.symbol } : undefined,
+    },
+  ];
 }
 
 function toItemOption(item: AvailableItem, stockBalance?: number | null): AutocompleteOption {
@@ -167,6 +184,7 @@ export function ItemsGrid({
             code: item.code,
             nameAr: item.nameAr,
             barcode: item.barcode,
+            unitId: item.itemUnits[0]?.unitId,
             itemUnits: item.itemUnits,
           };
         });
@@ -202,16 +220,17 @@ export function ItemsGrid({
   };
 
   const applyItemUnit = (row: LineItem, item: AvailableItem, itemUnitId?: string) => {
-    const units = item.itemUnits ?? [];
+    const units = getItemUnits(item);
     const iu = itemUnitId
       ? units.find((u) => u.id === itemUnitId)
       : pickDefaultUnit(item, unitMode);
     if (iu) {
-      row.itemUnitId = iu.id;
+      row.itemUnitId = iu.id.startsWith('legacy:') ? undefined : iu.id;
       row.unitId = iu.unitId;
       row.factorToBase = iu.factorToBase;
       row.baseQty = calcBaseQty(row.quantity, iu.factorToBase);
     } else if (item.unitId) {
+      row.itemUnitId = undefined;
       row.unitId = item.unitId;
       row.factorToBase = 1;
       row.baseQty = row.quantity;
@@ -255,7 +274,18 @@ export function ItemsGrid({
 
   const getUnitsForRow = (itemId: string) => {
     const item = resolveItem(itemId);
-    return item?.itemUnits ?? [];
+    return item ? getItemUnits(item) : [];
+  };
+
+  const resolveSelectedUnitId = (row: LineItem, unitOptions: ItemUnitOption[]) => {
+    if (row.itemUnitId && unitOptions.some((u) => u.id === row.itemUnitId)) {
+      return row.itemUnitId;
+    }
+    if (row.unitId) {
+      const byUnitId = unitOptions.find((u) => u.unitId === row.unitId);
+      if (byUnitId) return byUnitId.id;
+    }
+    return unitOptions[0]?.id ?? '';
   };
 
   const grandTotal = rows.reduce((sum, r) => sum + (r.total || 0), 0);
@@ -279,7 +309,8 @@ export function ItemsGrid({
           <tbody className="divide-y divide-gray-100">
             {rows.map((row, idx) => {
               const unitOptions = getUnitsForRow(row.itemId);
-              const selectedUnit = unitOptions.find((u) => u.id === row.itemUnitId);
+              const selectedUnitId = resolveSelectedUnitId(row, unitOptions);
+              const selectedUnit = unitOptions.find((u) => u.id === selectedUnitId);
               const unitDisplayText = selectedUnit ? formatUnitLabel(selectedUnit) : '-';
               return (
                 <tr key={idx}>
@@ -317,7 +348,7 @@ export function ItemsGrid({
                     ) : unitOptions.length > 0 ? (
                       <select
                         className="form-input text-sm w-full h-9"
-                        value={row.itemUnitId || ''}
+                        value={selectedUnitId}
                         onChange={(e) => updateRow(idx, 'itemUnitId', e.target.value)}
                         disabled={!row.itemId}
                         title={unitDisplayText !== '-' ? unitDisplayText : undefined}

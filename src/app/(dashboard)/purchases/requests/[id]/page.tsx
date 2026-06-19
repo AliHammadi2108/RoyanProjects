@@ -1,6 +1,7 @@
 import { getPurchaseRequest } from '@/actions/purchase-requests';
 import { getMasterData } from '@/actions/common';
 import { PurchaseRequestForm } from '@/components/pages/PurchaseRequestForm';
+import { serializeForClient } from '@/lib/serialize-client';
 import { notFound } from 'next/navigation';
 
 export default async function PurchaseRequestDetailPage({
@@ -8,18 +9,17 @@ export default async function PurchaseRequestDetailPage({
 }: {
   params: { id: string };
 }) {
-  const [request, masterDataRaw] = await Promise.all([
+  const [request, masterData] = await Promise.all([
     getPurchaseRequest(params.id),
     getMasterData(),
   ]);
-  const masterData = JSON.parse(JSON.stringify(masterDataRaw));
 
   if (!request) notFound();
 
   return (
     <PurchaseRequestForm
       masterData={masterData}
-      existing={JSON.parse(JSON.stringify(request))}
+      existing={serializeForClient(request)}
     />
   );
 }

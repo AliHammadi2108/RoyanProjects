@@ -28,6 +28,8 @@ import {
   getDocumentUsageMap,
   type UsageDocumentType,
 } from '@/services/used-document.service';
+import { backfillMissingItemUnits } from '@/services/item-unit.service';
+import { serializeForClient } from '@/lib/serialize-client';
 
 export async function getInbox() {
   const user = await requirePermission('approvals.view');
@@ -61,7 +63,8 @@ export async function processApproval(data: unknown) {
 
 export async function getDocumentApproval(documentType: string, documentId: string) {
   await requireAuth();
-  return getApprovalForDocument(documentType, documentId);
+  const approval = await getApprovalForDocument(documentType, documentId);
+  return serializeForClient(approval);
 }
 
 export async function fetchApprovalRecipients(input: {
@@ -189,7 +192,7 @@ export async function getSessionPermissions() {
 
 export async function fetchDocumentUsage(documentType: UsageDocumentType, documentId: string) {
   await requireAuth();
-  return getDocumentUsage(documentType, documentId);
+  return serializeForClient(await getDocumentUsage(documentType, documentId));
 }
 
 export async function fetchDocumentUsageMap(
@@ -208,6 +211,8 @@ export async function fetchDocumentUsageMap(
 export async function getMasterData() {
   const user = await requireAuth();
   const allowedSupplierIds = await getAllowedSupplierIds(user.id, 'use_in_purchase');
+
+  await backfillMissingItemUnits();
 
   const [branches, departments, warehouses, suppliers, items, currencies, units] =
     await Promise.all([
@@ -235,5 +240,5 @@ export async function getMasterData() {
       prisma.unit.findMany({ where: { isActive: true } }),
     ]);
 
-  return { branches, departments, warehouses, suppliers, items, currencies, units };
+  return serializeForClient({ branches, departments, warehouses, suppliers, items, currencies, units });
 }

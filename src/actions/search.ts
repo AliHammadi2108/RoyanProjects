@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/permissions';
 import { getAllowedSupplierIds, supplierWhereForUser } from '@/services/supplier-access.service';
 import { getStockBalance } from '@/services/stock.service';
+import { backfillMissingItemUnits } from '@/services/item-unit.service';
 
 const DEFAULT_LIMIT = 20;
 
@@ -67,6 +68,26 @@ export async function searchItems(
     orderBy: { code: 'asc' },
     take: limit,
   });
+
+  const missingUnits = items.filter((item) => item.itemUnits.length === 0).map((item) => item.id);
+  if (missingUnits.length > 0) {
+    await backfillMissingItemUnits(missingUnits);
+    const refreshed = await prisma.item.findMany({
+      where: { id: { in: missingUnits } },
+      include: {
+        itemUnits: {
+          where: { isActive: true },
+          include: { unit: true },
+          orderBy: { isBase: 'desc' },
+        },
+      },
+    });
+    const byId = new Map(refreshed.map((item) => [item.id, item]));
+    for (let i = 0; i < items.length; i++) {
+      const updated = byId.get(items[i].id);
+      if (updated) items[i] = { ...items[i], itemUnits: updated.itemUnits };
+    }
+  }
 
   const results: SearchItemResult[] = [];
   for (const item of items) {

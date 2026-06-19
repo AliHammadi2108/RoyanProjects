@@ -11,6 +11,7 @@ import { INSPECTION_RESULTS } from '@/lib/constants';
 import { resolveSourceDocument } from '@/lib/document-cascade';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import { useSaveLock } from '@/hooks/useSaveLock';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
@@ -44,6 +45,7 @@ export function InspectionForm({
   defaultOrderId,
 }: InspectionFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const { loading, withSaveLock } = useSaveLock();
   const [error, setError] = useState('');
   const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
@@ -120,6 +122,7 @@ export function InspectionForm({
     setError('');
     try {
       await deleteInspection(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/inspections');
       router.refresh();
     } catch (err) {

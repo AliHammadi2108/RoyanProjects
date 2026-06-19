@@ -9,6 +9,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { SearchBox } from '@/components/ui/SearchBox';
 import { formatDocumentCurrency, formatDate } from '@/lib/utils';
 import { removeSupplierPayment } from '@/actions/supplier-payments';
+import { useOperationToast } from '@/hooks/useOperationToast';
 
 interface PaymentRow {
   id: string;
@@ -29,6 +30,7 @@ interface SupplierPaymentListProps {
 
 export function SupplierPaymentList({ data, canCreate, canViewAmounts }: SupplierPaymentListProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -49,6 +51,7 @@ export function SupplierPaymentList({ data, canCreate, canViewAmounts }: Supplie
     if (!confirm(`حذف سند الصرف ${documentNo}؟`)) return;
     try {
       await removeSupplierPayment(id);
+      showDeleteSuccess();
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'فشل الحذف');

@@ -16,6 +16,7 @@ import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { resolveSourceDocument } from '@/lib/document-cascade';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
@@ -59,6 +60,7 @@ export function QuotationForm({
   defaultRequestId,
 }: QuotationFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
@@ -157,12 +159,12 @@ export function QuotationForm({
     if (!form.supplierId) {
       setError('يجب اختيار المورد');
       setLoading(false);
-      return;
+      throw new Error('يجب اختيار المورد');
     }
     if (!form.items.length) {
       setError('يجب اختيار صنف واحد على الأقل');
       setLoading(false);
-      return;
+      throw new Error('يجب اختيار صنف واحد على الأقل');
     }
     try {
       let result;
@@ -179,6 +181,7 @@ export function QuotationForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 
@@ -188,6 +191,7 @@ export function QuotationForm({
     setLoading(true);
     try {
       await deleteQuotation(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/quotations');
       router.refresh();
     } catch (err) {
@@ -207,6 +211,7 @@ export function QuotationForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 

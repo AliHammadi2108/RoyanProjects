@@ -7,6 +7,7 @@ import { confirmToolbarAction, type OperationToolbarProps } from '@/components/u
 import { DocumentWhatsAppButton } from '@/components/ui/DocumentWhatsAppButton';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { useOperationToolbar } from '@/hooks/useOperationToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import { OPERATION_TO_DOCUMENT_TYPE } from '@/lib/constants';
 import type { OperationType, ToolbarButtonId } from '@/lib/operation-toolbar';
 import { shouldHideDocumentStatusInUI } from '@/lib/operation-toolbar';
@@ -79,6 +80,12 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
   const [pendingSubmitMode, setPendingSubmitMode] = useState<'saveAndSubmit' | 'submitOnly'>('submitOnly');
   const saveLockRef = useRef(false);
   const [saveLocked, setSaveLocked] = useState(false);
+  const {
+    showSaveSuccess,
+    showSubmitSuccess,
+    showApproveSuccess,
+    showRejectSuccess,
+  } = useOperationToast();
 
   const status =
     options.status ?? (existing?.status as string | undefined);
@@ -136,13 +143,16 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
         } else {
           await onSave(true, recipientUserIds);
         }
+        showSubmitSuccess();
       } catch {
+        // caller may surface form errors
+      } finally {
         saveLockRef.current = false;
         setSaveLocked(false);
         setLoadingAction(null);
       }
     },
-    [onSave, onSubmitOnly, pendingSubmitMode]
+    [onSave, onSubmitOnly, pendingSubmitMode, showSubmitSuccess]
   );
 
   const openRecipientModal = useCallback(
@@ -198,7 +208,10 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
             setLoadingAction('save');
             try {
               await onSave(false);
+              showSaveSuccess(!!isNew);
             } catch {
+              // caller may surface form errors
+            } finally {
               saveLockRef.current = false;
               setSaveLocked(false);
               setLoadingAction(null);
@@ -218,8 +231,11 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
             setLoadingAction('approve');
             try {
               await processApproval({ approvalId: approval.id, action: 'approve', notes: '' });
+              showApproveSuccess();
               onAfterWorkflowAction?.();
             } catch {
+              // ignore
+            } finally {
               setLoadingAction(null);
             }
             return;
@@ -231,8 +247,11 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
             setLoadingAction('reject');
             try {
               await processApproval({ approvalId: approval.id, action: 'reject', notes: notes.trim() });
+              showRejectSuccess();
               onAfterWorkflowAction?.();
             } catch {
+              // ignore
+            } finally {
               setLoadingAction(null);
             }
             return;
@@ -244,7 +263,7 @@ export function useOperationFormToolbar(options: UseOperationFormToolbarOptions)
         setLoadingAction(null);
       }
     },
-    [approval?.id, isNew, onAfterWorkflowAction, onSave, onSubmitOnly, openRecipientModal, toolbar]
+    [approval?.id, isNew, onAfterWorkflowAction, onSave, onSubmitOnly, openRecipientModal, showApproveSuccess, showRejectSuccess, showSaveSuccess, toolbar]
   );
 
   const recipientModal = recipientModalOpen ? (

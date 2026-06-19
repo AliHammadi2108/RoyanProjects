@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/utils';
 import { resolveSourceDocument } from '@/lib/document-cascade';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 
 interface ApprovedComparison {
@@ -48,6 +49,7 @@ export function NominationForm({
   defaultComparisonId,
 }: NominationFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
@@ -116,7 +118,7 @@ export function NominationForm({
     if (!form.items.length) {
       setError('يجب اختيار أصناف للترشيح');
       setLoading(false);
-      return;
+      throw new Error('يجب اختيار أصناف للترشيح');
     }
     try {
       let result;
@@ -133,6 +135,7 @@ export function NominationForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 
@@ -142,6 +145,7 @@ export function NominationForm({
     setLoading(true);
     try {
       await deleteNomination(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/supplier-selection');
       router.refresh();
     } catch (err) {
@@ -160,6 +164,7 @@ export function NominationForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 

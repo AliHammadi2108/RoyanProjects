@@ -12,6 +12,7 @@ import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/co
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDate, formatDocumentCurrency } from '@/lib/utils';
 import { deletePurchaseRequest } from '@/actions/purchase-requests';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import {
   isOpenStandardDocument,
   OPEN_FILTER_PARAM,
@@ -43,6 +44,7 @@ export function PurchaseRequestsClient({
   initialFilter?: PurchaseListFilter;
 }) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const openOnly = initialFilter === OPEN_FILTER_PARAM;
   const [statusFilter, setStatusFilter] = useState('');
   const [usedFilter, setUsedFilter] = useState<'' | 'used' | 'unused'>('');
@@ -75,6 +77,7 @@ export function PurchaseRequestsClient({
     setError('');
     try {
       await deletePurchaseRequest(id);
+      showDeleteSuccess();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الحذف');

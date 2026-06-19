@@ -9,6 +9,7 @@ import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
 import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import {
   createPurchaseRequest,
@@ -39,6 +40,7 @@ interface PurchaseRequestFormProps {
 
 export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: PurchaseRequestFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
@@ -169,12 +171,12 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     if (!form.branchId) {
       setError('يجب اختيار الفرع');
       setLoading(false);
-      return;
+      throw new Error('يجب اختيار الفرع');
     }
     if (!form.items.length) {
       setError('يجب اختيار صنف واحد على الأقل من جدول الأصناف');
       setLoading(false);
-      return;
+      throw new Error('يجب اختيار صنف واحد على الأقل من جدول الأصناف');
     }
 
     try {
@@ -195,6 +197,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   }, [form, isNew, existing, router]);
 
@@ -205,6 +208,7 @@ export function PurchaseRequestForm({ masterData, existing, isNew, prefill }: Pu
     setError('');
     try {
       await deletePurchaseRequest(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/requests');
       router.refresh();
     } catch (err) {

@@ -11,6 +11,7 @@ import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
 import { formatDate, formatDocumentCurrency, resolveDocumentCurrency, type CurrencyLike } from '@/lib/utils';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import { EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { deleteQuotation } from '@/actions/quotations';
 import { deleteComparison, deleteNomination } from '@/actions/comparisons';
@@ -364,6 +365,7 @@ export function GenericDocumentList({
 }: GenericDocumentListProps) {
   const config = VARIANT_CONFIG[variant];
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const openOnly = initialFilter === OPEN_FILTER_PARAM;
   const [statusFilter, setStatusFilter] = useState('');
   const [usedFilter, setUsedFilter] = useState<'' | 'used' | 'unused'>('');
@@ -416,6 +418,7 @@ export function GenericDocumentList({
     setError('');
     try {
       await deleteHandler(id);
+      showDeleteSuccess();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الحذف');

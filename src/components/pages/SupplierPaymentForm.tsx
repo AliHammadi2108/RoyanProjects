@@ -8,6 +8,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import {
   saveSupplierPayment,
   fetchOpenInvoicesForSupplier,
@@ -52,6 +53,7 @@ export function SupplierPaymentForm({
   userPermissions = [],
 }: SupplierPaymentFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [invoices, setInvoices] = useState<AllocationRow[]>([]);
@@ -202,6 +204,7 @@ export function SupplierPaymentForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 
@@ -211,6 +214,7 @@ export function SupplierPaymentForm({
     setLoading(true);
     try {
       await removeSupplierPayment(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/supplier-payments');
       router.refresh();
     } catch (err) {

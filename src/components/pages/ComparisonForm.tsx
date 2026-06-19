@@ -11,6 +11,7 @@ import { getApprovedQuotationsForRequest } from '@/actions/quotations';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
 import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
@@ -59,6 +60,7 @@ export function ComparisonForm({
   defaultQuotationIds = [],
 }: ComparisonFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [approval, setApproval] = useState<Parameters<typeof ApprovalTimeline>[0]['approval']>(null);
@@ -192,12 +194,12 @@ export function ComparisonForm({
     if (!selectedQuotationIds.length) {
       setError('يجب اختيار عرض سعر واحد على الأقل');
       setLoading(false);
-      return;
+      throw new Error('يجب اختيار عرض سعر واحد على الأقل');
     }
     if (!form.items.length) {
       setError('يجب إضافة أصناف للمقارنة');
       setLoading(false);
-      return;
+      throw new Error('يجب إضافة أصناف للمقارنة');
     }
     try {
       const payload = {
@@ -223,6 +225,7 @@ export function ComparisonForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 
@@ -232,6 +235,7 @@ export function ComparisonForm({
     setLoading(true);
     try {
       await deleteComparison(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/comparisons');
       router.refresh();
     } catch (err) {
@@ -250,6 +254,7 @@ export function ComparisonForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
       setLoading(false);
+      throw err;
     }
   };
 

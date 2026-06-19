@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Check, X, RotateCcw } from 'lucide-react';
 import { processApproval, checkCanApprove } from '@/actions/common';
+import { useOperationToast } from '@/hooks/useOperationToast';
+import { OPERATION_MESSAGES } from '@/lib/operation-messages';
 
 interface ApprovalTimelineProps {
   approval: {
@@ -45,6 +47,7 @@ export function ApprovalTimeline({ approval, canApprove: canApproveProp, onActio
   const [showNotes, setShowNotes] = useState(false);
   const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | 'return' | null>(null);
   const [canApprove, setCanApprove] = useState(canApproveProp ?? false);
+  const { showSuccess } = useOperationToast();
 
   useEffect(() => {
     if (canApproveProp !== undefined) {
@@ -72,6 +75,13 @@ export function ApprovalTimeline({ approval, canApprove: canApproveProp, onActio
     setLoading(true);
     try {
       await processApproval({ approvalId: approval.id, action, notes });
+      if (action === 'approve') {
+        showSuccess(OPERATION_MESSAGES.approve);
+      } else if (action === 'reject') {
+        showSuccess(OPERATION_MESSAGES.reject);
+      } else {
+        showSuccess('تم إرجاع العملية للتعديل');
+      }
       onAction?.();
       if (canApproveProp === undefined) {
         setCanApprove(false);

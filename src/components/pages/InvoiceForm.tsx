@@ -9,6 +9,7 @@ import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createInvoice, deleteInvoice } from '@/actions/purchase-orders';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import { useSaveLock } from '@/hooks/useSaveLock';
 import { formatCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
@@ -62,6 +63,7 @@ export function InvoiceForm({
   defaultReceivingId,
 }: InvoiceFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const { loading, withSaveLock } = useSaveLock();
   const [error, setError] = useState('');
 
@@ -143,6 +145,7 @@ export function InvoiceForm({
     setError('');
     try {
       await deleteInvoice(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/invoices');
       router.refresh();
     } catch (err) {

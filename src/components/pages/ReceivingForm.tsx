@@ -9,6 +9,7 @@ import { createReceiving, deleteReceiving } from '@/actions/purchase-orders';
 import { fetchDocumentUsage } from '@/actions/common';
 import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
+import { useOperationToast } from '@/hooks/useOperationToast';
 import { useSaveLock } from '@/hooks/useSaveLock';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import {
@@ -51,6 +52,7 @@ export function ReceivingForm({
   defaultInspectionId,
 }: ReceivingFormProps) {
   const router = useRouter();
+  const { showDeleteSuccess } = useOperationToast();
   const { loading, withSaveLock } = useSaveLock();
   const [error, setError] = useState('');
   const [usage, setUsage] = useState<UsedDocumentInfo | null>(null);
@@ -139,6 +141,7 @@ export function ReceivingForm({
     setError('');
     try {
       await deleteReceiving(existing.id as string);
+      showDeleteSuccess();
       router.push('/purchases/receivings');
       router.refresh();
     } catch (err) {

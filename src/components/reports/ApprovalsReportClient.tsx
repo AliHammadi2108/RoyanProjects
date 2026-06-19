@@ -12,17 +12,18 @@ import {
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate, formatReportSummaryAmount, type CurrencyLike } from '@/lib/utils';
 import type { ApprovalsReportRow, ReportResult } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
 interface ApprovalsReportClientProps {
   initialData: ReportResult<ApprovalsReportRow>;
+  baseCurrency?: CurrencyLike;
   permissions: { export: boolean; print: boolean; charts: boolean };
   printedBy?: string;
 }
 
-export function ApprovalsReportClient({ initialData, permissions, printedBy }: ApprovalsReportClientProps) {
+export function ApprovalsReportClient({ initialData, baseCurrency, permissions, printedBy }: ApprovalsReportClientProps) {
   const [data, setData] = useState(initialData);
   const [viewMode, setViewMode] = useState<ReportViewMode>('grid');
   const [pending, startTransition] = useTransition();
@@ -58,7 +59,7 @@ export function ApprovalsReportClient({ initialData, permissions, printedBy }: A
     {
       key: 'totalAmount',
       label: 'المبلغ',
-      render: (row) => formatCurrency(row.totalAmount),
+      render: (row) => formatReportSummaryAmount(row.totalAmount, baseCurrency),
     },
   ];
 

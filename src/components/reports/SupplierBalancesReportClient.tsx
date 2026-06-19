@@ -11,13 +11,14 @@ import {
   reportInputClass,
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
-import { formatCurrency } from '@/lib/utils';
+import { formatReportAmount, formatReportSummaryAmount, type CurrencyLike } from '@/lib/utils';
 import type { ReportResult, SupplierBalanceRow } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
 interface SupplierBalancesReportClientProps {
   initialData: ReportResult<SupplierBalanceRow>;
   suppliers: { id: string; code: string; nameAr: string }[];
+  baseCurrency?: CurrencyLike;
   permissions: { export: boolean; print: boolean; charts: boolean; viewBalance: boolean };
   printedBy?: string;
 }
@@ -34,6 +35,7 @@ const EXPORT_COLUMNS = [
 export function SupplierBalancesReportClient({
   initialData,
   suppliers,
+  baseCurrency,
   permissions,
   printedBy,
 }: SupplierBalancesReportClientProps) {
@@ -77,13 +79,15 @@ export function SupplierBalancesReportClient({
             key: 'totalInvoiced',
             label: 'إجمالي الفواتير',
             sortable: true,
-            render: (row: SupplierBalanceRow) => formatCurrency(row.totalInvoiced),
+            render: (row: SupplierBalanceRow) =>
+              formatReportAmount(row.totalInvoiced, row.currencyCode, baseCurrency),
           },
           {
             key: 'totalPaid',
             label: 'المدفوع',
             sortable: true,
-            render: (row: SupplierBalanceRow) => formatCurrency(row.totalPaid),
+            render: (row: SupplierBalanceRow) =>
+              formatReportAmount(row.totalPaid, row.currencyCode, baseCurrency),
           },
           {
             key: 'balance',
@@ -91,7 +95,7 @@ export function SupplierBalancesReportClient({
             sortable: true,
             render: (row: SupplierBalanceRow) => (
               <span className={row.balance > 0 ? 'text-red-700 font-medium' : 'text-green-700'}>
-                {formatCurrency(row.balance)}
+                {formatReportAmount(row.balance, row.currencyCode, baseCurrency)}
               </span>
             ),
           },
@@ -125,8 +129,8 @@ export function SupplierBalancesReportClient({
         permissions.viewBalance
           ? [
               { label: 'عدد الموردين', value: data.summary.supplierCount ?? 0 },
-              { label: 'إجمالي الفواتير', value: formatCurrency(Number(data.summary.totalInvoiced ?? 0)) },
-              { label: 'إجمالي المديونية', value: formatCurrency(Number(data.summary.totalBalance ?? 0)) },
+              { label: 'إجمالي الفواتير', value: formatReportSummaryAmount(Number(data.summary.totalInvoiced ?? 0), baseCurrency) },
+              { label: 'إجمالي المديونية', value: formatReportSummaryAmount(Number(data.summary.totalBalance ?? 0), baseCurrency) },
             ]
           : [{ label: 'عدد الموردين', value: data.summary.supplierCount ?? 0 }]
       }

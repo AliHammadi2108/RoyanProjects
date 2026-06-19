@@ -104,6 +104,13 @@ export async function fetchUsedDocumentsReport(filters: unknown) {
   return getUsedDocumentsReport(user.id, filters);
 }
 
+export async function fetchBaseCurrency() {
+  return prisma.currency.findFirst({
+    where: { isBase: true, isActive: true },
+    select: { id: true, code: true, nameAr: true, symbol: true, isBase: true },
+  });
+}
+
 export async function fetchReportFilterOptions() {
   const user = await requireAuth();
   const allowedSuppliers = await getAllowedSupplierIds(user.id, 'view');

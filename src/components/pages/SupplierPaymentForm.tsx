@@ -15,7 +15,7 @@ import {
   removeSupplierPayment,
   cancelSupplierPayment,
 } from '@/actions/supplier-payments';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatAmount, formatDate, getBaseCurrency, getDocumentCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
@@ -135,6 +135,17 @@ export function SupplierPaymentForm({
     () => invoices.filter((i) => i.selected).reduce((s, i) => s + i.allocatedAmount, 0),
     [invoices]
   );
+  const baseCurrency = useMemo(() => getBaseCurrency(masterData.currencies), [masterData.currencies]);
+  const documentCurrency = useMemo(
+    () =>
+      getDocumentCurrency({
+        currencyId: form.currencyId,
+        currencies: masterData.currencies,
+        existing: existing?.currency as { symbol?: string; code?: string },
+      }),
+    [form.currencyId, masterData.currencies, existing?.currency]
+  );
+  const fmtAmount = (amount: number) => formatAmount(amount, documentCurrency, baseCurrency);
 
   const toggleInvoice = (invoiceId: string, checked: boolean) => {
     setInvoices((rows) =>
@@ -395,7 +406,7 @@ export function SupplierPaymentForm({
                   توزيع المبلغ
                 </button>
                 <span className="text-sm text-gray-600 py-2">
-                  المخصص: {canViewAmounts ? formatCurrency(selectedTotal) : '—'}
+                  المخصص: {canViewAmounts ? fmtAmount(selectedTotal) : '—'}
                 </span>
               </div>
             ) : null}
@@ -446,9 +457,9 @@ export function SupplierPaymentForm({
                       <td>{row.dueDate ? formatDate(row.dueDate) : '-'}</td>
                       {canViewAmounts ? (
                         <>
-                          <td>{formatCurrency(row.netTotal)}</td>
-                          <td>{formatCurrency(row.paidAmount)}</td>
-                          <td>{formatCurrency(row.remainingAmount)}</td>
+                          <td>{fmtAmount(row.netTotal)}</td>
+                          <td>{fmtAmount(row.paidAmount)}</td>
+                          <td>{fmtAmount(row.remainingAmount)}</td>
                           <td>
                             {isEditable ? (
                               <input
@@ -459,7 +470,7 @@ export function SupplierPaymentForm({
                                 onChange={(e) => updateAllocation(row.invoiceId, Number(e.target.value))}
                               />
                             ) : (
-                              formatCurrency(row.allocatedAmount)
+                              fmtAmount(row.allocatedAmount)
                             )}
                           </td>
                         </>

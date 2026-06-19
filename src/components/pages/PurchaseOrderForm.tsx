@@ -9,7 +9,7 @@ import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
 import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createPurchaseOrder, updatePurchaseOrder, submitPurchaseOrder, deletePurchaseOrder } from '@/actions/purchase-orders';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
-import { formatCurrency } from '@/lib/utils';
+import { formatAmount, getBaseCurrency, getDocumentCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import {
@@ -267,6 +267,16 @@ export function PurchaseOrderForm({
 
   const subtotal = form.items.reduce((s, i) => s + i.total, 0);
   const total = subtotal - form.discount;
+  const baseCurrency = useMemo(() => getBaseCurrency(masterData.currencies), [masterData.currencies]);
+  const documentCurrency = useMemo(
+    () =>
+      getDocumentCurrency({
+        currencyId: form.currencyId,
+        currencies: masterData.currencies,
+        existing: existing?.currency as { symbol?: string; code?: string },
+      }),
+    [form.currencyId, masterData.currencies, existing?.currency]
+  );
 
   const refreshApproval = () => {
     if (!existing?.id) return;
@@ -487,7 +497,9 @@ export function PurchaseOrderForm({
                 cascadeLock={cascadeLock && effectiveEditable}
                 warehouseId={form.warehouseId || undefined}
               />
-              <div className="mt-4 text-left font-bold">الإجمالي: {formatCurrency(total)}</div>
+              <div className="mt-4 text-left font-bold">
+                الإجمالي: {formatAmount(total, documentCurrency, baseCurrency)}
+              </div>
             </div>
           </div>
         </div>

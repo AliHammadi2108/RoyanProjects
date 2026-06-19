@@ -11,7 +11,7 @@ import {
   reportInputClass,
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatNumber, formatReportSummaryAmount, type CurrencyLike } from '@/lib/utils';
 import type { QuantityCostRow, ReportResult } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
 
@@ -22,6 +22,7 @@ interface QuantityCostReportClientProps {
     warehouses: { id: string; nameAr: string }[];
     items: { id: string; code: string; nameAr: string }[];
   };
+  baseCurrency?: CurrencyLike;
   permissions: { export: boolean; print: boolean; charts: boolean; viewCost: boolean };
   printedBy?: string;
 }
@@ -29,6 +30,7 @@ interface QuantityCostReportClientProps {
 export function QuantityCostReportClient({
   initialData,
   filterOptions,
+  baseCurrency,
   permissions,
   printedBy,
 }: QuantityCostReportClientProps) {
@@ -61,9 +63,9 @@ export function QuantityCostReportClient({
     { key: 'varianceQty', label: 'فرق الكمية', render: (r) => formatNumber(r.varianceQty) },
     ...(permissions.viewCost
       ? [
-          { key: 'orderedCost', label: 'تكلفة أمر', render: (r: QuantityCostRow) => formatCurrency(r.orderedCost) },
-          { key: 'invoicedCost', label: 'تكلفة فاتورة', render: (r: QuantityCostRow) => formatCurrency(r.invoicedCost) },
-          { key: 'varianceCost', label: 'فرق التكلفة', render: (r: QuantityCostRow) => formatCurrency(r.varianceCost) },
+          { key: 'orderedCost', label: 'تكلفة أمر', render: (r: QuantityCostRow) => formatReportSummaryAmount(r.orderedCost, baseCurrency) },
+          { key: 'invoicedCost', label: 'تكلفة فاتورة', render: (r: QuantityCostRow) => formatReportSummaryAmount(r.invoicedCost, baseCurrency) },
+          { key: 'varianceCost', label: 'فرق التكلفة', render: (r: QuantityCostRow) => formatReportSummaryAmount(r.varianceCost, baseCurrency) },
         ]
       : []),
   ];

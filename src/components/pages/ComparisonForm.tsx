@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -13,7 +13,7 @@ import { DocumentFormFooter, EDITABLE_DOC_STATUSES } from '@/components/ui/Docum
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { useOperationToast } from '@/hooks/useOperationToast';
 import type { UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
-import { formatCurrency } from '@/lib/utils';
+import { formatAmount, getBaseCurrency, getDocumentCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import { resolveSourceDocument, isCascadeLockActive, masterFieldDisabled } from '@/lib/document-cascade';
@@ -195,6 +195,17 @@ export function ComparisonForm({
     items[idx] = item;
     setForm({ ...form, items });
   };
+
+  const baseCurrency = useMemo(() => getBaseCurrency(masterData.currencies), [masterData.currencies]);
+  const documentCurrency = useMemo(
+    () =>
+      getDocumentCurrency({
+        currencyId: form.currencyId,
+        currencies: masterData.currencies,
+        existing: existing?.currency as { symbol?: string; code?: string },
+      }),
+    [form.currencyId, masterData.currencies, existing?.currency]
+  );
 
   const handleSave = async (submit = false, recipientUserIds?: string[]) => {
     setLoading(true);
@@ -427,7 +438,9 @@ export function ComparisonForm({
                             item.unitPrice.toFixed(2)
                           )}
                         </td>
-                        <td className="px-3 py-2">{formatCurrency(item.netAmount)}</td>
+                        <td className="px-3 py-2">
+                          {formatAmount(item.netAmount, documentCurrency, baseCurrency)}
+                        </td>
                         {!isNew && (
                           <td className="px-3 py-2">
                             {item.isSelected ? '✓' : '-'}

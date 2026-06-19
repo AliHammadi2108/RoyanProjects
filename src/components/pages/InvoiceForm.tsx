@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -11,7 +11,7 @@ import { DocumentFormFooter } from '@/components/ui/DocumentFormActions';
 import { useOperationFormToolbar } from '@/hooks/useOperationFormToolbar';
 import { useOperationToast } from '@/hooks/useOperationToast';
 import { useSaveLock } from '@/hooks/useSaveLock';
-import { formatCurrency } from '@/lib/utils';
+import { formatAmount, getBaseCurrency, getDocumentCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import {
@@ -152,6 +152,16 @@ export function InvoiceForm({
 
   const subtotal = form.items.reduce((s, i) => s + i.total, 0);
   const netTotal = subtotal - form.discount + form.otherExpenses;
+  const baseCurrency = useMemo(() => getBaseCurrency(masterData.currencies), [masterData.currencies]);
+  const documentCurrency = useMemo(
+    () =>
+      getDocumentCurrency({
+        currencyId: form.currencyId,
+        currencies: masterData.currencies,
+        existing: existing?.currency as { symbol?: string; code?: string },
+      }),
+    [form.currencyId, masterData.currencies, existing?.currency]
+  );
 
   const handleDelete = async () => {
     if (!existing?.id) return;
@@ -188,8 +198,8 @@ export function InvoiceForm({
       )?.nameAr,
       totalAmount: netTotal,
       currency:
-        (existing?.currency as { symbol?: string; code?: string }) ??
-        masterData.currencies.find((c) => c.id === (existing?.currencyId as string)),
+        documentCurrency ??
+        masterData.currencies.find((c) => c.id === form.currencyId),
     },
   });
 
@@ -317,7 +327,9 @@ export function InvoiceForm({
               readOnly={!effectiveEditable}
               cascadeLock={cascadeLock && effectiveEditable}
             />
-            <div className="mt-4 text-left font-bold">صافي المبلغ: {formatCurrency(netTotal)}</div>
+            <div className="mt-4 text-left font-bold">
+              صافي المبلغ: {formatAmount(netTotal, documentCurrency, baseCurrency)}
+            </div>
           </div>
 
           <DocumentFormFooter

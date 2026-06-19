@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { clientSearchMapped, SEARCH_MAPPINGS } from '@/lib/search';
 import { DOCUMENT_LABELS_AR } from '@/lib/constants';
-import { formatCurrency } from '@/lib/utils';
+import { formatReportSummaryAmount, type CurrencyLike } from '@/lib/utils';
 
 interface MatrixRow {
   id: string;
@@ -24,7 +24,13 @@ interface MatrixRow {
   role?: { nameAr: string } | null;
 }
 
-export function ApprovalMatrixClient({ initialData }: { initialData: MatrixRow[] }) {
+export function ApprovalMatrixClient({
+  initialData,
+  baseCurrency,
+}: {
+  initialData: MatrixRow[];
+  baseCurrency?: CurrencyLike;
+}) {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(
@@ -62,13 +68,13 @@ export function ApprovalMatrixClient({ initialData }: { initialData: MatrixRow[]
       key: 'minAmount',
       label: 'من مبلغ',
       render: (row: Record<string, unknown>) =>
-        row.minAmount != null ? formatCurrency(row.minAmount as number) : '-',
+        row.minAmount != null ? formatReportSummaryAmount(row.minAmount as number, baseCurrency) : '-',
     },
     {
       key: 'maxAmount',
       label: 'إلى مبلغ',
       render: (row: Record<string, unknown>) =>
-        row.maxAmount != null ? formatCurrency(row.maxAmount as number) : '-',
+        row.maxAmount != null ? formatReportSummaryAmount(row.maxAmount as number, baseCurrency) : '-',
     },
     {
       key: 'approvalMode',

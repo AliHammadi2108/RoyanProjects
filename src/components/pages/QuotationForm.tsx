@@ -10,7 +10,7 @@ import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createQuotation, updateQuotation, submitQuotation, deleteQuotation } from '@/actions/quotations';
 import { fetchApprovedPurchaseRequests } from '@/actions/purchase-requests';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
-import { formatCurrency } from '@/lib/utils';
+import { formatAmount, getBaseCurrency, getDocumentCurrency } from '@/lib/utils';
 import { normalizePaymentMethod } from '@/lib/constants';
 import { PaymentMethodSelect } from '@/components/ui/PaymentMethodSelect';
 import {
@@ -221,6 +221,16 @@ export function QuotationForm({
 
   const subtotal = form.items.reduce((s, i) => s + i.total, 0);
   const total = subtotal - form.discount - form.extraDiscount;
+  const baseCurrency = useMemo(() => getBaseCurrency(masterData.currencies), [masterData.currencies]);
+  const documentCurrency = useMemo(
+    () =>
+      getDocumentCurrency({
+        currencyId: form.currencyId,
+        currencies: masterData.currencies,
+        existing: existing?.currency as { symbol?: string; code?: string },
+      }),
+    [form.currencyId, masterData.currencies, existing?.currency]
+  );
 
   const refreshApproval = () => {
     if (!existing?.id) return;
@@ -422,7 +432,7 @@ export function QuotationForm({
                 cascadeLock={cascadeLock && effectiveEditable}
               />
               <div className="mt-4 pt-4 border-t flex justify-between text-sm">
-                <span>الإجمالي: {formatCurrency(total)}</span>
+                <span>الإجمالي: {formatAmount(total, documentCurrency, baseCurrency)}</span>
               </div>
             </div>
           </div>

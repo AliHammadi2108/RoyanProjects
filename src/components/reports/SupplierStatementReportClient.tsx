@@ -17,7 +17,7 @@ import {
 import { ListSearchAutocomplete } from '@/components/ui/ListSearchAutocomplete';
 import { AutocompleteSelect } from '@/components/ui/AutocompleteSelect';
 import type { AutocompleteOption } from '@/lib/autocomplete';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate, formatReportAmount, formatReportSummaryAmount, resolveCurrencyById, type CurrencyLike } from '@/lib/utils';
 import { filterCurrenciesForSupplier } from '@/lib/supplier-currency';
 import type { ReportResult, SupplierStatementRow } from '@/services/reports/types';
 
@@ -34,7 +34,8 @@ interface SupplierOption {
 
 interface SupplierStatementReportClientProps {
   suppliers: SupplierOption[];
-  currencies: { id: string; code: string; nameAr: string }[];
+  currencies: { id: string; code: string; nameAr: string; symbol?: string }[];
+  baseCurrency?: CurrencyLike;
   permissions: { export: boolean; print: boolean; viewBalance: boolean };
   printedBy?: string;
 }
@@ -64,6 +65,7 @@ const EMPTY_DATA: ReportResult<SupplierStatementRow> = {
 export function SupplierStatementReportClient({
   suppliers: initialSuppliers,
   currencies,
+  baseCurrency,
   permissions,
   printedBy,
 }: SupplierStatementReportClientProps) {
@@ -143,6 +145,11 @@ export function SupplierStatementReportClient({
     [supplierId, dateFrom, dateTo, currencyId, paymentStatus, movementType, page, sortBy, sortDir]
   );
 
+  const summaryCurrency = useMemo(
+    () => resolveCurrencyById(currencies, currencyId) ?? baseCurrency,
+    [currencies, currencyId, baseCurrency]
+  );
+
   const columns: ReportGridColumn<SupplierStatementRow>[] = [
     {
       key: 'movementDate',
@@ -160,20 +167,21 @@ export function SupplierStatementReportClient({
             label: 'مدين',
             sortable: true,
             render: (row: SupplierStatementRow) =>
-              row.debit > 0 ? formatCurrency(row.debit) : '-',
+              row.debit > 0 ? formatReportAmount(row.debit, row.currencyCode, baseCurrency) : '-',
           },
           {
             key: 'credit',
             label: 'دائن',
             sortable: true,
             render: (row: SupplierStatementRow) =>
-              row.credit > 0 ? formatCurrency(row.credit) : '-',
+              row.credit > 0 ? formatReportAmount(row.credit, row.currencyCode, baseCurrency) : '-',
           },
           {
             key: 'balance',
             label: 'الرصيد',
             sortable: true,
-            render: (row: SupplierStatementRow) => formatCurrency(row.balance),
+            render: (row: SupplierStatementRow) =>
+              formatReportAmount(row.balance, row.currencyCode, baseCurrency),
           },
         ]
       : []),
@@ -266,11 +274,11 @@ export function SupplierStatementReportClient({
           summary={
             permissions.viewBalance
               ? [
-                  { label: 'رصيد افتتاحي', value: formatCurrency(Number(data.summary.openingBalance ?? 0)) },
-                  { label: 'إجمالي المشتريات', value: formatCurrency(Number(data.summary.totalPurchases ?? 0)) },
-                  { label: 'إجمالي المرتجعات', value: formatCurrency(Number(data.summary.totalReturns ?? 0)) },
-                  { label: 'إجمالي المدفوعات', value: formatCurrency(Number(data.summary.totalPayments ?? 0)) },
-                  { label: 'رصيد ختامي', value: formatCurrency(Number(data.summary.closingBalance ?? 0)) },
+                  { label: 'رصيد افتتاحي', value: formatReportSummaryAmount(Number(data.summary.openingBalance ?? 0), summaryCurrency) },
+                  { label: 'إجمالي المشتريات', value: formatReportSummaryAmount(Number(data.summary.totalPurchases ?? 0), summaryCurrency) },
+                  { label: 'إجمالي المرتجعات', value: formatReportSummaryAmount(Number(data.summary.totalReturns ?? 0), summaryCurrency) },
+                  { label: 'إجمالي المدفوعات', value: formatReportSummaryAmount(Number(data.summary.totalPayments ?? 0), summaryCurrency) },
+                  { label: 'رصيد ختامي', value: formatReportSummaryAmount(Number(data.summary.closingBalance ?? 0), summaryCurrency) },
                 ]
               : [{ label: 'عدد الحركات', value: data.summary.movementCount ?? 0 }]
           }

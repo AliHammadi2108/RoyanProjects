@@ -384,7 +384,7 @@ export async function getApprovedComparisons() {
   await requirePermission('supplier_selection.create');
   return prisma.technicalComparison.findMany({
     where: { status: DOCUMENT_STATUS.APPROVED },
-    include: { items: true },
+    include: { items: true, currency: true },
   });
 }
 

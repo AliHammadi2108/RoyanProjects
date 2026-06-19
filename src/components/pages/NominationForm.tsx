@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -8,7 +8,7 @@ import { ApprovalTimeline } from '@/components/ui/ApprovalTimeline';
 import { OperationToolbar } from '@/components/ui/OperationToolbar';
 import { createNomination, updateNomination, submitNomination, deleteNomination } from '@/actions/comparisons';
 import { fetchDocumentUsage, getDocumentApproval } from '@/actions/common';
-import { formatCurrency } from '@/lib/utils';
+import { formatAmount, getBaseCurrency, getDocumentCurrency } from '@/lib/utils';
 import { resolveSourceDocument, isCascadeLockActive, masterFieldDisabled } from '@/lib/document-cascade';
 import { MasterDataSelect } from '@/components/ui/MasterDataSelect';
 import type { MasterData } from '@/types/master-data';
@@ -22,6 +22,8 @@ interface ApprovedComparison {
   documentNo: string;
   branchId: string;
   purchaseCycleId: string;
+  currencyId?: string | null;
+  currency?: { symbol?: string; code?: string } | null;
   items: Array<{
     itemId: string;
     itemNameSnapshot: string;
@@ -179,6 +181,24 @@ export function NominationForm({
   };
 
   const total = form.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const linkedComparison = approvedComparisons.find((c) => c.id === form.technicalComparisonId);
+  const baseCurrency = useMemo(() => getBaseCurrency(masterData.currencies), [masterData.currencies]);
+  const documentCurrency = useMemo(
+    () =>
+      getDocumentCurrency({
+        currencyId: (existing?.currencyId as string) || linkedComparison?.currencyId,
+        currencies: masterData.currencies,
+        existing: existing?.currency as { symbol?: string; code?: string },
+        linked: linkedComparison?.currency,
+      }),
+    [
+      existing?.currencyId,
+      existing?.currency,
+      linkedComparison?.currencyId,
+      linkedComparison?.currency,
+      masterData.currencies,
+    ]
+  );
 
   const refreshApproval = () => {
     if (!existing?.id) return;
@@ -321,12 +341,16 @@ export function NominationForm({
                           item.unitPrice.toFixed(2)
                         )}
                       </td>
-                      <td className="px-3 py-2">{formatCurrency(item.quantity * item.unitPrice)}</td>
+                      <td className="px-3 py-2">
+                        {formatAmount(item.quantity * item.unitPrice, documentCurrency, baseCurrency)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="mt-4 text-left font-bold">الإجمالي: {formatCurrency(total)}</div>
+              <div className="mt-4 text-left font-bold">
+                الإجمالي: {formatAmount(total, documentCurrency, baseCurrency)}
+              </div>
             </div>
 
             <DocumentFormFooter

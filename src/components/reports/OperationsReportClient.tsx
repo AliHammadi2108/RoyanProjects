@@ -12,7 +12,7 @@ import {
   reportSelectClass,
 } from '@/components/reports/ReportFilters';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
+import { formatDate, formatNumber, formatReportAmount, formatReportSummaryAmount, type CurrencyLike } from '@/lib/utils';
 import { shouldHideStatusInReport } from '@/lib/operation-toolbar';
 import type { OperationsReportRow, ReportResult } from '@/services/reports/types';
 import type { ReportViewMode } from '@/components/reports/ReportViewToggle';
@@ -26,6 +26,7 @@ interface FilterOptions {
 interface OperationsReportClientProps {
   initialData: ReportResult<OperationsReportRow>;
   filterOptions: FilterOptions;
+  baseCurrency?: CurrencyLike;
   permissions: { export: boolean; print: boolean; charts: boolean; viewCost: boolean };
   printedBy?: string;
 }
@@ -53,6 +54,7 @@ const EXPORT_COLUMNS = [
 export function OperationsReportClient({
   initialData,
   filterOptions,
+  baseCurrency,
   permissions,
   printedBy,
 }: OperationsReportClientProps) {
@@ -124,7 +126,8 @@ export function OperationsReportClient({
             key: 'totalAmount',
             label: 'الإجمالي',
             sortable: true,
-            render: (row: OperationsReportRow) => formatCurrency(row.totalAmount),
+            render: (row: OperationsReportRow) =>
+              formatReportAmount(row.totalAmount, row.currencyCode, baseCurrency),
           } as ReportGridColumn<OperationsReportRow>,
         ]
       : []),
@@ -167,7 +170,7 @@ export function OperationsReportClient({
       summary={[
         { label: 'عدد الوثائق', value: data.summary.documentCount ?? 0 },
         ...(permissions.viewCost
-          ? [{ label: 'إجمالي المبالغ', value: formatCurrency(Number(data.summary.totalAmount ?? 0)) }]
+          ? [{ label: 'إجمالي المبالغ', value: formatReportSummaryAmount(Number(data.summary.totalAmount ?? 0), baseCurrency) }]
           : []),
         { label: 'إجمالي الكميات الأساسية', value: formatNumber(Number(data.summary.totalBaseQty ?? 0)) },
       ]}

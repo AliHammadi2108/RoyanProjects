@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SearchBox, SearchEmptyState } from '@/components/ui/SearchBox';
 import { UsedDocumentBadge, UsedFilterSelect, type UsedDocumentInfo } from '@/components/ui/UsedDocumentBadge';
 import { clientSearch, SEARCH_MAPPINGS } from '@/lib/search';
-import { formatDate, formatDocumentCurrency, resolveDocumentCurrency, type CurrencyLike } from '@/lib/utils';
+import { formatDate, formatDocumentCurrency, formatReportAmount, formatReportSummaryAmount, getCurrencySymbol, resolveDocumentCurrency, type CurrencyLike } from '@/lib/utils';
 import { useOperationToast } from '@/hooks/useOperationToast';
 import { EDITABLE_DOC_STATUSES } from '@/components/ui/DocumentFormActions';
 import { deleteQuotation } from '@/actions/quotations';
@@ -24,10 +24,15 @@ import {
   type PurchaseListFilter,
 } from '@/lib/purchase-open-filter';
 
-function formatRowAmount(row: Record<string, unknown>, amountKey: string): string {
+function formatRowAmount(
+  row: Record<string, unknown>,
+  amountKey: string,
+  baseCurrency?: CurrencyLike
+): string {
   return formatDocumentCurrency(
     (row[amountKey] as number) ?? 0,
-    resolveDocumentCurrency(row as { currency?: CurrencyLike; purchaseOrder?: { currency?: CurrencyLike } })
+    resolveDocumentCurrency(row as { currency?: CurrencyLike; purchaseOrder?: { currency?: CurrencyLike } }),
+    getCurrencySymbol(baseCurrency)
   );
 }
 

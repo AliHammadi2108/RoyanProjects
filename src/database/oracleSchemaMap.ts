@@ -276,6 +276,7 @@ export const SCREEN_MAP: Record<ScreenKey, OracleScreenMap> = {
     screen: 'reports',
     route: '/reports',
     masterTable: 'P_REQUEST',
+    pkMaster: 'PR_SER',
     serField: 'PR_SER',
     noField: 'PR_NO',
     dateField: 'PR_DATE',
@@ -316,6 +317,41 @@ export const VENDOR_CURR_COLUMNS = {
   isDefault: 'CUR_DFLT',
   maxLimitPr: 'MAX_LMT_AMT_PR',
   maxLimitPo: 'MAX_LMT_AMT_PO',
+} as const;
+
+/** Prisma field → Oracle column for items (IAS_ITM_MST). */
+export const IAS_ITM_MST_COLUMNS = {
+  code: 'I_CODE',
+  nameAr: 'I_NAME',
+  nameEn: 'I_E_NAME',
+  groupCode: 'G_CODE',
+  description: 'I_DESC',
+  barcode: 'ALTER_CODE',
+  isBlocked: 'BLOCKED',
+  isInactive: 'INACTIVE',
+  isService: 'SERVICE_ITM',
+  vatPct: 'VAT_PER',
+} as const;
+
+/** Prisma field → Oracle column for item units (IAS_ITM_DTL). */
+export const IAS_ITM_DTL_COLUMNS = {
+  itemCode: 'I_CODE',
+  unit: 'ITM_UNT',
+  factorToBase: 'P_SIZE',
+  isMain: 'MAIN_UNIT',
+  isSale: 'SALE_UNIT',
+  isPurchase: 'PUR_UNIT',
+  isStock: 'STOCK_UNIT',
+  barcode: 'BARCODE',
+  isInactive: 'INACTIVE',
+} as const;
+
+/** Prisma field → Oracle column for warehouses (WAREHOUSE_DETAILS). */
+export const WAREHOUSE_COLUMNS = {
+  code: 'W_CODE',
+  nameAr: 'W_A_NAME',
+  nameEn: 'W_E_NAME',
+  isInactive: 'INACTIVE',
 } as const;
 
 /** Prisma field → Oracle column for currencies (EX_RATE). */

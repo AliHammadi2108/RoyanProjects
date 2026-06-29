@@ -45,7 +45,7 @@ export type SupplierDto = {
   since: Date | null;
 };
 
-function mapSupplierRow(row: OracleSupplierRow): SupplierDto {
+export function mapSupplierRow(row: OracleSupplierRow): SupplierDto {
   return {
     code: row.V_CODE,
     accountCode: row.V_A_CODE,

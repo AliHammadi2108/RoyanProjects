@@ -1,5 +1,5 @@
 import oracledb from 'oracledb';
-import { getOracleConnection, q } from '@/database/oracle';
+import { getOracleConnection, q, withOracleTransaction } from '@/database/oracle';
 
 export type PaginationParams = {
   page?: number;
@@ -39,4 +39,35 @@ export async function executeOne<T extends object>(
   return rows[0] ?? null;
 }
 
-export { q };
+export async function executeQueryOnConn<T extends object>(
+  conn: oracledb.Connection,
+  sql: string,
+  binds: oracledb.BindParameters = {},
+  options?: oracledb.ExecuteOptions
+): Promise<T[]> {
+  const result = await conn.execute<T>(sql, binds, {
+    outFormat: oracledb.OUT_FORMAT_OBJECT,
+    ...options,
+  });
+  return (result.rows ?? []) as T[];
+}
+
+export async function executeOneOnConn<T extends object>(
+  conn: oracledb.Connection,
+  sql: string,
+  binds: oracledb.BindParameters = {}
+): Promise<T | null> {
+  const rows = await executeQueryOnConn<T>(conn, sql, binds);
+  return rows[0] ?? null;
+}
+
+export async function executeDmlOnConn(
+  conn: oracledb.Connection,
+  sql: string,
+  binds: oracledb.BindParameters = {}
+): Promise<number> {
+  const result = await conn.execute(sql, binds, { autoCommit: false });
+  return result.rowsAffected ?? 0;
+}
+
+export { q, withOracleTransaction };

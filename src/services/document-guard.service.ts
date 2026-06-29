@@ -1,5 +1,6 @@
 ﻿import { prisma } from '@/lib/db';
 import { DOCUMENT_STATUS } from '@/lib/constants';
+import { isOracleMode } from '@/database/provider';
 import { getDocumentUsage, type UsageDocumentType } from './used-document.service';
 
 const NON_EDITABLE_STATUSES = [
@@ -53,6 +54,13 @@ export async function assertDocumentMutable(
   documentId: string,
   action: GuardAction = 'edit'
 ) {
+  if (isOracleMode()) {
+    const { assertOracleDocumentMutable } = await import('@/database/document-guard.oracle');
+    const ser = Number(documentId);
+    if (Number.isNaN(ser)) throw new Error('معرّف المستند غير صالح');
+    return assertOracleDocumentMutable(documentType, ser, action);
+  }
+
   const status = await fetchDocumentStatus(documentType, documentId);
   if (!status) throw new Error('المستند غير موجود');
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { isOracleMode } from '@/database/provider';
 import { requirePermission } from '@/lib/permissions';
 import {
   currencySchema,
@@ -53,6 +54,16 @@ async function assertUnitNotUsed(id: string) {
 
 export async function getCurrencies(filters?: { search?: string; activeOnly?: boolean }) {
   await requirePermission('master.currencies.view');
+  if (isOracleMode()) {
+    const { listCurrencies: listOracleCurrencies } = await import('@/database/repositories/currency.repository');
+    const { toCurrencySettingsRow } = await import('@/database/adapters/master-data.adapter');
+    const result = await listOracleCurrencies({
+      search: filters?.search,
+      activeOnly: filters?.activeOnly,
+      pageSize: 200,
+    });
+    return result.rows.map(toCurrencySettingsRow);
+  }
   return prisma.currency.findMany({
     where: {
       ...(filters?.activeOnly && { isActive: true }),
@@ -158,6 +169,30 @@ export async function deleteCurrency(id: string) {
 
 export async function getSuppliersSettings(filters?: { search?: string; activeOnly?: boolean }) {
   await requirePermission('master.suppliers.view');
+  if (isOracleMode()) {
+    const { listSuppliers: listOracleSuppliers } = await import('@/database/repositories/supplier.repository');
+    const { listVendorCurrenciesBySupplier } = await import(
+      '@/database/repositories/vendor-currency.repository'
+    );
+    const { listCurrencies: listOracleCurrencies } = await import('@/database/repositories/currency.repository');
+    const { toSupplierSettingsRow } = await import('@/database/adapters/master-data.adapter');
+    const [supplierPage, currencyPage] = await Promise.all([
+      listOracleSuppliers({
+        search: filters?.search,
+        activeOnly: filters?.activeOnly,
+        pageSize: 200,
+      }),
+      listOracleCurrencies({ activeOnly: true, pageSize: 200 }),
+    ]);
+    const currencyLookup = new Map(currencyPage.rows.map((c) => [c.code, c]));
+    const rows = await Promise.all(
+      supplierPage.rows.map(async (supplier) => {
+        const currencies = await listVendorCurrenciesBySupplier(supplier.code, !filters?.activeOnly);
+        return toSupplierSettingsRow(supplier, currencies, currencyLookup);
+      })
+    );
+    return rows;
+  }
   return prisma.supplier.findMany({
     where: {
       ...(filters?.activeOnly && { isActive: true }),
@@ -179,6 +214,10 @@ export async function getSuppliersSettings(filters?: { search?: string; activeOn
 
 export async function getSupplierSettings(id: string) {
   await requirePermission('master.suppliers.view');
+  if (isOracleMode()) {
+    const suppliers = await getSuppliersSettings();
+    return suppliers.find((s) => s.id === id || s.code === id) ?? null;
+  }
   return prisma.supplier.findUnique({
     where: { id },
     include: {
@@ -337,6 +376,16 @@ export async function deleteUnit(id: string) {
 
 export async function getItemsSettings(filters?: { search?: string; activeOnly?: boolean }) {
   await requirePermission('master.items.view');
+  if (isOracleMode()) {
+    const { listItems: listOracleItems } = await import('@/database/repositories/item.repository');
+    const { toItemSettingsRow } = await import('@/database/adapters/master-data.adapter');
+    const result = await listOracleItems({
+      search: filters?.search,
+      activeOnly: filters?.activeOnly,
+      pageSize: 200,
+    });
+    return result.rows.map(toItemSettingsRow);
+  }
   return prisma.item.findMany({
     where: {
       ...(filters?.activeOnly && { isActive: true }),
@@ -360,6 +409,10 @@ export async function getItemsSettings(filters?: { search?: string; activeOnly?:
 
 export async function getItemSettings(id: string) {
   await requirePermission('master.items.view');
+  if (isOracleMode()) {
+    const items = await getItemsSettings();
+    return items.find((i) => i.id === id || i.code === id) ?? null;
+  }
   return prisma.item.findUnique({
     where: { id },
     include: {

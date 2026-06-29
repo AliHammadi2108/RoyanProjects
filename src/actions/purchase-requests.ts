@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { isOracleMode } from '@/database/provider';
 import { requirePermission } from '@/lib/permissions';
 import { purchaseRequestSchema } from '@/lib/validations';
 import { getNextDocumentNo } from '@/services/document-sequence.service';
@@ -39,6 +40,29 @@ export async function getPurchaseRequests(filters?: {
   usedFilter?: '' | 'used' | 'unused';
 }) {
   await requirePermission('purchase_requests.view');
+
+  if (isOracleMode()) {
+    const { listPurchaseRequests } = await import('@/database/repositories/purchase-request.repository');
+    const { toPurchaseRequestListRow } = await import('@/database/adapters/purchase-request.adapter');
+    const result = await listPurchaseRequests({
+      status: filters?.status,
+      search: filters?.search,
+      pageSize: 200,
+    });
+    let rows = result.rows.map(toPurchaseRequestListRow);
+    if (filters?.usedFilter) {
+      const usageMap = await getDocumentUsageMap(
+        'PURCHASE_REQUEST',
+        rows.map((r) => r.id)
+      );
+      rows = rows.filter((r) => {
+        const used = usageMap.get(r.id)?.isUsed;
+        return filters.usedFilter === 'used' ? used : !used;
+      });
+    }
+    return rows;
+  }
+
   const rows = await prisma.purchaseRequest.findMany({
     where: {
       ...(filters?.status && { status: filters.status }),
@@ -76,6 +100,14 @@ export async function getPurchaseRequests(filters?: {
 
 export async function getPurchaseRequest(id: string) {
   await requirePermission('purchase_requests.view');
+  if (isOracleMode()) {
+    const { findPurchaseRequestBySer } = await import('@/database/repositories/purchase-request.repository');
+    const { toPurchaseRequestListRow } = await import('@/database/adapters/purchase-request.adapter');
+    const ser = Number(id);
+    if (Number.isNaN(ser)) return null;
+    const dto = await findPurchaseRequestBySer(ser);
+    return dto ? toPurchaseRequestListRow(dto) : null;
+  }
   return prisma.purchaseRequest.findUnique({
     where: { id },
     include: {
@@ -96,14 +128,6 @@ export async function createPurchaseRequest(data: unknown) {
   const user = await requirePermission('purchase_requests.create');
   const parsed = purchaseRequestSchema.parse(data);
 
-  const documentNo = await getNextDocumentNo('PURCHASE_REQUEST', parsed.branchId);
-  const cycleNo = await getNextDocumentNo('PURCHASE_CYCLE', parsed.branchId);
-
-  const totalAmount = parsed.items.reduce(
-    (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),
-    0
-  );
-
   const optionalIds = {
     departmentId: toOptionalId(parsed.departmentId),
     warehouseId: toOptionalId(parsed.warehouseId),
@@ -115,6 +139,50 @@ export async function createPurchaseRequest(data: unknown) {
     await assertSupplierAccess(user.id, optionalIds.supplierId, 'use_in_purchase');
     await assertSupplierCurrencyAllowed(optionalIds.supplierId, optionalIds.currencyId);
   }
+
+  if (isOracleMode()) {
+    const { createPurchaseRequest: createOraclePurchaseRequest } = await import(
+      '@/database/repositories/purchase-request.repository'
+    );
+    const { toPurchaseRequestListRow } = await import('@/database/adapters/purchase-request.adapter');
+    const saved = await createOraclePurchaseRequest({
+      description: parsed.notes,
+      warehouseCode: optionalIds.warehouseId,
+      supplierCode: optionalIds.supplierId,
+      supplierName: optionalIds.supplierId,
+      currencyCode: optionalIds.currencyId,
+      referenceNo: parsed.referenceNo,
+      requiredDate: parsed.requiredDate ? new Date(parsed.requiredDate) : null,
+      requesterUnit: parsed.requesterUnit,
+      date: parsed.requestDate ? new Date(parsed.requestDate) : new Date(),
+      lines: parsed.items.map((item) => ({
+        itemCode: item.itemId,
+        quantity: item.quantity,
+        unit: item.unitId ?? 'EA',
+        factorToBase: item.factorToBase ?? 1,
+        warehouseCode: optionalIds.warehouseId,
+        description: item.itemNameSnapshot,
+      })),
+    });
+    const result = toPurchaseRequestListRow(saved);
+    await createAuditLog({
+      userId: user.id,
+      action: 'CREATE',
+      entityType: 'PURCHASE_REQUEST',
+      entityId: result.id,
+      newValues: { documentNo: result.documentNo },
+    });
+    revalidatePath('/purchases/requests');
+    return result;
+  }
+
+  const documentNo = await getNextDocumentNo('PURCHASE_REQUEST', parsed.branchId);
+  const cycleNo = await getNextDocumentNo('PURCHASE_CYCLE', parsed.branchId);
+
+  const totalAmount = parsed.items.reduce(
+    (sum, item) => sum + calculateLineTotal(item.quantity, item.unitPrice, item.discount, item.tax),
+    0
+  );
 
   const exchangeRate = parsed.exchangeRate ?? (await resolveExchangeRate(optionalIds.currencyId));
   const enrichedItems = await enrichPurchaseLineItems(lineItemsForEnrich(parsed.items), 'purchase');
@@ -221,6 +289,39 @@ export async function updatePurchaseRequest(id: string, data: unknown) {
     await assertSupplierCurrencyAllowed(optionalIds.supplierId, optionalIds.currencyId);
   }
 
+  if (isOracleMode()) {
+    const { updatePurchaseRequest: updateOraclePurchaseRequest } = await import(
+      '@/database/repositories/purchase-request.repository'
+    );
+    const { toPurchaseRequestListRow } = await import('@/database/adapters/purchase-request.adapter');
+    const saved = await updateOraclePurchaseRequest(Number(id), {
+      description: parsed.notes,
+      warehouseCode: optionalIds.warehouseId,
+      supplierCode: optionalIds.supplierId,
+      currencyCode: optionalIds.currencyId,
+      referenceNo: parsed.referenceNo,
+      requiredDate: parsed.requiredDate ? new Date(parsed.requiredDate) : null,
+      requesterUnit: parsed.requesterUnit,
+      lines: parsed.items.map((item) => ({
+        itemCode: item.itemId,
+        quantity: item.quantity,
+        unit: item.unitId ?? 'EA',
+        factorToBase: item.factorToBase ?? 1,
+        warehouseCode: optionalIds.warehouseId,
+        description: item.itemNameSnapshot,
+      })),
+    });
+    const result = toPurchaseRequestListRow(saved);
+    await createAuditLog({
+      userId: user.id,
+      action: 'UPDATE',
+      entityType: 'PURCHASE_REQUEST',
+      entityId: id,
+    });
+    revalidatePath(`/purchases/requests/${id}`);
+    return result;
+  }
+
   const exchangeRate = parsed.exchangeRate ?? (await resolveExchangeRate(optionalIds.currencyId));
   const enrichedItems = await enrichPurchaseLineItems(lineItemsForEnrich(parsed.items), 'purchase');
 
@@ -311,6 +412,22 @@ export async function submitPurchaseRequest(id: string, recipientUserIds?: strin
 export async function deletePurchaseRequest(id: string) {
   const user = await requirePermission('purchase_requests.delete');
   await assertDocumentMutable('PURCHASE_REQUEST', id, 'delete');
+
+  if (isOracleMode()) {
+    const { deletePurchaseRequest: deleteOraclePurchaseRequest } = await import(
+      '@/database/repositories/purchase-request.repository'
+    );
+    await deleteOraclePurchaseRequest(Number(id));
+    await createAuditLog({
+      userId: user.id,
+      action: 'DELETE',
+      entityType: 'PURCHASE_REQUEST',
+      entityId: id,
+    });
+    revalidatePath('/purchases/requests');
+    return { success: true };
+  }
+
   const existing = await prisma.purchaseRequest.findUnique({ where: { id } });
   if (!existing) throw new Error('طلب الشراء غير موجود');
 

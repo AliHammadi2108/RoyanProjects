@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { DOCUMENT_ROUTES, DOCUMENT_LABELS_AR } from '@/lib/constants';
+import { isOracleMode } from '@/database/provider';
 
 export type UsageDocumentType =
   | 'PURCHASE_REQUEST'
@@ -48,6 +49,12 @@ export async function getDocumentUsageMap(
   documentType: UsageDocumentType,
   documentIds: string[]
 ): Promise<Map<string, DocumentUsageInfo>> {
+  if (isOracleMode()) {
+    const { getOracleDocumentUsageMap } = await import('@/database/document-usage.oracle');
+    const sers = documentIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n));
+    return getOracleDocumentUsageMap(documentType, sers);
+  }
+
   const result = new Map<string, DocumentUsageInfo>();
   if (documentIds.length === 0) return result;
 

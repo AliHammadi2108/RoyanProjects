@@ -1,10 +1,18 @@
 import { prisma } from '@/lib/db';
+import { isOracleMode } from '@/database/provider';
 
 export async function assertSupplierCurrencyAllowed(
   supplierId: string,
   currencyId: string | null | undefined
 ) {
   if (!currencyId) return;
+
+  if (isOracleMode()) {
+    const { assertVendorCurrencyAllowed } = await import(
+      '@/database/repositories/vendor-currency.repository'
+    );
+    return assertVendorCurrencyAllowed(supplierId, currencyId);
+  }
 
   const links = await prisma.supplierCurrency.findMany({
     where: { supplierId },

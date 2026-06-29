@@ -20,7 +20,9 @@
     "pm2:logs": "pm2 logs purchase-web-system",
     "start:prod": "next start -p 3000",
     "health": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/health-check.ps1",
-    "db:cleanup-test": "tsx scripts/cleanup-test-operations.ts"
+    "db:cleanup-test": "tsx scripts/cleanup-test-operations.ts",
+    "oracle:test": "tsx scripts/test-oracle-connection.ts",
+    "test:oracle-connection": "tsx scripts/test-oracle-connection.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -34,6 +36,7 @@
     "lucide-react": "^0.460.0",
     "next": "14.2.18",
     "next-auth": "^4.24.10",
+    "oracledb": "6.8.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4",
@@ -43,6 +46,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.17.6",
+    "@types/oracledb": "6.5.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
